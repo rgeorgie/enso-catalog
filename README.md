@@ -22,7 +22,7 @@ File upload validation (size & extension)
 
 Runs on Linux and Windows. No internet required once dependencies are installed.
 
-Project structure
+```Project structure
 karate-club/
 ├─ app.py
 ├─ requirements.txt
