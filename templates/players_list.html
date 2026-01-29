@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">Players</h1>
+
+<form class="row row-cols-lg-auto g-3 align-items-end mb-4" method="get">
+  <div class="col-12">
+    <label class="form-label">Search</label>
+    <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="Name">
+  </div>
+  <div class="col-12">
+    <label class="form-label">Belt</label>
+    <select class="form-select" name="belt">
+      <option value="">All</option>
+      {% for value,label in belts %}
+        <option value="{{ value }}" {% if belt==value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-12">
+    <label class="form-label">Active</label>
+    <select class="form-select" name="active">
+      <option value="">All</option>
+      <option value="yes" {% if active=="yes" %}selected{% endif %}>Active</option>
+      <option value="no" {% if active=="no" %}selected{% endif %}>Inactive</option>
+    </select>
+  </div>
+  <div class="col-12">
+    <button class="btn btn-primary" type="submit">Apply</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">Reset</a>
+    <a class="btn btn-outline-success" href="{{ url_for('export_csv') }}">Export CSV</a>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Belt</th>
+        <th>Discipline</th>
+        <th>Active</th>
+        <th>Email</th>
+        {% if session.get('is_admin') %}<th></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in players %}
+      <tr>
+        <td><a href="{{ url_for('player_detail', player_id=p.id) }}">{{ p.full_name() }}</a></td>
+        <td>{{ p.belt_rank }}</td>
+        <td>{{ p.discipline }}</td>
+        <td>
+          {% if p.active_member %}
+            <span class="badge bg-success">Yes</span>
+          {% else %}
+            <span class="badge bg-secondary">No</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.email %}
+            <a href="mailto:{{ p.email }}">{{ p.email }}</a>
+          {% endif %}
+        </td>
+        {% if session.get('is_admin') %}
+        <td class="text-nowrap">
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_player', player_id=p.id) }}">Edit</a>
+          <form class="d-inline" action="{{ url_for('delete_player', player_id=p.id) }}" method="post" onsubmit="return confirm('Delete this player?');">
+            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="text-center text-muted">No players found.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
