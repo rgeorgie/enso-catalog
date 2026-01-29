@@ -13,6 +13,12 @@
   </div>
 </div>
 
+{% if payment_count == 0 %}
+<div class="mb-3">
+  <span class="badge text-bg-warning text-dark">No payments recorded</span>
+</div>
+{% endif %}
+
 <div class="row g-3">
   <!-- Left column: photo & quick actions -->
   <div class="col-12 col-lg-4">
@@ -75,8 +81,79 @@
             ➕ New Event Receipt
           </a>
         </div>
+        <hr>
+        <div class="d-grid gap-2">
+          <form method="post" action="{{ url_for('player_pay_due', player_id=player.id) }}" onsubmit="return confirm('Pay monthly dues for this player?');">
+            <input type="hidden" name="kind" value="monthly">
+            <button class="btn btn-outline-success">Pay Monthly Dues</button>
+          </form>
+          <form method="post" action="{{ url_for('player_pay_due', player_id=player.id) }}" onsubmit="return confirm('Pay unpaid event fees for this player?');">
+            <input type="hidden" name="kind" value="events">
+            <button class="btn btn-outline-success">Pay Event Fees</button>
+          </form>
+          <form method="post" action="{{ url_for('player_pay_due', player_id=player.id) }}" onsubmit="return confirm('Pay outstanding session debts for this player?');">
+            <input type="hidden" name="kind" value="debts">
+            <button class="btn btn-outline-success">Pay Session Debts</button>
+          </form>
+          <form method="post" action="{{ url_for('player_pay_due', player_id=player.id) }}" onsubmit="return confirm('Pay all outstanding dues for this player?');">
+            <input type="hidden" name="kind" value="all">
+            <button class="btn btn-success">Pay All Dues</button>
+          </form>
+        </div>
       </div>
     </div>
+    
+    <!-- Per-session summary (if player pays per session) -->
+    {% if not player.monthly_fee_is_monthly %}
+    <div class="card mt-3">
+      <div class="card-header"><strong>Training sessions</strong></div>
+      <div class="card-body">
+        <div><strong>Sessions paid:</strong> {{ total_sessions_paid }}</div>
+        <div><strong>Sessions taken:</strong> {{ total_sessions_taken }}</div>
+        {% set rem = total_sessions_paid - total_sessions_taken %}
+        <div><strong>Remaining sessions:</strong>
+          {% if rem >= 0 %}
+            {{ rem }}
+          {% else %}
+            <span class="text-danger">Overused by {{ -rem }}</span>
+          {% endif %}
+        </div>
+        <div class="mt-2"><strong>Prepaid amount:</strong> {{ total_prepaid_amount }} EUR</div>
+        {% if per_session_amount is not none %}
+          <div><strong>Per-session price:</strong> {{ per_session_amount }} EUR</div>
+          <div><strong>Cost for sessions taken:</strong> {{ expected_cost }} EUR</div>
+          <div><strong>Owed (cost - prepaid):</strong> {{ owed_amount }} EUR</div>
+        {% endif %}
+
+        <hr>
+        <div><strong>Session receipts</strong></div>
+        {% if sess_records %}
+          <ul class="list-unstyled mt-2">
+            {% for r in sess_records %}
+              <li class="d-flex justify-content-between align-items-center py-1">
+                <div>
+                  <strong>{{ r.receipt_no or ('#' ~ r.id) }}</strong>
+                  &nbsp;— {{ r.paid_at.date() if r.paid_at else '' }}
+                  &nbsp;• {{ r.sessions_paid }} paid, {{ r.sessions_taken }} taken
+                  &nbsp;• {{ r.amount }} EUR
+                </div>
+                <div class="d-flex gap-2">
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('receipt_view', rid=r.id) }}">View</a>
+                  {% if session.get('is_admin') %}
+                    <form method="post" action="{{ url_for('receipt_tick_session', rid=r.id) }}">
+                      <button class="btn btn-sm btn-outline-success" type="submit">Mark session taken</button>
+                    </form>
+                  {% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted"><em>No per-session receipts found.</em></div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   <!-- Right column: details -->
@@ -97,6 +174,13 @@
             <div><strong>Weight (kg):</strong> {{ player.weight_kg or '—' }}</div>
             <div><strong>Height (cm):</strong> {{ player.height_cm or '—' }}</div>
             <div><strong>Join Date:</strong> {{ player.join_date or '—' }}</div>
+            <div><strong>{{ _('Monthly Fee Type') }}:</strong>
+              {% if player.monthly_fee_amount is not none %}
+                {{ player.monthly_fee_amount }} EUR ({{ _('monthly') if player.monthly_fee_is_monthly else _('per session') }})
+              {% else %}
+                —
+              {% endif %}
+            </div>
           </div>
         </div>
       </div>

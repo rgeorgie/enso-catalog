@@ -43,6 +43,7 @@
         <th>{{ _('Name') }}</th>
         <th>{{ _('Belt Color') }}</th>
         <th>{{ _('Discipline') }}</th>
+        <th>{{ _('Monthly Fee Type') }}</th>
         <th>{{ _('Active') }}</th>
         <th>{{ _('Email') }}</th>
         <th>{{ _('Sportdata') }}</th>
@@ -58,6 +59,17 @@
         <td><a href="{{ url_for('player_detail', player_id=p.id) }}">{{ p.full_name() }}</a></td>
         <td><span class="belt-chip" style="{{ belt_chip_style(p.belt_rank) }}">{{ _(p.belt_rank) }}</span></td>
         <td>{{ _(p.discipline) }}</td>
+        <td>
+          {% if p.monthly_fee_amount is not none %}
+            {{ p.monthly_fee_amount }} EUR ({{ _('monthly') if p.monthly_fee_is_monthly else _('per session') }})
+            {% if not p.monthly_fee_is_monthly %}
+              <div class="small text-muted">Paid: {{ p.total_sessions_paid }} • Taken: {{ p.total_sessions_taken }} • Owed: {{ p.owed_amount if p.owed_amount is not none else '—' }} EUR</div>
+            {% endif %}
+            {% if p.payment_count == 0 %}
+              <div class="small mt-1"><span class="badge text-bg-warning text-dark">No payments</span></div>
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
         <td>
           {% if p.active_member %}
             <span class="badge bg-success">{{ _('Yes') }}</span>
@@ -85,11 +97,16 @@
           <form class="d-inline" method="post" action="{{ url_for('delete_player', player_id=p.id) }}" onsubmit="return confirm('Delete this player?');">
             <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
           </form>
+          <!-- Quick pay dues button -->
+          <form class="d-inline" method="post" action="{{ url_for('player_pay_due', player_id=p.id) }}" onsubmit="return confirm('Pay all outstanding dues for this player?');">
+            <input type="hidden" name="kind" value="all">
+            <button class="btn btn-sm btn-outline-success" type="submit">Pay Due</button>
+          </form>
         </td>
         {% endif %}
       </tr>
     {% else %}
-      <tr><td colspan="8" class="text-center text-muted">{{ _('No players found.') }}</td></tr>
+      <tr><td colspan="9" class="text-center text-muted">{{ _('No players found.') }}</td></tr>
     {% endfor %}
     </tbody>
   </table>

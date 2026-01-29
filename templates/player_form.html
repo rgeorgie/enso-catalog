@@ -107,16 +107,16 @@
       {{ form.insurance_expiry_date(class="form-control", type="date") }}
     </div>
 
-    <!-- Monthly Fee -->
+    <!-- Training Fee -->
     <div class="col-12 mt-3"><h5>{{ _('Monthly Fee Type') }}</h5></div>
     <div class="col-md-4">
-      <label class="form-label">{{ _('Monthly Fee (BGN)') }}</label>
+      <label class="form-label">{{ _('Training Fee (EUR)') }}</label>
       {{ form.monthly_fee_amount(class="form-control", placeholder="50") }}
     </div>
     <div class="col-md-4 d-flex align-items-center">
-      <div class="form-check mt-4">
-        {{ form.monthly_fee_is_monthly(class="form-check-input") }}
-        <label class="form-check-label">{{ _('Is Monthly (not per session)') }}</label>
+      <div class="form-check form-switch mt-4">
+        {{ form.monthly_fee_is_monthly(class="form-check-input", id="monthly_switch", role="switch") }}
+        <label class="form-check-label" for="monthly_switch"><span id="monthly_label">{{ _('Month') if (form.monthly_fee_is_monthly.data) else _('Session') }}</span></label>
       </div>
     </div>
 
@@ -146,8 +146,37 @@
     </div>
 
     <div class="col-12">
-      <button class="btn btn-primary" type="submit">{{ _('Save') }}</button>
-      <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">{{ _('Cancel') }}</a>
+        <button class="btn btn-primary" type="submit">{{ _('Save') }}</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">{{ _('Cancel') }}</a>
+      </div>
+
+      <!-- Inline prepay (only when editing an existing player) -->
+      {% if player %}
+      <div class="col-12 mt-4">
+        <div class="card p-3">
+          <div class="card-header"><strong>Pre-pay training sessions</strong></div>
+          <div class="card-body">
+            <div class="row g-2 align-items-end">
+              <div class="col-auto">
+                <label class="form-label">Sessions</label>
+                <input id="prepay_sessions" type="number" class="form-control" min="1" value="8">
+              </div>
+              <div class="col-auto">
+                <label class="form-label">Amount (EUR)</label>
+                <input id="prepay_amount" type="number" class="form-control" step="1" min="0" value="{% if (not player.monthly_fee_is_monthly and player.monthly_fee_amount) %}{{ player.monthly_fee_amount }}{% else %}0{% endif %}">
+              </div>
+              <div class="col-auto">
+                <label class="form-label">&nbsp;</label>
+                <button id="prepay_btn" type="button" class="btn btn-success">Pre-pay</button>
+              </div>
+              <div class="col-12">
+                <div id="prepay_msg" class="form-text text-success" style="display:none;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
     </div>
   </div>
 </form>
@@ -173,5 +202,51 @@
   }
   document.getElementById('belt_rank')?.addEventListener('change', updateBeltPreview);
   updateBeltPreview();
+  // Toggle label for training fee switch
+  const ms = document.getElementById('monthly_switch');
+  if (ms) {
+    ms.addEventListener('change', function() {
+      const lbl = document.getElementById('monthly_label');
+      if (!lbl) return;
+      lbl.textContent = this.checked ? '{{ _('Month') }}' : '{{ _('Session') }}';
+    });
+  }
+
+  // Inline prepay POST
+  const prepayBtn = document.getElementById('prepay_btn');
+  if (prepayBtn) {
+    prepayBtn.addEventListener('click', async () => {
+      const sessions = parseInt(document.getElementById('prepay_sessions').value || '0', 10);
+      const amount = parseInt(document.getElementById('prepay_amount').value || '0', 10);
+      const msg = document.getElementById('prepay_msg');
+      if (!sessions || sessions <= 0) {
+        msg.style.display = 'block'; msg.textContent = 'Please enter sessions >= 1'; return;
+      }
+      const fd = new URLSearchParams();
+      fd.append('kind', 'training_session');
+      fd.append('player_id', '{{ player.id if player else "" }}');
+      fd.append('sessions_paid', String(sessions));
+      fd.append('amount', String(amount));
+      fd.append('currency', 'EUR');
+
+      try {
+        const resp = await fetch('{{ url_for('payment_new') }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: fd.toString(),
+          credentials: 'same-origin'
+        });
+        if (resp.redirected) {
+          // go to receipt page
+          window.location.href = resp.url;
+          return;
+        }
+        const text = await resp.text();
+        msg.style.display = 'block'; msg.textContent = 'Prepayment recorded.';
+      } catch (e) {
+        msg.style.display = 'block'; msg.textContent = 'Prepayment failed.';
+      }
+    });
+  }
 </script>
 {% endblock %}

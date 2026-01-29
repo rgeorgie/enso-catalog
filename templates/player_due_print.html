@@ -36,6 +36,18 @@
     <p class="mb-3"><em>No monthly fee configured for this player.</em></p>
   {% endif %}
 
+  <!-- Per-session summary -->
+  {% if per_session_amount is not none %}
+  <h5 class="mt-4 mb-2">Training (Per-session)</h5>
+  <p>
+    <strong>Sessions paid:</strong> {{ total_sessions_paid }}<br>
+    <strong>Sessions taken:</strong> {{ total_sessions_taken }}<br>
+    <strong>Prepaid amount:</strong> {{ total_prepaid_amount }} EUR<br>
+    <strong>Per-session price:</strong> {{ per_session_amount }} EUR<br>
+    <strong>Owed amount:</strong> {{ owed_amount }} EUR
+  </p>
+  {% endif %}
+
   <h5 class="mt-4 mb-2">Unpaid Event Registrations ({{ "%04d-%02d"|format(year, month) }})</h5>
   {% if regs_unpaid %}
     <div class="table-responsive">

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Outstanding Debts</h1>
+
+{% if debts %}
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr><th>Receipt</th><th>Player</th><th>Amount (EUR)</th><th>Note</th><th>Created</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+      {% for d in debts %}
+        <tr>
+          <td><a href="{{ url_for('receipt_view', rid=d.id) }}">{{ d.receipt_no or ('#' ~ d.id) }}</a></td>
+          <td><a href="{{ url_for('player_detail', player_id=d.player.id) }}">{{ d.player.full_name() }}</a></td>
+          <td>{{ d.amount }}</td>
+          <td>{{ d.note or '' }}</td>
+          <td>{{ d.created_at.strftime('%Y-%m-%d') }}</td>
+          <td>
+            <form method="post" action="{{ url_for('receipt_pay_debt', rid=d.id) }}">
+              <button class="btn btn-sm btn-success">Record payment</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p><em>No outstanding debts.</em></p>
+{% endif %}
+
+{% endblock %}
