@@ -3,9 +3,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="mb-0">{{ player.full_name() }}</h1>
   {% if session.get('is_admin') %}
-    <div>
+    <div class="d-flex gap-2">
       <a class="btn btn-outline-primary" href="{{ url_for('edit_player', player_id=player.id) }}">{{ _('Edit Player') }}</a>
-      <form class="d-inline" method="post" action="{{ url_for('delete_player', player_id=player.id) }}" onsubmit="return confirm('Delete?');">
+      <form class="d-inline" method="post" action="{{ url_for('delete_player', player_id=player.id) }}">
         <button class="btn btn-outline-danger" type="submit">{{ _('Delete') }}</button>
       </form>
     </div>
@@ -15,52 +15,109 @@
 <div class="row g-4">
   <div class="col-md-4">
     {% if player.photo_filename %}
-      <img class="player-photo img-fluid" src="{{ url_for('uploaded_file', filename=player.photo_filename) }}" alt="{{ player.full_name() }}">
+      <img class="img-fluid player-photo" src="{{ url_for('uploaded_file', filename=player.photo_filename) }}" alt="{{ player.full_name() }}">
     {% else %}
       <div class="text-muted fst-italic">{{ _('No photo uploaded') }}</div>
     {% endif %}
   </div>
+
   <div class="col-md-8">
+    {% set med_text, med_color = validity_badge(player.medical_expiry_date) %}
+    {% set ins_text, ins_color = validity_badge(player.insurance_expiry_date) %}
+
     <dl class="row">
-      <dt class="col-sm-3">{{ _('Belt') }}</dt><dd class="col-sm-9">{{ _(player.belt_rank) }}</dd>
+      <dt class="col-sm-3">{{ _('Belt Color') }}</dt>
+      <dd class="col-sm-9"><span class="belt-chip" style="{{ belt_chip_style(player.belt_rank) }}">{{ _(player.belt_rank) }}</span></dd>
+
+      <dt class="col-sm-3">{{ _('Grade Level') }}</dt><dd class="col-sm-9">{{ player.grade_level or '—' }}</dd>
+      <dt class="col-sm-3">{{ _('Grade Date') }}</dt><dd class="col-sm-9">{{ player.grade_date or '—' }}</dd>
+
       <dt class="col-sm-3">{{ _('Discipline') }}</dt><dd class="col-sm-9">{{ _(player.discipline) }}</dd>
       <dt class="col-sm-3">{{ _('Active') }}</dt><dd class="col-sm-9">{{ _('Yes') if player.active_member else _('No') }}</dd>
-      <dt class="col-sm-3">{{ _('Gender') }}</dt><dd class="col-sm-9">{{ _(player.gender) if player.gender else _('—') }}</dd>
+      <dt class="col-sm-3">{{ _('Gender') }}</dt><dd class="col-sm-9">{{ _(player.gender) if player.gender else '—' }}</dd>
       <dt class="col-sm-3">{{ _('Birthdate') }}</dt><dd class="col-sm-9">{{ player.birthdate or '—' }}</dd>
       <dt class="col-sm-3">{{ _('Height (cm)') }}</dt><dd class="col-sm-9">{{ player.height_cm or '—' }}</dd>
       <dt class="col-sm-3">{{ _('Weight (kg)') }}</dt><dd class="col-sm-9">{{ player.weight_kg or '—' }}</dd>
+
       <dt class="col-sm-3">{{ _('Email') }}</dt>
       <dd class="col-sm-9">{% if player.email %}<a href="mailto:{{ player.email }}">{{ player.email }}</a>{% else %}—{% endif %}</dd>
       <dt class="col-sm-3">{{ _('Phone') }}</dt><dd class="col-sm-9">{{ player.phone or '—' }}</dd>
       <dt class="col-sm-3">{{ _('Joined') }}</dt><dd class="col-sm-9">{{ player.join_date or '—' }}</dd>
+
+      <dt class="col-sm-3">{{ _('Mother Name') }}</dt><dd class="col-sm-9">{{ player.mother_name or '—' }}</dd>
+      <dt class="col-sm-3">{{ _('Mother Phone') }}</dt><dd class="col-sm-9">{{ player.mother_phone or '—' }}</dd>
+      <dt class="col-sm-3">{{ _('Father Name') }}</dt><dd class="col-sm-9">{{ player.father_name or '—' }}</dd>
+      <dt class="col-sm-3">{{ _('Father Phone') }}</dt><dd class="col-sm-9">{{ player.father_phone or '—' }}</dd>
+
+      <dt class="col-sm-3">{{ _('Examination Date') }}</dt><dd class="col-sm-9">{{ player.medical_exam_date or '—' }}</dd>
+      <dt class="col-sm-3">{{ _('Expiry Date') }}</dt><dd class="col-sm-9"><span class="badge bg-{{ med_color }}">{{ med_text }}</span></dd>
+      <dt class="col-sm-3">{{ _('Insurance Expiry Date') }}</dt><dd class="col-sm-9"><span class="badge bg-{{ ins_color }}">{{ ins_text }}</span></dd>
+
+      <dt class="col-sm-3">{{ _('Monthly Fee (EUR)') }}</dt><dd class="col-sm-9">{{ player.monthly_fee_amount if player.monthly_fee_amount is not none else '—' }}{% if player.monthly_fee_amount is not none %} €{% endif %}</dd>
+      <dt class="col-sm-3">{{ _('Monthly Fee Type') }}</dt><dd class="col-sm-9">{{ _('Yes') if player.monthly_fee_is_monthly else _('No') }}</dd>
     </dl>
+
+    {% if player.notes %}
+      <h5 class="mt-4">{{ _('Notes') }}</h5>
+      <p>{{ player.notes }}</p>
+    {% endif %}
 
     {% if player.sportdata_wkf_url or player.sportdata_bnfk_url or player.sportdata_enso_url %}
       <h5 class="mt-4">{{ _('Sportdata Profiles') }}</h5>
       <ul class="list-unstyled">
         {% if player.sportdata_wkf_url %}
-          <li class="mb-1">
-            <a href="{{ player.sportdata_wkf_url }}" target="_blank" rel="noopener noreferrer">
-              <strong>WKF</strong> – {{ player.sportdata_wkf_url }}
-            </a>
-          </li>
+          <li class="mb-1"><a href="{{ player.sportdata_wkf_url }}" target="_blank" rel="noopener"><strong>WKF</strong> — {{ player.sportdata_wkf_url }}</a></li>
         {% endif %}
         {% if player.sportdata_bnfk_url %}
-          <li class="mb-1">
-            <a href="{{ player.sportdata_bnfk_url }}" target="_blank" rel="noopener noreferrer">
-              <strong>BNFK</strong> – {{ player.sportdata_bnfk_url }}
-            </a>
-          </li>
+          <li class="mb-1"><a href="{{ player.sportdata_bnfk_url }}" target="_blank" rel="noopener"><strong>BNFK</strong> — {{ player.sportdata_bnfk_url }}</a></li>
         {% endif %}
         {% if player.sportdata_enso_url %}
-          <li class="mb-1">
-            <a href="{{ player.sportdata_enso_url }}" target="_blank" rel="noopener noreferrer">
-              <strong>ENSO</strong> – {{ player.sportdata_enso_url }}
-            </a>
-          </li>
+          <li class="mb-1"><a href="{{ player.sportdata_enso_url }}" target="_blank" rel="noopener"><strong>ENSO</strong> — {{ player.sportdata_enso_url }}</a></li>
         {% endif %}
       </ul>
     {% endif %}
   </div>
 </div>
+
+<!-- Event participation -->
+<h4 class="mt-5">{{ _('Events') }}</h4>
+{% if regs and regs|length > 0 %}
+  <ul class="list-group">
+    {% for r in regs %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <a href="{{ url_for('event_detail', event_id=r.event.id) }}">{{ r.event.title }}</a>
+          <div class="small text-muted">
+            {{ r.event.start_date }} — {{ r.event.end_date or r.event.start_date }}
+            {% if r.categories and r.categories|length %}
+              · {{ r.categories | map(attribute='name') | join(', ') }}
+            {% endif %}
+          </div>
+        </div>
+        <div>
+          {% if r.paid %}
+            <span class="badge bg-success">{{ _('Paid') }}</span>
+          {% else %}
+            <span class="badge bg-danger">{{ _('No') }}</span>
+          {% endif %}
+          {% set computed = 0 %}
+          {% set has_any = false %}
+          {% for c in r.categories %}
+            {% if c.fee is not none %}
+              {% set computed = computed + c.fee %}
+              {% set has_any = true %}
+            {% endif %}
+          {% endfor %}
+          {% if r.fee_override is not none %}
+            <span class="badge bg-secondary ms-2">{{ r.fee_override }} €</span>
+          {% elif has_any %}
+            <span class="badge bg-secondary ms-2">{{ computed }} €</span>
+          {% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <div class="text-muted">{{ _('No registrations yet.') }}</div>
+{% endif %}
 {% endblock %}

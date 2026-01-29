@@ -2,67 +2,58 @@
 <html lang="{{ 'bg' if current_lang == 'bg' else 'en' }}">
 <head>
   <meta charset="utf-8">
-  <title>{{ title or _('Karate Club') }}</title>
+  <title>{{ _('Team ENSO') }} · {{ _('Karate Club') }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <!-- Bootstrap via CDN -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-    integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
-    crossorigin="anonymous"
-  >
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body { padding-top: 70px; }
-    .navbar-brand { font-weight: 600; }
+    .navbar-brand img { height: 34px; width: auto; }
     img.player-photo { max-width: 220px; height: auto; border-radius: 6px; }
-    .icon-btn svg { vertical-align: text-bottom; }
+    .belt-chip { border-radius: 999px; padding: .35rem .6rem; display:inline-block; min-width:64px; text-align:center; }
   </style>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
   <div class="container">
-    <a class="navbar-brand" href="{{ url_for('list_players') }}">{{ _('Karate Club') }}</a>
+    <a class="navbar-brand d-flex align-items-center gap-2" href="https://www.ensokarate.bg/" target="_blank" rel="noopener">
+      <img src="{{ url_for('static', filename='img/enso-logo.webp') }}" alt="Team ENSO logo">
+      <span>Team ENSO</span>
+    </a>
+
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
       <span class="navbar-toggler-icon"></span>
     </button>
 
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('list_players') }}">{{ _('Players') }}</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('events_calendar') }}">{{ _('Calendar') }}</a></li>
         {% if session.get('is_admin') %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('create_player') }}">{{ _('+ Add Player') }}</a>
-          </li>
-
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('fees_report') }}">{{ _('Fees Report') }}</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('create_player') }}">{{ _('+ Add Player') }}</a></li>
           {% set migrate_url = safe_url_for('migrate') %}
           {% if migrate_url %}
-            <li class="nav-item">
-              <a class="nav-link" href="{{ migrate_url }}">{{ _('Run DB migration') }}</a>
-            </li>
+            <li class="nav-item"><a class="nav-link" href="{{ migrate_url }}">{{ _('Run DB migration') }}</a></li>
           {% endif %}
         {% endif %}
       </ul>
 
       <ul class="navbar-nav">
-        <!-- Language switcher -->
+        <!-- Language switch -->
         <li class="nav-item me-2">
-          {% set next_url = request.full_path %}
           <div class="btn-group" role="group" aria-label="{{ _('Language') }}">
             <a class="btn btn-sm btn-outline-light {% if current_lang=='bg' %}active{% endif %}"
-               href="{{ url_for('set_language', lang_code='bg', next=next_url) }}">BG</a>
+               href="{{ url_for('set_language', lang_code='bg', next=request.full_path) }}">{{ _('BG') }}</a>
             <a class="btn btn-sm btn-outline-light {% if current_lang=='en' %}active{% endif %}"
-               href="{{ url_for('set_language', lang_code='en', next=next_url) }}">EN</a>
+               href="{{ url_for('set_language', lang_code='en', next=request.full_path) }}">{{ _('EN') }}</a>
           </div>
         </li>
 
         {% if session.get('is_admin') %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('logout') }}">{{ _('Logout') }}</a>
-          </li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">{{ _('Logout') }}</a></li>
         {% else %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('login') }}">{{ _('Admin Login') }}</a>
-          </li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">{{ _('Admin Login') }}</a></li>
         {% endif %}
       </ul>
     </div>
@@ -86,10 +77,6 @@
   {% block content %}{% endblock %}
 </main>
 
-<script
-  src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
-  integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
-  crossorigin="anonymous"
-></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

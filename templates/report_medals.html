@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-end mb-3">
+  <h1 class="mb-0">{{ _('Medals Report') }}</h1>
+  <form class="d-flex align-items-end gap-2" method="get">
+    <div>
+      <label class="form-label">{{ _('Year') }}</label>
+      <input class="form-control" type="number" min="2000" max="2100" name="year" value="{{ year }}">
+    </div>
+    <button class="btn btn-primary" type="submit">{{ _('Apply') }}</button>
+  </form>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">🥇 {{ _('Gold') }}</div>
+        <div class="fs-4 fw-semibold">{{ club_totals.gold }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">🥈 {{ _('Silver') }}</div>
+        <div class="fs-4 fw-semibold">{{ club_totals.silver }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">🥉 {{ _('Bronze') }}</div>
+        <div class="fs-4 fw-semibold">{{ club_totals.bronze }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">{{ _('Total') }}</div>
+        <div class="fs-4 fw-semibold">{{ club_totals.total }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if players %}
+  <div class="table-responsive">
+    <table class="table table-striped align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>{{ _('Player') }}</th>
+          <th>🥇 {{ _('Gold') }}</th>
+          <th>🥈 {{ _('Silver') }}</th>
+          <th>🥉 {{ _('Bronze') }}</th>
+          <th>{{ _('Total') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in players %}
+          <tr>
+            <td><a href="{{ url_for('player_detail', player_id=row.player.id) }}">{{ row.player.full_name() }}</a></td>
+            <td>{{ row.gold }}</td>
+            <td>{{ row.silver }}</td>
+            <td>{{ row.bronze }}</td>
+            <td>{{ row.total }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="alert alert-info">{{ _('Nothing to show.') }}</div>
+{% endif %}
+{% endblock %}

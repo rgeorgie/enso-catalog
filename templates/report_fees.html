@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+{% set month_value = '%04d-%02d'|format(year, month) %}
+{% set _due = due_date if due_date is defined else (due if due is defined else None) %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-end mb-3">
+  <h1 class="mb-0">{{ _('Fees Report') }}</h1>
+
+  <div class="ms-auto d-flex gap-2">
+    {# Prefer a dedicated fees CSV if present; otherwise hide button #}
+    {% set csv_url = safe_url_for('fees_export_csv', month=month_value) %}
+    {% if csv_url %}
+      <a class="btn btn-outline-secondary" href="{{ csv_url }}">
+        {{ _('Export CSV') }}
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<form class="row g-3 align-items-end mb-3" method="get">
+  <div class="col-auto">
+    <label class="form-label">{{ _('Month') }}</label>
+    <input class="form-control" type="month" name="month" value="{{ month_value }}">
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-primary" type="submit">{{ _('Apply') }}</button>
+  </div>
+  <div class="col-auto">
+    <div class="form-text">
+      {{ _('Due date') }}:
+      <strong>
+        {% if _due %}{{ _due }}{% else %}&mdash;{% endif %}
+      </strong>
+    </div>
+  </div>
+</form>
+
+{% if payments and payments|length > 0 %}
+<div class="table-responsive">
+  <table class="table table-bordered align-middle">
+    <thead class="table-light">
+      <tr>
+        <th style="min-width: 240px;">{{ _('Name') }}</th>
+        <th style="min-width: 140px;">{{ _('Belt Color') }}</th>
+        <th style="min-width: 120px;" class="text-end">{{ _('Amount') }}</th>
+        <th style="min-width: 160px;" class="text-center">{{ _('Paid') }}</th>
+        <th style="min-width: 160px;" class="text-center">{{ _('Toggle Paid') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in payments %}
+      {# Row highlighting:
+         - overdue (red): unpaid AND today > due (if both provided)
+         - warning (amber): unpaid and not overdue (or when today/due missing) #}
+      {% set overdue = (today is defined) and (_due is defined) and (not p.paid) and (_due < today) %}
+      <tr class="{% if not p.paid %}{% if overdue %}table-danger{% else %}table-warning{% endif %}{% endif %}">
+        <td class="text-nowrap">
+          <a href="{{ url_for('player_detail', player_id=p.player.id) }}">
+            {{ p.player.full_name() }}
+          </a>
+        </td>
+        <td>
+          <span class="belt-chip" style="{{ belt_chip_style(p.player.belt_rank) }}">
+            {{ _(p.player.belt_rank) }}
+          </span>
+        </td>
+        <td class="text-end">
+          {% if p.amount is not none %}{{ p.amount }}{% else %}&mdash;{% endif %}
+        </td>
+        <td class="text-center">
+          {% if p.paid %}
+            <span class="badge bg-success">{{ _('Yes') }}</span>
+            {% if p.paid_on %}
+              <div class="small text-muted mt-1">{{ p.paid_on }}</div>
+            {% endif %}
+          {% else %}
+            <span class="badge {% if overdue %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+              {{ _('No') }}
+            </span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          <form method="post" action="{{ url_for('toggle_payment', payment_id=p.id) }}">
+            <button class="btn btn-sm {% if p.paid %}btn-outline-secondary{% else %}btn-outline-success{% endif %}"
+                    type="submit">
+              {{ _('Toggle Paid') }}
+            </button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <div class="alert alert-info">{{ _('Nothing to show.') }}</div>
+{% endif %}
+{% endblock %}

@@ -41,19 +41,22 @@
     <thead>
       <tr>
         <th>{{ _('Name') }}</th>
-        <th>{{ _('Belt') }}</th>
+        <th>{{ _('Belt Color') }}</th>
         <th>{{ _('Discipline') }}</th>
         <th>{{ _('Active') }}</th>
         <th>{{ _('Email') }}</th>
-        <th class="text-nowrap">{{ _('Sportdata') }}</th>
-        {% if session.get('is_admin') %}<th style="width: 170px;"></th>{% endif %}
+        <th>{{ _('Sportdata') }}</th>
+        <th>Health</th>
+        {% if session.get('is_admin') %}<th style="width: 160px;"></th>{% endif %}
       </tr>
     </thead>
     <tbody>
     {% for p in players %}
+      {% set med_text, med_color = validity_badge(p.medical_expiry_date) %}
+      {% set ins_text, ins_color = validity_badge(p.insurance_expiry_date) %}
       <tr>
         <td><a href="{{ url_for('player_detail', player_id=p.id) }}">{{ p.full_name() }}</a></td>
-        <td>{{ _(p.belt_rank) }}</td>
+        <td><span class="belt-chip" style="{{ belt_chip_style(p.belt_rank) }}">{{ _(p.belt_rank) }}</span></td>
         <td>{{ _(p.discipline) }}</td>
         <td>
           {% if p.active_member %}
@@ -65,56 +68,28 @@
         <td>
           {% if p.email %}
             <a href="mailto:{{ p.email }}">{{ p.email }}</a>
-          {% endif %}
+          {% else %}—{% endif %}
         </td>
         <td class="text-nowrap">
-          {% if p.sportdata_wkf_url %}
-            <a class="btn btn-sm btn-outline-secondary icon-btn me-1"
-               href="{{ p.sportdata_wkf_url }}" target="_blank" rel="noopener noreferrer"
-               title="WKF" aria-label="WKF">
-              <!-- external link icon -->
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M6.5 2a.5.5 0 0 0 0 1h5.793L5.146 10.146a.5.5 0 0 0 .708.708L13 3.707V9.5a.5.5 0 0 0 1 0v-7A.5.5 0 0 0 13.5 2h-7z"/>
-                <path d="M13.5 14a.5.5 0 0 1-.5.5h-10A1.5 1.5 0 0 1 1.5 13V3a.5.5 0 0 1 1 0v10A.5.5 0 0 0 3 13.5h10a.5.5 0 0 1 .5.5z"/>
-              </svg>
-              WKF
-            </a>
-          {% endif %}
-          {% if p.sportdata_bnfk_url %}
-            <a class="btn btn-sm btn-outline-secondary icon-btn me-1"
-               href="{{ p.sportdata_bnfk_url }}" target="_blank" rel="noopener noreferrer"
-               title="BNFK" aria-label="BNFK">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M6.5 2a.5.5 0 0 0 0 1h5.793L5.146 10.146a.5.5 0 0 0 .708.708L13 3.707V9.5a.5.5 0 0 0 1 0v-7A.5.5 0 0 0 13.5 2h-7z"/>
-                <path d="M13.5 14a.5.5 0 0 1-.5.5h-10A1.5 1.5 0 0 1 1.5 13V3a.5.5 0 0 1 1 0v10A.5.5 0 0 0 3 13.5h10a.5.5 0 0 1 .5.5z"/>
-              </svg>
-              BNFK
-            </a>
-          {% endif %}
-          {% if p.sportdata_enso_url %}
-            <a class="btn btn-sm btn-outline-secondary icon-btn"
-               href="{{ p.sportdata_enso_url }}" target="_blank" rel="noopener noreferrer"
-               title="ENSO" aria-label="ENSO">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M6.5 2a.5.5 0 0 0 0 1h5.793L5.146 10.146a.5.5 0 0 0 .708.708L13 3.707V9.5a.5.5 0 0 0 1 0v-7A.5.5 0 0 0 13.5 2h-7z"/>
-                <path d="M13.5 14a.5.5 0 0 1-.5.5h-10A1.5 1.5 0 0 1 1.5 13V3a.5.5 0 0 1 1 0v10A.5.5 0 0 0 3 13.5h10a.5.5 0 0 1 .5.5z"/>
-              </svg>
-              ENSO
-            </a>
-          {% endif %}
+          {% if p.sportdata_wkf_url %}<a class="btn btn-sm btn-outline-primary me-1" target="_blank" href="{{ p.sportdata_wkf_url }}">WKF</a>{% endif %}
+          {% if p.sportdata_bnfk_url %}<a class="btn btn-sm btn-outline-primary me-1" target="_blank" href="{{ p.sportdata_bnfk_url }}">BNFK</a>{% endif %}
+          {% if p.sportdata_enso_url %}<a class="btn btn-sm btn-outline-primary" target="_blank" href="{{ p.sportdata_enso_url }}">ENSO</a>{% endif %}
         </td>
-
+        <td class="text-nowrap">
+          <span class="badge bg-{{ med_color }} me-1">Med: {{ med_text }}</span>
+          <span class="badge bg-{{ ins_color }}">Ins: {{ ins_text }}</span>
+        </td>
         {% if session.get('is_admin') %}
         <td class="text-nowrap">
           <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_player', player_id=p.id) }}">{{ _('Edit Player') }}</a>
-          <form class="d-inline" method="post" action="{{ url_for('delete_player', player_id=p.id) }}" onsubmit="return confirm('Delete?');">
+          <form class="d-inline" method="post" action="{{ url_for('delete_player', player_id=p.id) }}" onsubmit="return confirm('Delete this player?');">
             <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
           </form>
         </td>
         {% endif %}
       </tr>
     {% else %}
-      <tr><td colspan="7" class="text-center text-muted">{{ _('No players found.') }}</td></tr>
+      <tr><td colspan="8" class="text-center text-muted">{{ _('No players found.') }}</td></tr>
     {% endfor %}
     </tbody>
   </table>

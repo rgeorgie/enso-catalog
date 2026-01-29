@@ -8,12 +8,10 @@
     <div class="col-md-6">
       <label class="form-label">{{ _('First Name') }}</label>
       {{ form.first_name(class="form-control") }}
-      {% for e in form.first_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-6">
       <label class="form-label">{{ _('Last Name') }}</label>
       {{ form.last_name(class="form-control") }}
-      {% for e in form.last_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     </div>
 
     <div class="col-md-4">
@@ -24,10 +22,22 @@
       <label class="form-label">{{ _('Birthdate') }}</label>
       {{ form.birthdate(class="form-control", type="date") }}
     </div>
+
+    <!-- Belt & Grade -->
     <div class="col-md-4">
-      <label class="form-label">{{ _('Belt Rank') }}</label>
-      {{ form.belt_rank(class="form-select") }}
-      {% for e in form.belt_rank.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      <label class="form-label">{{ _('Belt Color') }}</label>
+      {{ form.belt_rank(class="form-select", id="belt_rank") }}
+      <div class="form-text mt-1">
+        <span id="belt_preview" class="belt-chip" style="border:1px solid #ced4da;">&nbsp;</span>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ _('Grade Level') }}</label>
+      {{ form.grade_level(class="form-select", id="grade_level") }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ _('Grade Date') }}</label>
+      {{ form.grade_date(class="form-control", type="date") }}
     </div>
 
     <div class="col-md-4">
@@ -37,7 +47,6 @@
     <div class="col-md-4">
       <label class="form-label">{{ _('Weight (kg)') }}</label>
       {{ form.weight_kg(class="form-control") }}
-      {% for e in form.weight_kg.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-4">
       <label class="form-label">{{ _('Height (cm)') }}</label>
@@ -47,11 +56,29 @@
     <div class="col-md-6">
       <label class="form-label">{{ _('Email') }}</label>
       {{ form.email(class="form-control") }}
-      {% for e in form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-6">
       <label class="form-label">{{ _('Phone') }}</label>
       {{ form.phone(class="form-control") }}
+    </div>
+
+    <!-- Parents -->
+    <div class="col-12 mt-3"><h5>{{ _('Mother Name') }} / {{ _('Father Name') }}</h5></div>
+    <div class="col-md-6">
+      <label class="form-label">{{ _('Mother Name') }}</label>
+      {{ form.mother_name(class="form-control") }}
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">{{ _('Mother Phone') }}</label>
+      {{ form.mother_phone(class="form-control") }}
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">{{ _('Father Name') }}</label>
+      {{ form.father_name(class="form-control") }}
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">{{ _('Father Phone') }}</label>
+      {{ form.father_phone(class="form-control") }}
     </div>
 
     <div class="col-md-4">
@@ -65,6 +92,34 @@
       </div>
     </div>
 
+    <!-- Medical / Insurance -->
+    <div class="col-12 mt-3"><h5>{{ _('Medical Examination') }}</h5></div>
+    <div class="col-md-4">
+      <label class="form-label">{{ _('Examination Date') }}</label>
+      {{ form.medical_exam_date(class="form-control", type="date") }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ _('Expiry Date') }}</label>
+      {{ form.medical_expiry_date(class="form-control", type="date") }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ _('Insurance Expiry Date') }}</label>
+      {{ form.insurance_expiry_date(class="form-control", type="date") }}
+    </div>
+
+    <!-- Monthly Fee -->
+    <div class="col-12 mt-3"><h5>{{ _('Monthly Fee Type') }}</h5></div>
+    <div class="col-md-4">
+      <label class="form-label">{{ _('Monthly Fee (BGN)') }}</label>
+      {{ form.monthly_fee_amount(class="form-control", placeholder="50") }}
+    </div>
+    <div class="col-md-4 d-flex align-items-center">
+      <div class="form-check mt-4">
+        {{ form.monthly_fee_is_monthly(class="form-check-input") }}
+        <label class="form-check-label">{{ _('Is Monthly (not per session)') }}</label>
+      </div>
+    </div>
+
     <div class="col-12">
       <label class="form-label">{{ _('Notes') }}</label>
       {{ form.notes(class="form-control", rows="4") }}
@@ -75,25 +130,19 @@
       <input class="form-control" type="file" name="photo" accept=".png,.jpg,.jpeg,.gif,.webp">
     </div>
 
-    <!-- Sportdata section -->
-    <div class="col-12 mt-3">
-      <h5>{{ _('Sportdata Profiles') }}</h5>
-    </div>
-
+    <!-- Sportdata -->
+    <div class="col-12 mt-3"><h5>{{ _('Sportdata Profiles') }}</h5></div>
     <div class="col-md-6">
       <label class="form-label">{{ _('WKF Profile URL') }}</label>
-      {{ form.sportdata_wkf_url(class="form-control", placeholder="https://www.sportdata.org/wkf/...") }}
-      {% for e in form.sportdata_wkf_url.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      {{ form.sportdata_wkf_url(class="form-control") }}
     </div>
     <div class="col-md-6">
       <label class="form-label">{{ _('BNFK Profile URL') }}</label>
-      {{ form.sportdata_bnfk_url(class="form-control", placeholder="https://www.sportdata.org/...") }}
-      {% for e in form.sportdata_bnfk_url.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      {{ form.sportdata_bnfk_url(class="form-control") }}
     </div>
     <div class="col-md-6">
       <label class="form-label">{{ _('ENSO Profile URL') }}</label>
-      {{ form.sportdata_enso_url(class="form-control", placeholder="https://www.sportdata.org/enso/...") }}
-      {% for e in form.sportdata_enso_url.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      {{ form.sportdata_enso_url(class="form-control") }}
     </div>
 
     <div class="col-12">
@@ -102,4 +151,27 @@
     </div>
   </div>
 </form>
+
+<script>
+  const BELT_COLORS = {{ belt_colors_json|safe }};
+  function idealTextColor(hex) {
+    const c = hex.replace('#','');
+    const r = parseInt(c.substring(0,2), 16);
+    const g = parseInt(c.substring(2,4), 16);
+    const b = parseInt(c.substring(4,6), 16);
+    const yiq = (r*299 + g*587 + b*114) / 1000;
+    return yiq >= 128 ? '#000000' : '#ffffff';
+  }
+  function updateBeltPreview() {
+    const sel = document.getElementById('belt_rank');
+    const chip = document.getElementById('belt_preview');
+    if (!sel || !chip) return;
+    const color = BELT_COLORS[sel.value] || '#6c757d';
+    chip.style.background = color;
+    chip.style.color = idealTextColor(color);
+    chip.textContent = sel.value || '';
+  }
+  document.getElementById('belt_rank')?.addEventListener('change', updateBeltPreview);
+  updateBeltPreview();
+</script>
 {% endblock %}

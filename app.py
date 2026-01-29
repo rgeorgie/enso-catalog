@@ -1,6 +1,9 @@
 import os
+import json
+import calendar
+from datetime import date
 from functools import wraps
-from typing import Optional
+from typing import Optional, Tuple
 
 from flask import (
     Flask, render_template, request, redirect, url_for, flash,
@@ -11,10 +14,10 @@ from flask_wtf import FlaskForm
 from werkzeug.utils import secure_filename
 from wtforms import (
     StringField, SelectField, DateField, IntegerField,
-    TextAreaField, SubmitField, BooleanField
+    TextAreaField, SubmitField, BooleanField, SelectMultipleField
 )
 from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL
-from sqlalchemy import or_, text
+from sqlalchemy import or_, and_, text
 from werkzeug.routing import BuildError
 
 # -----------------------------
@@ -22,7 +25,9 @@ from werkzeug.routing import BuildError
 # -----------------------------
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+STATIC_IMG = os.path.join(BASE_DIR, "static", "img")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(STATIC_IMG, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
@@ -40,29 +45,31 @@ ADMIN_PASS = os.environ.get("ADMIN_PASS", "admin123")
 db = SQLAlchemy(app)
 
 # -----------------------------
-# Simple i18n (BG default)
+# i18n (BG default)
 # -----------------------------
 def get_lang() -> str:
     return session.get("lang", "bg")
 
 translations = {
     "en": {
+        # Branding / Nav
+        "Team ENSO": "Team ENSO",
         "Karate Club": "Karate Club",
         "Players": "Players",
+        "Calendar": "Calendar",
+        "Fees Report": "Fees Report",
         "+ Add Player": "+ Add Player",
-        "Add Player": "Add Player",
-        "Edit Player": "Edit Player",
-        "Delete": "Delete",
+        "Run DB migration": "Run DB migration",
         "Admin Login": "Admin Login",
         "Logout": "Logout",
         "Language": "Language",
-        "BG": "BG",
-        "EN": "EN",
+        "BG": "BG", "EN": "EN",
         "All": "All",
-        "Run DB migration": "Run DB migration",
 
+        # Search / List
         "Search": "Search",
         "Belt": "Belt",
+        "Belt Color": "Belt Color",
         "Discipline": "Discipline",
         "Active": "Active",
         "Inactive": "Inactive",
@@ -77,11 +84,14 @@ translations = {
         "No players found.": "No players found.",
         "No photo uploaded": "No photo uploaded",
 
+        # Player form / detail
         "First Name": "First Name",
         "Last Name": "Last Name",
         "Gender": "Gender",
         "Birthdate": "Birthdate",
         "Belt Rank": "Belt Rank",
+        "Grade Level": "Grade Level",
+        "Grade Date": "Grade Date",
         "Weight (kg)": "Weight (kg)",
         "Height (cm)": "Height (cm)",
         "Join Date": "Join Date",
@@ -91,25 +101,87 @@ translations = {
         "Save": "Save",
         "Cancel": "Cancel",
         "Joined": "Joined",
+        "Mother Name": "Mother Name",
+        "Mother Phone": "Mother Phone",
+        "Father Name": "Father Name",
+        "Father Phone": "Father Phone",
 
-        "—": "—",
-        "Male": "Male",
-        "Female": "Female",
-        "Other": "Other",
+        # Health / Insurance
+        "Medical Examination": "Medical Examination",
+        "Examination Date": "Examination Date",
+        "Expiry Date": "Expiry Date",
+        "Insurance Expiry Date": "Insurance Expiry Date",
+        "Expired": "Expired",
+        "Expires in {d}d": "Expires in {d}d",
+        "Valid until {dt}": "Valid until {dt}",
 
-        "White": "White",
-        "Yellow": "Yellow",
-        "Orange": "Orange",
-        "Green": "Green",
-        "Blue": "Blue",
-        "Purple": "Purple",
-        "Brown": "Brown",
-        "Black": "Black",
+        # Fees & report (EUR)
+        "Monthly Fee (EUR)": "Monthly Fee (EUR)",
+        "Monthly Fee Type": "Monthly Fee Type",
+        "Is Monthly (not per session)": "Is Monthly (not per session)",
+        "Fees Report": "Fees Report",
+        "Month": "Month",
+        "Due date": "Due date",
+        "Amount": "Amount",
+        "Paid": "Paid",
+        "Toggle Paid": "Toggle Paid",
+        "Nothing to show.": "Nothing to show.",
+        "Payment toggled.": "Payment toggled.",
 
-        "Kata": "Kata",
-        "Kumite": "Kumite",
-        "Both": "Both",
+        # Events / Calendar (EUR)
+        "Sports Calendar": "Sports Calendar",
+        "New Event": "New Event",
+        "Edit Event": "Edit Event",
+        "Event": "Event",
+        "Start Date": "Start Date",
+        "End Date": "End Date",
+        "Location": "Location",
+        "Sportdata URL": "Sportdata URL",
+        "Categories": "Categories",
+        "Add Category": "Add Category",
+        "Category Name": "Category Name",
+        "Category Fee (EUR)": "Category Fee (EUR)",
+        "Registrations": "Registrations",
+        "Athlete": "Athlete",
+        "Select Categories": "Select Categories",
+        "Fee Override (EUR)": "Fee Override (EUR)",
+        "Add Registration": "Add Registration",
+        "Export Registrations CSV": "Export Registrations CSV",
+        "Event created.": "Event created.",
+        "Event updated.": "Event updated.",
+        "Event deleted.": "Event deleted.",
+        "Category added.": "Category added.",
+        "Category deleted.": "Category deleted.",
+        "Registration added.": "Registration added.",
+        "Registration updated.": "Registration updated.",
+        "Registration deleted.": "Registration deleted.",
+        "Paid status updated.": "Paid status updated.",
+        "No categories yet.": "No categories yet.",
+        "No registrations yet.": "No registrations yet.",
+        "All-day": "All-day",
+        "Events": "Events",
+        "Remove": "Remove",
+        "Participants": "Participants",
+        "Entries": "Entries",
+        "Total expected": "Total expected",
+        "Total paid": "Total paid",
+        "Total unpaid": "Total unpaid",
+        "override": "override",
+        "computed": "computed",
 
+        # Medals
+        "Medals": "Medals",
+        "Gold": "Gold",
+        "Silver": "Silver",
+        "Bronze": "Bronze",
+        "Set medal": "Set medal",
+        "None": "None",
+        "Medals Report": "Medals Report",
+        "Year": "Year",
+        "Player": "Player",
+        "Total": "Total",
+
+        # Sportdata in player
         "Sportdata": "Sportdata",
         "Sportdata Profiles": "Sportdata Profiles",
         "WKF Profile URL": "WKF Profile URL",
@@ -117,9 +189,9 @@ translations = {
         "ENSO Profile URL": "ENSO Profile URL",
         "Open": "Open",
 
+        # Auth & flashes
         "Username": "Username",
         "Password": "Password",
-
         "Admin login required.": "Admin login required.",
         "Logged in as admin.": "Logged in as admin.",
         "Invalid credentials.": "Invalid credentials.",
@@ -127,28 +199,37 @@ translations = {
         "Player created.": "Player created.",
         "Player updated.": "Player updated.",
         "Player deleted.": "Player deleted.",
-
         "DB migration: added columns: {cols}": "DB migration: added columns: {cols}",
         "DB migration: nothing to do.": "DB migration: nothing to do.",
         "DB migration failed: {err}": "DB migration failed: {err}",
+
+        # enums
+        "—": "—",
+        "Male": "Male", "Female": "Female", "Other": "Other",
+        "White": "White", "Yellow": "Yellow", "Orange": "Orange",
+        "Green": "Green", "Blue": "Blue", "Purple": "Purple",
+        "Brown": "Brown", "Black": "Black",
+        "Kata": "Kata", "Kumite": "Kumite", "Both": "Both",
     },
     "bg": {
+        # Branding / Nav
+        "Team ENSO": "Team ENSO",
         "Karate Club": "Карате клуб",
         "Players": "Състезатели",
+        "Calendar": "Календар",
+        "Fees Report": "Отчет за такси",
         "+ Add Player": "+ Добави състезател",
-        "Add Player": "Добави състезател",
-        "Edit Player": "Редактирай състезател",
-        "Delete": "Изтрий",
+        "Run DB migration": "Стартирай миграция",
         "Admin Login": "Админ вход",
         "Logout": "Изход",
         "Language": "Език",
-        "BG": "BG",
-        "EN": "EN",
+        "BG": "BG", "EN": "EN",
         "All": "Всички",
-        "Run DB migration": "Стартирай миграция",
 
+        # Search / List
         "Search": "Търсене",
         "Belt": "Колан",
+        "Belt Color": "Цвят на колана",
         "Discipline": "Дисциплина",
         "Active": "Активен",
         "Inactive": "Неактивен",
@@ -163,39 +244,104 @@ translations = {
         "No players found.": "Няма намерени състезатели.",
         "No photo uploaded": "Няма качена снимка",
 
+        # Player form / detail
         "First Name": "Име",
         "Last Name": "Фамилия",
         "Gender": "Пол",
         "Birthdate": "Дата на раждане",
         "Belt Rank": "Колан",
+        "Grade Level": "Степен (кю/дан)",
+        "Grade Date": "Дата на изпит",
         "Weight (kg)": "Тегло (кг)",
         "Height (cm)": "Ръст (см)",
         "Join Date": "Дата на присъединяване",
         "Active Member": "Активен член",
         "Notes": "Бележки",
-        "Photo (jpg/png/gif/webp, ≤ 2MB)": "Снимка (jpg/png/gif/webp, ≤ 2MB)",
+        "Photo (jpg/png/gif/webp, ≤ 2MB)": "Снимка (jpg/png/gиф/webp, ≤ 2MB)",
         "Save": "Запази",
         "Cancel": "Откажи",
         "Joined": "Присъединяване",
+        "Mother Name": "Име на майката",
+        "Mother Phone": "Телефон на майката",
+        "Father Name": "Име на бащата",
+        "Father Phone": "Телефон на бащата",
 
-        "—": "—",
-        "Male": "Мъж",
-        "Female": "Жена",
-        "Other": "Друго",
+        # Health / Insurance
+        "Medical Examination": "Медицински преглед",
+        "Examination Date": "Дата на преглед",
+        "Expiry Date": "Валидност до",
+        "Insurance Expiry Date": "Срок на застраховка",
+        "Expired": "Изтекла",
+        "Expires in {d}d": "Изтича след {d} дни",
+        "Valid until {dt}": "Валидна до {dt}",
 
-        "White": "Бял",
-        "Yellow": "Жълт",
-        "Orange": "Оранжев",
-        "Green": "Зелен",
-        "Blue": "Син",
-        "Purple": "Лилав",
-        "Brown": "Кафяв",
-        "Black": "Черен",
+        # Fees & report (EUR)
+        "Monthly Fee (EUR)": "Месечна такса (EUR)",
+        "Monthly Fee Type": "Тип такса",
+        "Is Monthly (not per session)": "Месечна (не на тренировка)",
+        "Fees Report": "Отчет за такси",
+        "Month": "Месец",
+        "Due date": "Падеж",
+        "Amount": "Сума",
+        "Paid": "Платено",
+        "Toggle Paid": "Смени статус",
+        "Nothing to show.": "Няма данни.",
+        "Payment toggled.": "Плащането е променено.",
 
-        "Kata": "Ката",
-        "Kumite": "Кумите",
-        "Both": "И двете",
+        # Events / Calendar (EUR)
+        "Sports Calendar": "Спортен календар",
+        "New Event": "Ново събитие",
+        "Edit Event": "Редакция на събитие",
+        "Event": "Събитие",
+        "Start Date": "Начална дата",
+        "End Date": "Крайна дата",
+        "Location": "Локация",
+        "Sportdata URL": "Sportdata URL",
+        "Categories": "Категории",
+        "Add Category": "Добави категория",
+        "Category Name": "Име на категория",
+        "Category Fee (EUR)": "Такса за категория (EUR)",
+        "Registrations": "Записвания",
+        "Athlete": "Състезател",
+        "Select Categories": "Категории",
+        "Fee Override (EUR)": "Ръчна такса (EUR)",
+        "Add Registration": "Добави записване",
+        "Export Registrations CSV": "Експорт CSV (записвания)",
+        "Event created.": "Събитието е създадено.",
+        "Event updated.": "Събитието е обновено.",
+        "Event deleted.": "Събитието е изтрито.",
+        "Category added.": "Категорията е добавена.",
+        "Category deleted.": "Категорията е изтрита.",
+        "Registration added.": "Записването е добавено.",
+        "Registration updated.": "Записването е обновено.",
+        "Registration deleted.": "Записването е изтрито.",
+        "Paid status updated.": "Статусът е обновен.",
+        "No categories yet.": "Няма категории.",
+        "No registrations yet.": "Няма записвания.",
+        "All-day": "Целодневно",
+        "Events": "Събития",
+        "Remove": "Премахни",
+        "Participants": "Състезатели",
+        "Entries": "Записи",
+        "Total expected": "Общо очаквано",
+        "Total paid": "Общо платено",
+        "Total unpaid": "Общо неплатено",
+        "override": "override",
+        "computed": "computed",
 
+        # Medals
+        "Medals": "Медали",
+        "Gold": "Злато",
+        "Silver": "Сребро",
+        "Bronze": "Бронз",
+        "Set medal": "Задай медал",
+        "None": "Няма",
+        "Medals Report": "Отчет за медали",
+        "Year": "Година",
+        "Player": "Състезател",
+        "Total": "Общо",
+
+        # Sportdata in player
         "Sportdata": "Sportdata",
         "Sportdata Profiles": "Sportdata профили",
         "WKF Profile URL": "WKF профил (URL)",
@@ -203,9 +349,9 @@ translations = {
         "ENSO Profile URL": "ENSO профил (URL)",
         "Open": "Отвори",
 
+        # Auth & flashes
         "Username": "Потребител",
         "Password": "Парола",
-
         "Admin login required.": "Необходим е администраторски вход.",
         "Logged in as admin.": "Влязохте като администратор.",
         "Invalid credentials.": "Невалидни данни за вход.",
@@ -213,10 +359,17 @@ translations = {
         "Player created.": "Състезателят е създаден.",
         "Player updated.": "Състезателят е обновен.",
         "Player deleted.": "Състезателят е изтрит.",
-
         "DB migration: added columns: {cols}": "Миграция: добавени колони: {cols}",
         "DB migration: nothing to do.": "Миграция: няма какво да се прави.",
         "DB migration failed: {err}": "Миграция: грешка: {err}",
+
+        # enums
+        "—": "—",
+        "Male": "Мъж", "Female": "Жена", "Other": "Друго",
+        "White": "Бял", "Yellow": "Жълт", "Orange": "Оранжев",
+        "Green": "Зелен", "Blue": "Син", "Purple": "Лилав",
+        "Brown": "Кафяв", "Black": "Черен",
+        "Kata": "Ката", "Kumite": "Кумите", "Both": "И двете",
     },
 }
 
@@ -224,8 +377,46 @@ def _(key: str) -> str:
     lang = get_lang()
     return translations.get(lang, translations["en"]).get(key, key)
 
-# Canonical values (stored in DB)
-BELT_VALUES = ["White", "Yellow", "Orange", "Green", "Blue", "Purple", "Brown", "Black"]
+# -----------------------------
+# Grading scheme & belt palette
+# -----------------------------
+GRADING_SCHEME = {
+    "grades": [
+        "10 kyu", "9 kyu", "8 kyu", "7 kyu", "6 kyu",
+        "5 kyu", "4 kyu", "3 kyu", "2 kyu", "1 kyu",
+        "1 dan", "2 dan", "3 dan", "4 dan", "5 dan",
+    ],
+    "belt_colors": ["White", "Yellow", "Orange", "Green", "Blue", "Purple", "Brown", "Black"],
+    "grade_to_color": {
+        "10 kyu": "White",
+        "9 kyu": "Yellow",
+        "8 kyu": "Yellow",
+        "7 kyu": "Orange",
+        "6 kyu": "Orange",
+        "5 kyu": "Green",
+        "4 kyu": "Green",
+        "3 kyu": "Blue",
+        "2 kyu": "Brown",
+        "1 kyu": "Brown",
+        "1 dan": "Black",
+        "2 dan": "Black",
+        "3 dan": "Black",
+        "4 dan": "Black",
+        "5 dan": "Black",
+    },
+}
+
+BELT_PALETTE = {
+    "White":  "#f8f9fa",
+    "Yellow": "#ffd60a",
+    "Orange": "#ff7f11",
+    "Green":  "#2dc653",
+    "Blue":   "#228be6",
+    "Purple": "#9c36b5",
+    "Brown":  "#8d5524",
+    "Black":  "#111111",
+}
+
 DISCIPLINE_VALUES = ["Kata", "Kumite", "Both"]
 GENDER_VALUES = ["Male", "Female", "Other"]
 
@@ -236,11 +427,16 @@ class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(80), nullable=False)
     last_name = db.Column(db.String(80), nullable=False)
-    gender = db.Column(db.String(10), nullable=True)  # "Male", "Female", "Other" / Optional
+    gender = db.Column(db.String(10), nullable=True)
     birthdate = db.Column(db.Date, nullable=True)
 
+    # Belt color (stored in belt_rank)
     belt_rank = db.Column(db.String(20), nullable=False, default="White")
-    discipline = db.Column(db.String(10), nullable=False, default="Both")  # Kata/Kumite/Both
+    # Grade
+    grade_level = db.Column(db.String(20), nullable=True)
+    grade_date = db.Column(db.Date, nullable=True)
+
+    discipline = db.Column(db.String(10), nullable=False, default="Both")
     weight_kg = db.Column(db.Integer, nullable=True)
     height_cm = db.Column(db.Integer, nullable=True)
 
@@ -253,13 +449,100 @@ class Player(db.Model):
     notes = db.Column(db.Text, nullable=True)
     photo_filename = db.Column(db.String(255), nullable=True)
 
-    # Sportdata profile URLs (optional)
+    # Sportdata URLs
     sportdata_wkf_url = db.Column(db.String(255), nullable=True)
     sportdata_bnfk_url = db.Column(db.String(255), nullable=True)
     sportdata_enso_url = db.Column(db.String(255), nullable=True)
 
+    # Health
+    medical_exam_date = db.Column(db.Date, nullable=True)
+    medical_expiry_date = db.Column(db.Date, nullable=True)
+    insurance_expiry_date = db.Column(db.Date, nullable=True)
+
+    # Fees (EUR)
+    monthly_fee_amount = db.Column(db.Integer, nullable=True)   # EUR
+    monthly_fee_is_monthly = db.Column(db.Boolean, default=True)  # True: monthly; False: per session
+
+    # Parents
+    mother_name = db.Column(db.String(120), nullable=True)
+    mother_phone = db.Column(db.String(40), nullable=True)
+    father_name = db.Column(db.String(120), nullable=True)
+    father_phone = db.Column(db.String(40), nullable=True)
+
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
+
+
+class Payment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    year = db.Column(db.Integer, nullable=False)
+    month = db.Column(db.Integer, nullable=False)  # 1..12
+    amount = db.Column(db.Integer, nullable=True)  # EUR
+    paid = db.Column(db.Boolean, default=False)
+    paid_on = db.Column(db.Date, nullable=True)
+
+    player = db.relationship("Player", backref=db.backref("payments", lazy="dynamic"))
+
+    __table_args__ = (db.UniqueConstraint("player_id", "year", "month", name="uq_payment_player_month"),)
+
+
+# ---- Sports Calendar models ----
+class Event(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=True)  # if None, single-day
+    location = db.Column(db.String(200), nullable=True)
+    sportdata_url = db.Column(db.String(255), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    categories = db.relationship("EventCategory", backref="event", cascade="all, delete-orphan", lazy="dynamic")
+    registrations = db.relationship("EventRegistration", backref="event", cascade="all, delete-orphan", lazy="dynamic")
+
+    def spans(self, d: date) -> bool:
+        ed = self.end_date or self.start_date
+        return self.start_date <= d <= ed
+
+class EventCategory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    fee = db.Column(db.Integer, nullable=True)  # EUR
+
+class EventRegistration(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=False, index=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+
+    fee_override = db.Column(db.Integer, nullable=True)  # EUR
+    paid = db.Column(db.Boolean, default=False)
+    paid_on = db.Column(db.Date, nullable=True)
+
+    player = db.relationship("Player", backref=db.backref("event_registrations", cascade="all, delete-orphan", lazy="dynamic"))
+
+    # association objects (holds medal per category)
+    reg_categories = db.relationship("EventRegCategory", backref="registration", cascade="all, delete-orphan", lazy="joined")
+
+    def computed_fee(self) -> Optional[int]:
+        if self.fee_override is not None:
+            return self.fee_override
+        total = 0
+        counted = False
+        for rc in self.reg_categories or []:
+            if rc.category and rc.category.fee is not None:
+                total += int(rc.category.fee)
+                counted = True
+        return total if counted else None
+
+class EventRegCategory(db.Model):
+    """Association object: one row per (registration, category) with medal."""
+    __tablename__ = "event_reg_category"
+    registration_id = db.Column(db.Integer, db.ForeignKey("event_registration.id"), primary_key=True)
+    category_id = db.Column(db.Integer, db.ForeignKey("event_category.id"), primary_key=True)
+    medal = db.Column(db.String(10), nullable=True)  # 'gold' | 'silver' | 'bronze' | None
+
+    category = db.relationship("EventCategory")
 
 # -----------------------------
 # Forms
@@ -271,6 +554,9 @@ class PlayerForm(FlaskForm):
     birthdate = DateField("Birthdate", validators=[VOptional()])
 
     belt_rank = SelectField("Belt Rank", validators=[DataRequired()])
+    grade_level = SelectField("Grade Level", validators=[VOptional()])
+    grade_date = DateField("Grade Date", validators=[VOptional()])
+
     discipline = SelectField("Discipline", validators=[DataRequired()])
     weight_kg = IntegerField("Weight (kg)", validators=[VOptional(), NumberRange(min=0, max=500)])
     height_cm = IntegerField("Height (cm)", validators=[VOptional(), NumberRange(min=0, max=300)])
@@ -281,23 +567,133 @@ class PlayerForm(FlaskForm):
     join_date = DateField("Join Date", validators=[VOptional()])
     active_member = BooleanField("Active Member", default=True)
 
+    # Health
+    medical_exam_date = DateField("Examination Date", validators=[VOptional()])
+    medical_expiry_date = DateField("Expiry Date", validators=[VOptional()])
+    insurance_expiry_date = DateField("Insurance Expiry Date", validators=[VOptional()])
+
+    # Fees (EUR)
+    monthly_fee_amount = IntegerField("Monthly Fee (EUR)", validators=[VOptional(), NumberRange(min=0, max=10000)])
+    monthly_fee_is_monthly = BooleanField("Is Monthly (not per session)", default=True)
+
+    # Parents
+    mother_name = StringField("Mother Name", validators=[VOptional(), Length(max=120)])
+    mother_phone = StringField("Mother Phone", validators=[VOptional(), Length(max=40)])
+    father_name = StringField("Father Name", validators=[VOptional(), Length(max=120)])
+    father_phone = StringField("Father Phone", validators=[VOptional(), Length(max=40)])
+
     notes = TextAreaField("Notes", validators=[VOptional(), Length(max=5000)])
 
-    # Sportdata URLs
+    # Sportdata
     sportdata_wkf_url = StringField("WKF Profile URL", validators=[VOptional(), URL(), Length(max=255)])
     sportdata_bnfk_url = StringField("BNFK Profile URL", validators=[VOptional(), URL(), Length(max=255)])
     sportdata_enso_url = StringField("ENSO Profile URL", validators=[VOptional(), URL(), Length(max=255)])
 
     submit = SubmitField("Save")
 
+class EventForm(FlaskForm):
+    title = StringField("Event", validators=[DataRequired(), Length(max=200)])
+    start_date = DateField("Start Date", validators=[DataRequired()])
+    end_date = DateField("End Date", validators=[VOptional()])
+    location = StringField("Location", validators=[VOptional(), Length(max=200)])
+    sportdata_url = StringField("Sportdata URL", validators=[VOptional(), URL(), Length(max=255)])
+    notes = TextAreaField("Notes", validators=[VOptional(), Length(max=5000)])
+    submit = SubmitField("Save")
+
+class EventCategoryForm(FlaskForm):
+    name = StringField("Category Name", validators=[DataRequired(), Length(max=120)])
+    fee = IntegerField("Category Fee (EUR)", validators=[VOptional(), NumberRange(min=0, max=100000)])
+    submit = SubmitField("Save")
+
+class EventRegistrationForm(FlaskForm):
+    # bulk add: multiple athletes at once
+    player_ids = SelectMultipleField("Athlete", coerce=int, validators=[DataRequired()])
+    category_ids = SelectMultipleField("Select Categories", coerce=int, validators=[VOptional()])
+    fee_override = IntegerField("Fee Override (EUR)", validators=[VOptional(), NumberRange(min=0, max=100000)])
+    paid = BooleanField("Paid", default=False)
+    submit = SubmitField("Add Registration")
+
 def set_localized_choices(form: PlayerForm):
-    """Set localized labels while keeping canonical values."""
-    form.belt_rank.choices = [(v, _(v)) for v in BELT_VALUES]
+    form.belt_rank.choices = [(v, _(v)) for v in GRADING_SCHEME["belt_colors"]]
+    form.grade_level.choices = [("", _("—"))] + [(g, g) for g in GRADING_SCHEME["grades"]]
     form.discipline.choices = [(v, _(v)) for v in DISCIPLINE_VALUES]
     form.gender.choices = [("", _("—"))] + [(v, _(v)) for v in GENDER_VALUES]
 
 # -----------------------------
-# Helpers
+# Helpers (belts & health)
+# -----------------------------
+def belt_hex(belt: Optional[str]) -> str:
+    return BELT_PALETTE.get(belt or "", "#6c757d")
+
+def ideal_text_color(bg_hex: str) -> str:
+    try:
+        c = bg_hex.lstrip("#")
+        r, g, b = int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16)
+        yiq = (r * 299 + g * 587 + b * 114) / 1000
+        return "#000000" if yiq >= 128 else "#ffffff"
+    except Exception:
+        return "#000000"
+
+def belt_chip_style(belt: Optional[str]) -> str:
+    bg = belt_hex(belt)
+    fg = ideal_text_color(bg)
+    return f"background:{bg};color:{fg};padding:.35rem .6rem;border-radius:999px;display:inline-block;min-width:64px;text-align:center;"
+
+def validity_badge(exp_date: Optional[date], warn_days: int = 30) -> Tuple[str, str]:
+    """Return (text, bootstrap_color) for an expiry date."""
+    if not exp_date:
+        return "—", "secondary"
+    today = date.today()
+    if exp_date < today:
+        return _("Expired"), "danger"
+    days = (exp_date - today).days
+    if days < warn_days:
+        return _("Expires in {d}d").format(d=days), "warning"
+    return _("Valid until {dt}").format(dt=exp_date.isoformat()), "success"
+
+def first_working_day(year: int, month: int) -> date:
+    # first Monday-Friday of the month
+    for d in calendar.Calendar().itermonthdates(year, month):
+        if d.month == month and d.weekday() < 5:
+            return d
+    return date(year, month, 1)
+
+def parse_month_str(month_str: Optional[str]) -> tuple[int, int]:
+    """Parse 'YYYY-MM' -> (year, month). Defaults to today's."""
+    t = date.today()
+    if not month_str:
+        return t.year, t.month
+    try:
+        y, m = month_str.split("-")
+        return int(y), int(m)
+    except Exception:
+        return t.year, t.month
+
+def ensure_payments_for_month(year: int, month: int) -> int:
+    """Create Payment rows for all active monthly players if missing. Returns count created."""
+    players = Player.query.filter_by(active_member=True).all()
+    created = 0
+    for p in players:
+        if not p.monthly_fee_is_monthly:
+            continue
+        if p.monthly_fee_amount is None:
+            continue
+        exists = Payment.query.filter_by(player_id=p.id, year=year, month=month).first()
+        if not exists:
+            db.session.add(Payment(
+                player_id=p.id,
+                year=year,
+                month=month,
+                amount=p.monthly_fee_amount,
+                paid=False
+            ))
+            created += 1
+    if created:
+        db.session.commit()
+    return created
+
+# -----------------------------
+# Decorators
 # -----------------------------
 def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -325,7 +721,15 @@ def utility_processor():
             return url_for(endpoint, **values)
         except BuildError:
             return None
-    return dict(safe_url_for=safe_url_for)
+    # expose helpers & classes if needed in templates
+    return dict(
+        safe_url_for=safe_url_for,
+        belt_chip_style=belt_chip_style,
+        validity_badge=validity_badge,
+        first_working_day=first_working_day,
+        EventRegistration=EventRegistration,
+        EventRegCategory=EventRegCategory,
+    )
 
 # -----------------------------
 # Routes
@@ -366,19 +770,24 @@ def list_players():
     return render_template(
         "players_list.html",
         players=players, q=q, belt=belt, active=active,
-        belts=BELT_VALUES
+        belts=GRADING_SCHEME["belt_colors"]
     )
 
 @app.route("/players/<int:player_id>")
 def player_detail(player_id: int):
     player = Player.query.get_or_404(player_id)
-    return render_template("player_detail.html", player=player)
+    regs = (EventRegistration.query
+            .filter_by(player_id=player.id)
+            .join(Event)
+            .order_by(Event.start_date.desc())
+            .all())
+    return render_template("player_detail.html", player=player, regs=regs)
 
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=False)
 
-# -------- Admin & Auth ----------
+# -------- Auth ----------
 @app.route("/login", methods=["GET", "POST"])
 def login():
     next_url = request.args.get("next") or url_for("list_players")
@@ -388,7 +797,6 @@ def login():
         if username == ADMIN_USER and password == ADMIN_PASS:
             session["is_admin"] = True
             flash(_("Logged in as admin."), "success")
-            # Avoid redirect-loop: if next points back to /login, go home
             if next_url.endswith("/login") or next_url.startswith("/login?"):
                 next_url = url_for("list_players")
             return redirect(next_url)
@@ -401,7 +809,7 @@ def logout():
     flash(_("Logged out."), "info")
     return redirect(url_for("list_players"))
 
-# -------- CRUD ----------
+# -------- CRUD Players ----------
 @app.route("/admin/players/new", methods=["GET", "POST"])
 @admin_required
 def create_player():
@@ -414,6 +822,8 @@ def create_player():
             gender=form.gender.data or None,
             birthdate=form.birthdate.data,
             belt_rank=form.belt_rank.data,
+            grade_level=form.grade_level.data or None,
+            grade_date=form.grade_date.data,
             discipline=form.discipline.data,
             weight_kg=form.weight_kg.data,
             height_cm=form.height_cm.data,
@@ -421,12 +831,32 @@ def create_player():
             phone=form.phone.data,
             join_date=form.join_date.data,
             active_member=bool(form.active_member.data),
-            notes=form.notes.data,
+
+            # Health
+            medical_exam_date=form.medical_exam_date.data,
+            medical_expiry_date=form.medical_expiry_date.data,
+            insurance_expiry_date=form.insurance_expiry_date.data,
+
+            # Fees (EUR)
+            monthly_fee_amount=form.monthly_fee_amount.data,
+            monthly_fee_is_monthly=bool(form.monthly_fee_is_monthly.data),
+
+            # Parents
+            mother_name=form.mother_name.data or None,
+            mother_phone=form.mother_phone.data or None,
+            father_name=form.father_name.data or None,
+            father_phone=form.father_phone.data or None,
+
+            # Sportdata
             sportdata_wkf_url=form.sportdata_wkf_url.data or None,
             sportdata_bnfk_url=form.sportdata_bnfk_url.data or None,
             sportdata_enso_url=form.sportdata_enso_url.data or None,
         )
-        # handle optional photo upload
+
+        if player.grade_level and player.grade_level in GRADING_SCHEME["grade_to_color"]:
+            player.belt_rank = GRADING_SCHEME["grade_to_color"][player.grade_level]
+
+        # Photo upload
         file = request.files.get("photo")
         if file and file.filename and allowed_file(file.filename):
             fname = secure_filename(file.filename)
@@ -443,7 +873,13 @@ def create_player():
         db.session.commit()
         flash(_("Player created."), "success")
         return redirect(url_for("list_players"))
-    return render_template("player_form.html", form=form, title=_("Add Player"))
+
+    return render_template(
+        "player_form.html",
+        form=form,
+        title=_("Add Player"),
+        belt_colors_json=json.dumps(BELT_PALETTE)
+    )
 
 @app.route("/admin/players/<int:player_id>/edit", methods=["GET", "POST"])
 @admin_required
@@ -453,11 +889,10 @@ def edit_player(player_id: int):
     set_localized_choices(form)
     if form.validate_on_submit():
         form.populate_obj(player)
-        # normalize to None if empty
-        player.sportdata_wkf_url = form.sportdata_wkf_url.data or None
-        player.sportdata_bnfk_url = form.sportdata_bnfk_url.data or None
-        player.sportdata_enso_url = form.sportdata_enso_url.data or None
+        if player.grade_level and player.grade_level in GRADING_SCHEME["grade_to_color"]:
+            player.belt_rank = GRADING_SCHEME["grade_to_color"][player.grade_level]
 
+        # Photo upload
         file = request.files.get("photo")
         if file and file.filename and allowed_file(file.filename):
             fname = secure_filename(file.filename)
@@ -469,10 +904,17 @@ def edit_player(player_id: int):
                 counter += 1
             file.save(os.path.join(UPLOAD_FOLDER, new_name))
             player.photo_filename = new_name
+
         db.session.commit()
         flash(_("Player updated."), "success")
         return redirect(url_for("player_detail", player_id=player.id))
-    return render_template("player_form.html", form=form, title=_("Edit Player"))
+
+    return render_template(
+        "player_form.html",
+        form=form,
+        title=_("Edit Player"),
+        belt_colors_json=json.dumps(BELT_PALETTE)
+    )
 
 @app.route("/admin/players/<int:player_id>/delete", methods=["POST"])
 @admin_required
@@ -488,62 +930,502 @@ def delete_player(player_id: int):
     flash(_("Player deleted."), "info")
     return redirect(url_for("list_players"))
 
-# -------- Export ----------
+# -------- Fees Report + Toggle + CSV ----------
+@app.route("/reports/fees")
+@admin_required
+def fees_report():
+    month_str = request.args.get("month")  # YYYY-MM
+    year, month = parse_month_str(month_str)
+    ensure_payments_for_month(year, month)
+
+    payments = (Payment.query
+                .filter_by(year=year, month=month)
+                .join(Player)
+                .order_by(Player.last_name.asc(), Player.first_name.asc())
+                .all())
+
+    due = first_working_day(year, month)
+    return render_template(
+        "report_fees.html",
+        payments=payments,
+        year=year,
+        month=month,
+        due_date=due,
+        today=date.today()
+    )
+
+@app.route("/admin/fees/<int:payment_id>/toggle", methods=["POST"])
+@admin_required
+def toggle_payment(payment_id: int):
+    pay = Payment.query.get_or_404(payment_id)
+    pay.paid = not pay.paid
+    pay.paid_on = date.today() if pay.paid else None
+    db.session.commit()
+    flash(_("Payment toggled."), "success")
+    month_str = f"{pay.year:04d}-{pay.month:02d}"
+    return redirect(url_for("fees_report", month=month_str))
+
+@app.route("/admin/reports/fees/export")
+@admin_required
+def fees_export_csv():
+    month_str = request.args.get("month")
+    year, month = parse_month_str(month_str)
+    due = first_working_day(year, month)
+    payments = (Payment.query
+                .filter_by(year=year, month=month)
+                .join(Player)
+                .order_by(Player.last_name.asc(), Player.first_name.asc())
+                .all())
+
+    def generate():
+        yield "player_id,full_name,belt,amount_eur,paid,paid_on,due_date\n"
+        for p in payments:
+            full_name = p.player.full_name()
+            belt = p.player.belt_rank or ""
+            amount = "" if p.amount is None else p.amount
+            paid = "yes" if p.paid else "no"
+            paid_on = p.paid_on.isoformat() if p.paid_on else ""
+            yield f"{p.player_id},{full_name},{belt},{amount},{paid},{paid_on},{due.isoformat()}\n"
+
+    headers = {"Content-Disposition": f'attachment; filename="fees_{year:04d}-{month:02d}.csv"'}
+    return Response(generate(), mimetype="text/csv", headers=headers)
+
+# -------- Players CSV ----------
 @app.route("/export/csv")
 def export_csv():
     players = Player.query.order_by(Player.last_name.asc(), Player.first_name.asc()).all()
 
     def generate():
-        yield "id,first_name,last_name,belt_rank,discipline,active_member,email,phone,sportdata_wkf_url,sportdata_bnfk_url,sportdata_enso_url\n"
+        yield (
+            "id,first_name,last_name,belt_color,grade_level,grade_date,discipline,active_member,"
+            "email,phone,mother_name,mother_phone,father_name,father_phone,"
+            "medical_exam_date,medical_expiry_date,insurance_expiry_date,"
+            "monthly_fee_amount_eur,monthly_fee_is_monthly,"
+            "sportdata_wkf_url,sportdata_bnfk_url,sportdata_enso_url\n"
+        )
+        def esc(val: Optional[str]) -> str:
+            if val is None:
+                return ""
+            s = str(val)
+            if any(c in s for c in [",", '"', "\n"]):
+                s = '"' + s.replace('"', '""') + '"'
+            return s
+
         for p in players:
-            def esc(s: Optional[str]) -> str:
-                if s is None:
-                    return ""
-                s = str(s)
-                if any(c in s for c in [",", '"', "\n"]):
-                    s = '"' + s.replace('"', '""') + '"'
-                return s
             row = [
                 str(p.id),
                 esc(p.first_name),
                 esc(p.last_name),
-                esc(p.belt_rank),
+                esc(p.belt_rank or ""),
+                esc(p.grade_level or ""),
+                esc(p.grade_date or ""),
                 esc(p.discipline),
                 "yes" if p.active_member else "no",
                 esc(p.email or ""),
                 esc(p.phone or ""),
+                esc(p.mother_name or ""), esc(p.mother_phone or ""),
+                esc(p.father_name or ""), esc(p.father_phone or ""),
+                esc(p.medical_exam_date or ""),
+                esc(p.medical_expiry_date or ""),
+                esc(p.insurance_expiry_date or ""),
+                esc(p.monthly_fee_amount if p.monthly_fee_amount is not None else ""),
+                "yes" if p.monthly_fee_is_monthly else "no",
                 esc(p.sportdata_wkf_url or ""),
                 esc(p.sportdata_bnfk_url or ""),
                 esc(p.sportdata_enso_url or ""),
             ]
             yield ",".join(row) + "\n"
 
-    headers = {"Content-Disposition": 'attachment; filename=\"karate_players.csv\"'}
+    headers = {"Content-Disposition": 'attachment; filename="karate_players.csv"'}
     return Response(generate(), mimetype="text/csv", headers=headers)
 
-# -------- Admin migration (idempotent) ----------
+# -------- Sports Calendar ----------
+@app.route("/events")
+def events_calendar():
+    month_str = request.args.get("month")
+    y, m = parse_month_str(month_str)
+    # get events overlapping the month
+    first = date(y, m, 1)
+    last_day = calendar.monthrange(y, m)[1]
+    last = date(y, m, last_day)
+
+    events = (
+        Event.query
+        .filter(Event.start_date <= last)
+        .filter((Event.end_date == None) | (Event.end_date >= first))  # noqa: E711
+        .order_by(Event.start_date.asc(), Event.title.asc())
+        .all()
+    )
+
+    cal = calendar.monthcalendar(y, m)  # weeks -> 7
+    weeks = []
+    for wk in cal:
+        row = []
+        for d in wk:
+            if d == 0:
+                row.append({"day": None, "events": []})
+            else:
+                dt = date(y, m, d)
+                row.append({"day": dt, "events": [e for e in events if e.spans(dt)]})
+        weeks.append(row)
+
+    prev_y, prev_m = (y - 1, 12) if m == 1 else (y, m - 1)
+    next_y, next_m = (y + 1, 1) if m == 12 else (y, m + 1)
+
+    return render_template(
+        "events_calendar.html",
+        year=y, month=m, month_name=calendar.month_name[m],
+        weeks=weeks,
+        prev_str=f"{prev_y:04d}-{prev_m:02d}",
+        next_str=f"{next_y:04d}-{next_m:02d}",
+    )
+
+@app.route("/events/<int:event_id>")
+def event_detail(event_id: int):
+    ev = Event.query.get_or_404(event_id)
+    regs = (EventRegistration.query
+            .filter_by(event_id=ev.id)
+            .join(Player)
+            .order_by(Player.last_name.asc(), Player.first_name.asc())
+            .all())
+
+    # Totals (all regs for the event)
+    unique_participants = len({r.player_id for r in regs})
+    entries_count = len(regs)
+
+    def expected_fee(r: EventRegistration) -> Optional[int]:
+        if r.fee_override is not None:
+            return r.fee_override
+        total = 0
+        counted = False
+        for rc in r.reg_categories or []:
+            if rc.category and rc.category.fee is not None:
+                total += int(rc.category.fee)
+                counted = True
+        return total if counted else None
+
+    total_expected = sum(f for r in regs if (f := expected_fee(r)) is not None)
+    total_paid = sum(f for r in regs if r.paid and (f := expected_fee(r)) is not None)
+    total_unpaid = total_expected - total_paid
+
+    # Medal totals for the event
+    gold = silver = bronze = 0
+    for r in regs:
+        for rc in r.reg_categories or []:
+            if rc.medal == "gold": gold += 1
+            elif rc.medal == "silver": silver += 1
+            elif rc.medal == "bronze": bronze += 1
+
+    return render_template(
+        "event_detail.html",
+        ev=ev, regs=regs,
+        unique_participants=unique_participants,
+        entries_count=entries_count,
+        total_expected=total_expected,
+        total_paid=total_paid,
+        total_unpaid=total_unpaid,
+        medal_gold=gold, medal_silver=silver, medal_bronze=bronze
+    )
+
+@app.route("/admin/events/new", methods=["GET", "POST"])
+@admin_required
+def event_new():
+    form = EventForm()
+    if form.validate_on_submit():
+        ev = Event(
+            title=form.title.data,
+            start_date=form.start_date.data,
+            end_date=form.end_date.data,
+            location=form.location.data,
+            sportdata_url=form.sportdata_url.data or None,
+            notes=form.notes.data,
+        )
+        db.session.add(ev)
+        db.session.commit()
+        flash(_("Event created."), "success")
+        return redirect(url_for("event_detail", event_id=ev.id))
+    return render_template("event_form.html", form=form, title=_("New Event"))
+
+@app.route("/admin/events/<int:event_id>/edit", methods=["GET", "POST"])
+@admin_required
+def event_edit(event_id: int):
+    ev = Event.query.get_or_404(event_id)
+    form = EventForm(obj=ev)
+    if form.validate_on_submit():
+        form.populate_obj(ev)
+        db.session.commit()
+        flash(_("Event updated."), "success")
+        return redirect(url_for("event_detail", event_id=ev.id))
+    return render_template("event_form.html", form=form, title=_("Edit Event"))
+
+@app.route("/admin/events/<int:event_id>/delete", methods=["POST"])
+@admin_required
+def event_delete(event_id: int):
+    ev = Event.query.get_or_404(event_id)
+    db.session.delete(ev)
+    db.session.commit()
+    flash(_("Event deleted."), "info")
+    return redirect(url_for("events_calendar"))
+
+@app.route("/admin/events/<int:event_id>/categories", methods=["GET", "POST"])
+@admin_required
+def event_categories(event_id: int):
+    ev = Event.query.get_or_404(event_id)
+    form = EventCategoryForm()
+    if form.validate_on_submit():
+        cat = EventCategory(event_id=ev.id, name=form.name.data, fee=form.fee.data)
+        db.session.add(cat)
+        db.session.commit()
+        flash(_("Category added."), "success")
+        return redirect(url_for("event_categories", event_id=ev.id))
+    cats = ev.categories.order_by(EventCategory.name.asc()).all()
+    return render_template("event_categories.html", ev=ev, cats=cats, form=form)
+
+@app.route("/admin/events/<int:event_id>/categories/<int:cat_id>/delete", methods=["POST"])
+@admin_required
+def event_category_delete(event_id: int, cat_id: int):
+    ev = Event.query.get_or_404(event_id)
+    cat = EventCategory.query.filter_by(id=cat_id, event_id=ev.id).first_or_404()
+    db.session.delete(cat)
+    db.session.commit()
+    flash(_("Category deleted."), "info")
+    return redirect(url_for("event_categories", event_id=ev.id))
+
+# -------- Registrations (multiple entries per athlete per event) --------
+@app.route("/admin/events/<int:event_id>/registrations", methods=["GET", "POST"])
+@admin_required
+def event_registrations(event_id: int):
+    ev = Event.query.get_or_404(event_id)
+    form = EventRegistrationForm()
+
+    # choices
+    players = Player.query.filter_by(active_member=True).order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+    form.player_ids.choices = [(p.id, p.full_name()) for p in players]
+    cats = ev.categories.order_by(EventCategory.name.asc()).all()
+    form.category_ids.choices = [(c.id, c.name) for c in cats]
+
+    if form.validate_on_submit():
+        # Always create new registration per athlete
+        selected_cats = [EventCategory.query.get(cid) for cid in form.category_ids.data]
+        selected_cats = [c for c in selected_cats if c and c.event_id == ev.id]
+        for pid in form.player_ids.data:
+            reg = EventRegistration(
+                event_id=ev.id,
+                player_id=pid,
+                fee_override=form.fee_override.data,
+                paid=bool(form.paid.data),
+                paid_on=(date.today() if form.paid.data else None),
+            )
+            # populate association rows
+            reg.reg_categories = [EventRegCategory(category_id=c.id) for c in selected_cats]
+            db.session.add(reg)
+        db.session.commit()
+        flash(_("Registration added."), "success")
+        return redirect(url_for("event_registrations", event_id=ev.id))
+
+    # Filters & search
+    paid_filter = request.args.get("paid", "").strip().lower()  # "", "paid", "unpaid"
+    q = request.args.get("q", "").strip()
+
+    regs_query = (EventRegistration.query
+                  .filter_by(event_id=ev.id)
+                  .join(Player))
+
+    if paid_filter == "paid":
+        regs_query = regs_query.filter(EventRegistration.paid.is_(True))
+    elif paid_filter == "unpaid":
+        regs_query = regs_query.filter(EventRegistration.paid.is_(False))
+
+    if q:
+        like = f"%{q}%"
+        regs_query = (regs_query
+                      .outerjoin(EventRegistration.reg_categories)
+                      .outerjoin(EventRegCategory.category)
+                      .filter(or_(
+                          Player.first_name.ilike(like),
+                          Player.last_name.ilike(like),
+                          EventCategory.name.ilike(like)
+                      )))
+
+    regs = (regs_query
+            .order_by(Player.last_name.asc(), Player.first_name.asc(), EventRegistration.id.asc())
+            .distinct()
+            .all())
+
+    # Totals for filtered view
+    unique_participants = len({r.player_id for r in regs})
+    entries_count = len(regs)
+
+    def expected_fee(r: EventRegistration) -> Optional[int]:
+        if r.fee_override is not None:
+            return r.fee_override
+        total = 0
+        counted = False
+        for rc in r.reg_categories or []:
+            if rc.category and rc.category.fee is not None:
+                total += int(rc.category.fee)
+                counted = True
+        return total if counted else None
+
+    total_expected = sum(f for r in regs if (f := expected_fee(r)) is not None)
+    total_paid = sum(f for r in regs if r.paid and (f := expected_fee(r)) is not None)
+    total_unpaid = total_expected - total_paid
+
+    return render_template(
+        "event_registrations.html",
+        ev=ev, regs=regs, form=form,
+        q=q, paid_filter=paid_filter,
+        unique_participants=unique_participants,
+        entries_count=entries_count,
+        total_expected=total_expected,
+        total_paid=total_paid,
+        total_unpaid=total_unpaid
+    )
+
+@app.route("/admin/events/registrations/<int:reg_id>/toggle", methods=["POST"])
+@admin_required
+def event_reg_toggle_paid(reg_id: int):
+    reg = EventRegistration.query.get_or_404(reg_id)
+    reg.paid = not reg.paid
+    reg.paid_on = date.today() if reg.paid else None
+    db.session.commit()
+    flash(_("Paid status updated."), "success")
+    return redirect(url_for("event_registrations", event_id=reg.event_id))
+
+@app.route("/admin/events/registrations/<int:reg_id>/delete", methods=["POST"])
+@admin_required
+def event_reg_delete(reg_id: int):
+    reg = EventRegistration.query.get_or_404(reg_id)
+    ev_id = reg.event_id
+    db.session.delete(reg)
+    db.session.commit()
+    flash(_("Registration deleted."), "info")
+    return redirect(url_for("event_registrations", event_id=ev_id))
+
+@app.route("/admin/events/registrations/<int:reg_id>/categories/<int:cat_id>/remove", methods=["POST"])
+@admin_required
+def event_reg_remove_category(reg_id: int, cat_id: int):
+    rc = EventRegCategory.query.filter_by(registration_id=reg_id, category_id=cat_id).first_or_404()
+    ev_id = rc.registration.event_id
+    db.session.delete(rc)
+    db.session.commit()
+    flash(_("Registration updated."), "success")
+    return redirect(url_for("event_registrations", event_id=ev_id))
+
+@app.route("/admin/events/registrations/<int:reg_id>/categories/<int:cat_id>/medal", methods=["POST"])
+@admin_required
+def event_reg_set_medal(reg_id: int, cat_id: int):
+    rc = EventRegCategory.query.filter_by(registration_id=reg_id, category_id=cat_id).first_or_404()
+    val = (request.form.get("medal") or "").lower()
+    if val not in ("gold", "silver", "bronze", "none", ""):
+        val = ""
+    rc.medal = None if val in ("none", "") else val
+    db.session.commit()
+    flash(_("Registration updated."), "success")
+    return redirect(url_for("event_registrations", event_id=rc.registration.event_id))
+
+@app.route("/admin/events/<int:event_id>/export")
+@admin_required
+def event_export_csv(event_id: int):
+    ev = Event.query.get_or_404(event_id)
+    regs = (EventRegistration.query
+            .filter_by(event_id=ev.id)
+            .join(Player)
+            .order_by(Player.last_name.asc(), Player.first_name.asc())
+            .all())
+
+    def generate():
+        yield "player_id,full_name,categories,medals,fee_eur,paid,paid_on,event_title,start_date,end_date,location\n"
+        for r in regs:
+            cats = "; ".join([rc.category.name for rc in r.reg_categories]) if r.reg_categories else ""
+            medals = "; ".join([rc.medal or "" for rc in r.reg_categories]) if r.reg_categories else ""
+            expected = r.fee_override if r.fee_override is not None else (
+                sum((rc.category.fee or 0) for rc in r.reg_categories) if r.reg_categories else ""
+            )
+            paid = "yes" if r.paid else "no"
+            paid_on = r.paid_on.isoformat() if r.paid_on else ""
+            endd = (ev.end_date or ev.start_date).isoformat()
+            yield f"{r.player_id},{r.player.full_name()},{cats},{medals},{expected},{paid},{paid_on},{ev.title},{ev.start_date.isoformat()},{endd},{ev.location or ''}\n"
+
+    headers = {"Content-Disposition": f'attachment; filename="event_{ev.id}_registrations.csv"'}
+    return Response(generate(), mimetype="text/csv", headers=headers)
+
+# -------- Medals Year Report --------
+@app.route("/reports/medals")
+@admin_required
+def medals_report():
+    # year param; default: current year
+    try:
+        year = int(request.args.get("year") or date.today().year)
+    except Exception:
+        year = date.today().year
+
+    start = date(year, 1, 1)
+    end = date(year, 12, 31)
+
+    # Fetch all reg-category rows for events in the year
+    rows = (db.session.query(EventRegCategory, EventRegistration, Event, Player)
+            .join(EventRegCategory.registration)
+            .join(EventRegistration.player)
+            .join(EventRegistration.event)
+            .filter(and_(Event.start_date >= start, Event.start_date <= end))
+            .all())
+
+    # Aggregate per player & club totals
+    per_player = {}
+    club_totals = {"gold": 0, "silver": 0, "bronze": 0, "total": 0}
+
+    for rc, reg, ev, pl in rows:
+        if pl.id not in per_player:
+            per_player[pl.id] = {"player": pl, "gold": 0, "silver": 0, "bronze": 0, "total": 0}
+        if rc.medal in ("gold", "silver", "bronze"):
+            per_player[pl.id][rc.medal] += 1
+            per_player[pl.id]["total"] += 1
+            club_totals[rc.medal] += 1
+            club_totals["total"] += 1
+
+    # sort players by gold, silver, bronze, then name
+    sorted_players = sorted(
+        per_player.values(),
+        key=lambda x: (-x["gold"], -x["silver"], -x["bronze"], x["player"].last_name, x["player"].first_name)
+    )
+
+    return render_template(
+        "report_medals.html",
+        year=year,
+        players=sorted_players,
+        club_totals=club_totals
+    )
+
+# -------- Migration (Player columns — idempotent) ----------
 @app.route("/admin/migrate")
 @admin_required
 def migrate():
-    """
-    Adds columns sportdata_wkf_url, sportdata_bnfk_url, sportdata_enso_url if missing.
-    Safe to run multiple times.
-    """
     try:
         with db.engine.begin() as conn:
+            # Player table columns
             result = conn.execute(text("PRAGMA table_info(player)"))
-            existing_cols = {row[1] for row in result}  # row[1] is column name
-
+            existing = {row[1] for row in result}
             to_add = []
-            if "sportdata_wkf_url" not in existing_cols:
-                to_add.append(("sportdata_wkf_url", "VARCHAR(255)"))
-            if "sportdata_bnfk_url" not in existing_cols:
-                to_add.append(("sportdata_bnfk_url", "VARCHAR(255)"))
-            if "sportdata_enso_url" not in existing_cols:
-                to_add.append(("sportdata_enso_url", "VARCHAR(255)"))
-
+            if "sportdata_wkf_url" not in existing: to_add.append(("sportdata_wkf_url", "VARCHAR(255)"))
+            if "sportdata_bnfk_url" not in existing: to_add.append(("sportdata_bnfk_url", "VARCHAR(255)"))
+            if "sportdata_enso_url" not in existing: to_add.append(("sportdata_enso_url", "VARCHAR(255)"))
+            if "grade_level" not in existing: to_add.append(("grade_level", "VARCHAR(20)"))
+            if "grade_date" not in existing: to_add.append(("grade_date", "DATE"))
+            if "medical_exam_date" not in existing: to_add.append(("medical_exam_date", "DATE"))
+            if "medical_expiry_date" not in existing: to_add.append(("medical_expiry_date", "DATE"))
+            if "insurance_expiry_date" not in existing: to_add.append(("insurance_expiry_date", "DATE"))
+            if "monthly_fee_amount" not in existing: to_add.append(("monthly_fee_amount", "INTEGER"))
+            if "monthly_fee_is_monthly" not in existing: to_add.append(("monthly_fee_is_monthly", "BOOLEAN"))
+            if "mother_name" not in existing: to_add.append(("mother_name", "VARCHAR(120)"))
+            if "mother_phone" not in existing: to_add.append(("mother_phone", "VARCHAR(40)"))
+            if "father_name" not in existing: to_add.append(("father_name", "VARCHAR(120)"))
+            if "father_phone" not in existing: to_add.append(("father_phone", "VARCHAR(40)"))
             for name, coltype in to_add:
                 conn.execute(text(f"ALTER TABLE player ADD COLUMN {name} {coltype}"))
+
+        # Ensure all ORM tables exist (including EventRegCategory)
+        db.create_all()
 
         if to_add:
             added = ", ".join([name for name, _ in to_add])
@@ -555,30 +1437,36 @@ def migrate():
 
     return redirect(url_for("list_players"))
 
-# -----------------------------
-# Startup DB init + auto-migrate
-# -----------------------------
-def auto_migrate_sportdata_columns():
-    """Ensure Sportdata columns exist. Safe to run multiple times."""
+def auto_migrate_on_startup():
     with db.engine.begin() as conn:
         result = conn.execute(text("PRAGMA table_info(player)"))
-        existing_cols = {row[1] for row in result}
-
+        existing = {row[1] for row in result}
         to_add = []
-        if "sportdata_wkf_url" not in existing_cols:
-            to_add.append(("sportdata_wkf_url", "VARCHAR(255)"))
-        if "sportdata_bnfk_url" not in existing_cols:
-            to_add.append(("sportdata_bnfk_url", "VARCHAR(255)"))
-        if "sportdata_enso_url" not in existing_cols:
-            to_add.append(("sportdata_enso_url", "VARCHAR(255)"))
-
+        for col, t in [
+            ("sportdata_wkf_url", "VARCHAR(255)"),
+            ("sportdata_bnfk_url", "VARCHAR(255)"),
+            ("sportdata_enso_url", "VARCHAR(255)"),
+            ("grade_level", "VARCHAR(20)"),
+            ("grade_date", "DATE"),
+            ("medical_exam_date", "DATE"),
+            ("medical_expiry_date", "DATE"),
+            ("insurance_expiry_date", "DATE"),
+            ("monthly_fee_amount", "INTEGER"),
+            ("monthly_fee_is_monthly", "BOOLEAN"),
+            ("mother_name", "VARCHAR(120)"),
+            ("mother_phone", "VARCHAR(40)"),
+            ("father_name", "VARCHAR(120)"),
+            ("father_phone", "VARCHAR(40)"),
+        ]:
+            if col not in existing:
+                to_add.append((col, t))
         for name, coltype in to_add:
             conn.execute(text(f"ALTER TABLE player ADD COLUMN {name} {coltype}"))
 
 with app.app_context():
-    db.create_all()
+    db.create_all()  # ensures Payment + Event* + EventRegCategory tables exist
     try:
-        auto_migrate_sportdata_columns()
+        auto_migrate_on_startup()
     except Exception as e:
         app.logger.exception("Auto-migrate failed: %s", e)
 
@@ -586,5 +1474,4 @@ with app.app_context():
 # Entrypoint
 # -----------------------------
 if __name__ == "__main__":
-    # Tip: in dev, set FLASK_DEBUG=1 (Linux/macOS) or $env:FLASK_DEBUG=1 (PowerShell)
     app.run(host="0.0.0.0", port=5000)

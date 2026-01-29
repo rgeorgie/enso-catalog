@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-3">{{ _('Categories') }} — {{ ev.title }}</h1>
+
+<form method="post" class="row g-3 mb-4">
+  {{ form.csrf_token }}
+  <div class="col-md-6">
+    <label class="form-label">{{ _('Category Name') }}</label>
+    {{ form.name(class="form-control") }}
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">{{ _('Category Fee') }}</label>
+    {{ form.fee(class="form-control", placeholder="e.g. 50") }}
+  </div>
+  <div class="col-md-3 d-flex align-items-end">
+    <button class="btn btn-primary" type="submit">{{ _('Add Category') }}</button>
+  </div>
+</form>
+
+{% if cats %}
+  <div class="table-responsive">
+    <table class="table table-striped align-middle">
+      <thead><tr><th>#</th><th>{{ _('Category Name') }}</th><th class="text-end">{{ _('Category Fee') }}</th><th></th></tr></thead>
+      <tbody>
+      {% for c in cats %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ c.name }}</td>
+          <td class="text-end">{{ c.fee if c.fee is not none else '—' }}</td>
+          <td class="text-end">
+            <form method="post" action="{{ url_for('event_category_delete', event_id=ev.id, cat_id=c.id) }}" onsubmit="return confirm('{{ _('Delete Category') }}?');">
+              <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="text-muted">{{ _('No categories yet.') }}</div>
+{% endif %}
+
+<div class="mt-3">
+  <a class="btn btn-outline-secondary" href="{{ url_for('event_detail', event_id=ev.id) }}">{{ _('Event') }}</a>
+  <a class="btn btn-outline-secondary" href="{{ url_for('event_registrations', event_id=ev.id) }}">{{ _('Registrations') }}</a>
+</div>
+{% endblock %}
