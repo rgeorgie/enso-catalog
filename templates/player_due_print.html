@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block head %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}?v=20260129">
+{% endblock %}
+
+{% block content %}
+<div class="receipt card p-4">
+
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h3 class="mb-1">Due Fees</h3>
+      <div class="text-muted">Month: {{ "%04d-%02d"|format(year, month) }}</div>
+      <div class="text-muted">Due date: {{ due_date }}</div>
+    </div>
+    <div class="text-end">
+      <div><strong>Player:</strong> {{ player.full_name() }}</div>
+      <div><strong>ID:</strong> {{ player.id }}</div>
+    </div>
+  </div>
+
+  <hr/>
+
+  <h5 class="mb-2">Training (Monthly)</h5>
+  {% if pay and pay.amount is not none %}
+    {% if pay.paid %}
+      <p class="mb-3">Status: <span class="badge text-bg-success">Already paid</span></p>
+    {% else %}
+      <p class="mb-3">
+        <strong>Amount:</strong> {{ pay.amount }} EUR &nbsp;|&nbsp;
+        <strong>Status:</strong> <span class="badge text-bg-danger">Due</span>
+      </p>
+    {% endif %}
+  {% else %}
+    <p class="mb-3"><em>No monthly fee configured for this player.</em></p>
+  {% endif %}
+
+  <h5 class="mt-4 mb-2">Unpaid Event Registrations ({{ "%04d-%02d"|format(year, month) }})</h5>
+  {% if regs_unpaid %}
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead>
+          <tr><th>#</th><th>Event</th><th>Start</th><th>Categories</th><th class="text-end">Fee (EUR)</th></tr>
+        </thead>
+        <tbody>
+        {% for r in regs_unpaid %}
+          {% set fee = r.computed_fee() %}
+          <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.event.title }}</td>
+            <td>{{ r.event.start_date }}</td>
+            <td>
+              {% if r.reg_categories %}
+                {{ r.reg_categories | map(attribute='category') | select | map(attribute='name') | join(', ') }}
+              {% else %}<em>—</em>{% endif %}
+            </td>
+            <td class="text-end">{{ fee if fee is not none else "—" }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p><em>No unpaid event registrations in this month.</em></p>
+  {% endif %}
+
+  <hr/>
+
+  <p class="lead">
+    <strong>Total due this month:</strong>
+    {{ monthly_due + events_due }} EUR
+    {% if monthly_due %}
+      (training: {{ monthly_due }}{% if events_due %}, events: {{ events_due }}{% endif %})
+    {% elif events_due %}
+      (events: {{ events_due }})
+    {% endif %}
+  </p>
+
+  <!-- Stamp -->
+  <div class="stamp">
+    <img src="{{ url_for('static', filename='img/enso-logo.webp') }}"
+         alt="ENSO Stamp" style="max-width: 3.2cm; max-height: 3.2cm;">
+  </div>
+
+  <div class="mt-3 no-print d-flex gap-2">
+    <button class="btn btn-primary" type="button" onclick="window.print()">Print</button>
+    <a class="btn btn-outline-secondary" href="{{ request.referrer or url_for('list_players') }}">Back</a>
+  </div>
+</div>
+
+<script>
+  window.addEventListener('load', () => setTimeout(() => window.print(), 250));
+</script>
+{% endblock %}
