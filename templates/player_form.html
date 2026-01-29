@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">{{ title }}</h1>
+
+<form method="post" enctype="multipart/form-data">
+  {{ form.csrf_token }}
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">First Name</label>
+      {{ form.first_name(class="form-control") }}
+      {% for e in form.first_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Last Name</label>
+      {{ form.last_name(class="form-control") }}
+      {% for e in form.last_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">Gender</label>
+      {{ form.gender(class="form-select") }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Birthdate</label>
+      {{ form.birthdate(class="form-control", type="date") }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Belt Rank</label>
+      {{ form.belt_rank(class="form-select") }}
+      {% for e in form.belt_rank.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">Discipline</label>
+      {{ form.discipline(class="form-select") }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Weight (kg)</label>
+      {{ form.weight_kg(class="form-control") }}
+      {% for e in form.weight_kg.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Height (cm)</label>
+      {{ form.height_cm(class="form-control") }}
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Email</label>
+      {{ form.email(class="form-control") }}
+      {% for e in form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Phone</label>
+      {{ form.phone(class="form-control") }}
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">Join Date</label>
+      {{ form.join_date(class="form-control", type="date") }}
+    </div>
+    <div class="col-md-4 d-flex align-items-center">
+      <div class="form-check mt-4">
+        {{ form.active_member(class="form-check-input") }}
+        <label class="form-check-label">Active Member</label>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <label class="form-label">Notes</label>
+      {{ form.notes(class="form-control", rows="4") }}
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Photo (jpg/png/gif/webp, ≤ 2MB)</label>
+      <input class="form-control" type="file" name="photo" accept=".png,.jpg,.jpeg,.gif,.webp">
+    </div>
+
+    <div class="col-12">
+      <button class="btn btn-primary" type="submit">Save</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endblock %}

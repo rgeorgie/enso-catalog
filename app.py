@@ -11,7 +11,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from werkzeug.utils import secure_filename
 from wtforms import (
-    StringField, SelectField, DateField, DecimalField, IntegerField,
+    StringField, SelectField, DateField, IntegerField,
     TextAreaField, SubmitField, BooleanField
 )
 from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange
@@ -161,7 +161,7 @@ def player_detail(player_id: int):
 
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
-    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=False)
 
 # -------- Admin & Auth ----------
 @app.route("/login", methods=["GET", "POST"])
@@ -208,7 +208,6 @@ def create_player():
         file = request.files.get("photo")
         if file and file.filename and allowed_file(file.filename):
             fname = secure_filename(file.filename)
-            # make filename unique
             base, ext = os.path.splitext(fname)
             counter = 1
             new_name = fname
@@ -290,17 +289,14 @@ def export_csv():
             ]
             yield ",".join(row) + "\n"
 
-    headers = {
-        "Content-Disposition": 'attachment; filename="karate_players.csv"'
-    }
+    headers = {"Content-Disposition": 'attachment; filename="karate_players.csv"'}
     return Response(generate(), mimetype="text/csv", headers=headers)
 
 
 # -----------------------------
-# DB Init
+# DB Init (Flask 3.x compatible)
 # -----------------------------
-@app.before_first_request
-def init_db():
+with app.app_context():
     db.create_all()
 
 
