@@ -792,6 +792,7 @@ def list_players():
     q = request.args.get("q", "").strip()
     belt = request.args.get("belt", "")
     active = request.args.get("active", "")
+    month_str = request.args.get("month")  # optional YYYY-MM to show monthly dues
 
     query = Player.query
 
@@ -808,6 +809,14 @@ def list_players():
         query = query.filter_by(active_member=False)
 
     players = query.order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+    # determine which month to show dues for (default: current month)
+    if month_str:
+        y, m = parse_month_str(month_str)
+    else:
+        t = date.today()
+        y, m = t.year, t.month
+    ensure_payments_for_month(y, m)
+    month_year = (y, m)
     # attach per-session aggregates to each player for the list view
     for p in players:
         sess_records = (PaymentRecord.query
@@ -819,7 +828,11 @@ def list_players():
         explicit_sessions_paid = sum((r.sessions_paid or 0) for r in sess_receipts)
         total_sessions_taken = sum((r.sessions_taken or 0) for r in sess_records)
         total_prepaid_amount = sum((r.amount or 0) for r in sess_receipts)
-        payments_count = len(sess_records)
+        # total number of receipt/payment records for this player (all kinds)
+        try:
+            payments_count = db.session.query(PaymentRecord).filter_by(player_id=p.id).count()
+        except Exception:
+            payments_count = 0
 
         # derive per-session price: prefer player's configured per-session amount if set
         per_session_price = None
@@ -858,6 +871,18 @@ def list_players():
         p.per_session_price = per_session_price
         p.expected_cost = expected_cost
         p.owed_amount = int(round(owed_amount)) if owed_amount is not None else None
+        # attach monthly due for the selected month (if any)
+        p.monthly_due_amount = None
+        p.monthly_due_paid = None
+        if month_year:
+            yy, mm = month_year
+            pay_row = Payment.query.filter_by(player_id=p.id, year=yy, month=mm).first()
+            if pay_row:
+                p.monthly_due_amount = pay_row.amount or 0
+                p.monthly_due_paid = bool(pay_row.paid)
+            else:
+                p.monthly_due_amount = None
+                p.monthly_due_paid = None
 
     return render_template(
         "players_list.html",
@@ -868,6 +893,14 @@ def list_players():
 @app.route("/players/<int:player_id>")
 def player_detail(player_id: int):
     player = Player.query.get_or_404(player_id)
+    # ensure payment rows exist for current month so monthly due is visible
+    today = date.today()
+    try:
+        ensure_payments_for_month(today.year, today.month)
+    except Exception:
+        pass
+    # current month's payment row
+    current_payment = Payment.query.filter_by(player_id=player.id, year=today.year, month=today.month).first()
     regs = (EventRegistration.query
             .filter_by(player_id=player.id)
             .join(Event)
@@ -917,6 +950,7 @@ def player_detail(player_id: int):
     return render_template(
         "player_detail.html",
         player=player,
+        current_payment=current_payment,
         regs=regs,
         sess_records=sess_records_all,
         total_sessions_paid=total_sessions_paid,
@@ -1778,6 +1812,28 @@ def payment_new():
 
     db.session.add(record)
     db.session.commit()  # get id
+
+    # If this receipt settles a Payment row (monthly), mark it paid
+    try:
+        if record.payment_id:
+            pay_row = Payment.query.get(record.payment_id)
+            if pay_row and not pay_row.paid:
+                pay_row.paid = True
+                pay_row.paid_on = date.today()
+                db.session.add(pay_row)
+
+        # If this receipt settles an EventRegistration, mark it paid
+        if record.event_registration_id:
+            reg_row = EventRegistration.query.get(record.event_registration_id)
+            if reg_row and not reg_row.paid:
+                reg_row.paid = True
+                reg_row.paid_on = date.today()
+                db.session.add(reg_row)
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     record.assign_receipt_no()
     flash("Payment recorded. Receipt generated.", "success")
     return redirect(url_for("receipt_view", rid=record.id))
@@ -1966,6 +2022,15 @@ def receipt_pay_debt(rid: int):
     db.session.add(pay)
     db.session.commit()
     pay.assign_receipt_no()
+    # mark original debt as paid (or link)
+    try:
+        orig.note = (orig.note or '') + ' | AUTO_DEBT_PAID'
+        db.session.add(orig)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    flash('Debt payment recorded. Receipt created.', 'success')
+    return redirect(url_for('receipt_view', rid=pay.id))
 
 
 @app.route("/admin/players/<int:player_id>/pay_due", methods=["POST"])
@@ -1980,6 +2045,9 @@ def player_pay_due(player_id: int):
     created = []
     total_amount = 0
     today = date.today()
+
+    # Ensure monthly Payment rows exist for the current month so unpaid monthly dues are visible
+    ensure_payments_for_month(today.year, today.month)
 
     # Monthly unpaid payments
     if kind in ("monthly", "all"):

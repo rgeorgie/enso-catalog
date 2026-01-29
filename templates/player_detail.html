@@ -19,6 +19,16 @@
 </div>
 {% endif %}
 
+{% if current_payment %}
+  <div class="mb-3">
+    {% if current_payment.paid %}
+      <span class="badge bg-success">Monthly due: {{ current_payment.amount or 0 }} EUR (paid)</span>
+    {% else %}
+      <span class="badge bg-danger">Monthly due: {{ current_payment.amount or 0 }} EUR (unpaid)</span>
+    {% endif %}
+  </div>
+{% endif %}
+
 <div class="row g-3">
   <!-- Left column: photo & quick actions -->
   <div class="col-12 col-lg-4">

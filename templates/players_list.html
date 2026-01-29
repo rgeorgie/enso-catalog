@@ -44,6 +44,7 @@
         <th>{{ _('Belt Color') }}</th>
         <th>{{ _('Discipline') }}</th>
         <th>{{ _('Monthly Fee Type') }}</th>
+        <th>Monthly Due</th>
         <th>{{ _('Active') }}</th>
         <th>{{ _('Email') }}</th>
         <th>{{ _('Sportdata') }}</th>
@@ -69,6 +70,17 @@
               <div class="small mt-1"><span class="badge text-bg-warning text-dark">No payments</span></div>
             {% endif %}
           {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if p.monthly_due_amount is not none %}
+            {% if p.monthly_due_paid %}
+              <span class="text-success">{{ p.monthly_due_amount }} EUR</span>
+            {% else %}
+              <span class="text-danger">{{ p.monthly_due_amount }} EUR</span>
+            {% endif %}
+          {% else %}
+            —
+          {% endif %}
         </td>
         <td>
           {% if p.active_member %}
@@ -106,7 +118,7 @@
         {% endif %}
       </tr>
     {% else %}
-      <tr><td colspan="9" class="text-center text-muted">{{ _('No players found.') }}</td></tr>
+      <tr><td colspan="10" class="text-center text-muted">{{ _('No players found.') }}</td></tr>
     {% endfor %}
     </tbody>
   </table>
