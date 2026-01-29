@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block head %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}?v=20260129">
+{% endblock %}
+
+{% block content %}
+<h2>New Payment / Receipt</h2>
+
+<form method="post" action="{{ url_for('payment_new') }}" class="mt-3" novalidate>
+  <div class="mb-3">
+    <label class="form-label">Kind</label>
+    <select name="kind" id="kind" class="form-select" required>
+      <option value="training_month">Training (per month)</option>
+      <option value="training_session">Training (per session)</option>
+      <option value="event">Event</option>
+    </select>
+  </div>
+
+  <!-- Training inputs -->
+  <div id="training-wrap">
+    <div class="mb-3">
+      <label class="form-label">Player ID</label>
+      <input type="number" name="player_id" id="player_id" class="form-control"
+             value="{{ player.id if player else '' }}">
+    </div>
+
+    <div class="mb-3" id="month-wrap">
+      <label class="form-label">Month (YYYY-MM)</label>
+      <input type="text" name="month" id="month" class="form-control"
+             placeholder="{{ today.year }}-{{ '%02d' % today.month }}">
+    </div>
+
+    <div class="mb-3 d-none" id="sessions-wrap">
+      <label class="form-label">Sessions paid</label>
+      <input type="number" name="sessions_paid" id="sessions_paid" class="form-control" min="1" value="8">
+    </div>
+  </div>
+
+  <!-- Event inputs -->
+  <div id="event-wrap" class="d-none">
+    <div class="mb-3">
+      <label class="form-label">Event Registration ID</label>
+      <input type="number" name="reg_id" id="reg_id" class="form-control"
+             value="{{ reg.id if reg else '' }}">
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-4 mb-3">
+      <label class="form-label">Amount</label>
+      <!-- NOTE: NOT required. For kind=event, the server will compute from computed_fee() if empty -->
+      <input type="number" step="1" min="0" name="amount" id="amount" class="form-control"
+             value="{{ default_amount if default_amount is not none else '' }}">
+    </div>
+    <div class="col-md-4 mb-3">
+      <label class="form-label">Currency</label>
+      <input type="text" name="currency" id="currency" class="form-control" value="EUR">
+    </div>
+    <div class="col-md-4 mb-3">
+      <label class="form-label">Method</label>
+      <input type="text" name="method" id="method" class="form-control" placeholder="cash / card / bank">
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Notes</label>
+    <textarea name="note" id="note" class="form-control" rows="2"></textarea>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save &amp; Print</button>
+</form>
+
+<script>
+  // Toggle sections
+  const kindEl = document.getElementById('kind');
+  const trainingWrap = document.getElementById('training-wrap');
+  const monthWrap = document.getElementById('month-wrap');
+  const sessionsWrap = document.getElementById('sessions-wrap');
+  const eventWrap = document.getElementById('event-wrap');
+
+  function syncSections() {
+    const k = kindEl.value;
+    const isTraining = (k === 'training_month' || k === 'training_session');
+    trainingWrap.classList.toggle('d-none', !isTraining);
+    eventWrap.classList.toggle('d-none', k !== 'event');
+    monthWrap.classList.toggle('d-none', k !== 'training_month');
+    sessionsWrap.classList.toggle('d-none', k !== 'training_session');
+  }
+  kindEl.addEventListener('change', syncSections);
+
+  // Prefill from query string
+  (function () {
+    const params = new URLSearchParams(window.location.search);
+    const ids = ['kind','player_id','month','sessions_paid','reg_id','amount','currency','method','note'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && params.has(id)) {
+        el.value = params.get(id);
+        if (id === 'kind') el.dispatchEvent(new Event('change'));
+      }
+    });
+  })();
+
+  // Auto-fetch event fee if amount blank
+  async function maybeFetchEventFee() {
+    if (kindEl.value !== 'event') return;
+    const reg = document.getElementById('reg_id')?.value;
+    const amt = document.getElementById('amount');
+    if (!reg || !amt || amt.value !== '') return;
+    try {
+      const res = await fetch(`/admin/events/registrations/${reg}/fee.json`, { headers: { 'Accept': 'application/json' } });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.fee != null) amt.value = data.fee;
+      }
+    } catch {}
+  }
+  document.getElementById('reg_id')?.addEventListener('change', maybeFetchEventFee);
+  document.getElementById('reg_id')?.addEventListener('blur',   maybeFetchEventFee);
+
+  // Init
+  syncSections();
+  maybeFetchEventFee();
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+/* Printable card base */
+.receipt {
+  position: relative; /* anchor stamp */
+  background: #fff;
+}
+
+/* Screen-only */
+.no-print { display: inline-block; }
+
+/* Stamp bottom-right */
+.stamp {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.stamp img {
+  width: 30mm;   /* 3 cm */
+  height: 30mm;
+  object-fit: contain;
+  filter: grayscale(100%);
+  display: block;
+}
+
+/* Print tweaks */
+@media print {
+  body { background: #fff !important; }
+  .no-print { display: none !important; }
+  .receipt { border: none !important; box-shadow: none !important; padding: 0 !important; }
+  .stamp { opacity: 0.22; }
+}

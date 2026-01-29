@@ -1,12 +1,13 @@
+# app.py
 import os
 import json
 import calendar
-from datetime import date
+from datetime import date, datetime
 from functools import wraps
 from typing import Optional, Tuple
 
 from flask import (
-    Flask, render_template, request, redirect, url_for, flash,
+    Flask, render_template, request, redirect, url_for, flash, abort,
     send_from_directory, session, Response
 )
 from flask_sqlalchemy import SQLAlchemy
@@ -52,7 +53,6 @@ def get_lang() -> str:
 
 translations = {
     "en": {
-        # Branding / Nav
         "Team ENSO": "Team ENSO",
         "Karate Club": "Karate Club",
         "Players": "Players",
@@ -66,7 +66,6 @@ translations = {
         "BG": "BG", "EN": "EN",
         "All": "All",
 
-        # Search / List
         "Search": "Search",
         "Belt": "Belt",
         "Belt Color": "Belt Color",
@@ -84,7 +83,6 @@ translations = {
         "No players found.": "No players found.",
         "No photo uploaded": "No photo uploaded",
 
-        # Player form / detail
         "First Name": "First Name",
         "Last Name": "Last Name",
         "Gender": "Gender",
@@ -106,7 +104,6 @@ translations = {
         "Father Name": "Father Name",
         "Father Phone": "Father Phone",
 
-        # Health / Insurance
         "Medical Examination": "Medical Examination",
         "Examination Date": "Examination Date",
         "Expiry Date": "Expiry Date",
@@ -115,7 +112,6 @@ translations = {
         "Expires in {d}d": "Expires in {d}d",
         "Valid until {dt}": "Valid until {dt}",
 
-        # Fees & report (EUR)
         "Monthly Fee (EUR)": "Monthly Fee (EUR)",
         "Monthly Fee Type": "Monthly Fee Type",
         "Is Monthly (not per session)": "Is Monthly (not per session)",
@@ -128,7 +124,6 @@ translations = {
         "Nothing to show.": "Nothing to show.",
         "Payment toggled.": "Payment toggled.",
 
-        # Events / Calendar (EUR)
         "Sports Calendar": "Sports Calendar",
         "New Event": "New Event",
         "Edit Event": "Edit Event",
@@ -169,7 +164,6 @@ translations = {
         "override": "override",
         "computed": "computed",
 
-        # Medals
         "Medals": "Medals",
         "Gold": "Gold",
         "Silver": "Silver",
@@ -181,7 +175,6 @@ translations = {
         "Player": "Player",
         "Total": "Total",
 
-        # Sportdata in player
         "Sportdata": "Sportdata",
         "Sportdata Profiles": "Sportdata Profiles",
         "WKF Profile URL": "WKF Profile URL",
@@ -189,7 +182,6 @@ translations = {
         "ENSO Profile URL": "ENSO Profile URL",
         "Open": "Open",
 
-        # Auth & flashes
         "Username": "Username",
         "Password": "Password",
         "Admin login required.": "Admin login required.",
@@ -203,7 +195,6 @@ translations = {
         "DB migration: nothing to do.": "DB migration: nothing to do.",
         "DB migration failed: {err}": "DB migration failed: {err}",
 
-        # enums
         "—": "—",
         "Male": "Male", "Female": "Female", "Other": "Other",
         "White": "White", "Yellow": "Yellow", "Orange": "Orange",
@@ -212,7 +203,6 @@ translations = {
         "Kata": "Kata", "Kumite": "Kumite", "Both": "Both",
     },
     "bg": {
-        # Branding / Nav
         "Team ENSO": "Team ENSO",
         "Karate Club": "Карате клуб",
         "Players": "Състезатели",
@@ -226,7 +216,6 @@ translations = {
         "BG": "BG", "EN": "EN",
         "All": "Всички",
 
-        # Search / List
         "Search": "Търсене",
         "Belt": "Колан",
         "Belt Color": "Цвят на колана",
@@ -244,7 +233,6 @@ translations = {
         "No players found.": "Няма намерени състезатели.",
         "No photo uploaded": "Няма качена снимка",
 
-        # Player form / detail
         "First Name": "Име",
         "Last Name": "Фамилия",
         "Gender": "Пол",
@@ -257,7 +245,7 @@ translations = {
         "Join Date": "Дата на присъединяване",
         "Active Member": "Активен член",
         "Notes": "Бележки",
-        "Photo (jpg/png/gif/webp, ≤ 2MB)": "Снимка (jpg/png/gиф/webp, ≤ 2MB)",
+        "Photo (jpg/png/gиф/webp, ≤ 2MB)": "Снимка (jpg/png/gиф/webp, ≤ 2MB)",
         "Save": "Запази",
         "Cancel": "Откажи",
         "Joined": "Присъединяване",
@@ -266,7 +254,6 @@ translations = {
         "Father Name": "Име на бащата",
         "Father Phone": "Телефон на бащата",
 
-        # Health / Insurance
         "Medical Examination": "Медицински преглед",
         "Examination Date": "Дата на преглед",
         "Expiry Date": "Валидност до",
@@ -275,7 +262,6 @@ translations = {
         "Expires in {d}d": "Изтича след {d} дни",
         "Valid until {dt}": "Валидна до {dt}",
 
-        # Fees & report (EUR)
         "Monthly Fee (EUR)": "Месечна такса (EUR)",
         "Monthly Fee Type": "Тип такса",
         "Is Monthly (not per session)": "Месечна (не на тренировка)",
@@ -288,7 +274,6 @@ translations = {
         "Nothing to show.": "Няма данни.",
         "Payment toggled.": "Плащането е променено.",
 
-        # Events / Calendar (EUR)
         "Sports Calendar": "Спортен календар",
         "New Event": "Ново събитие",
         "Edit Event": "Редакция на събитие",
@@ -329,7 +314,6 @@ translations = {
         "override": "override",
         "computed": "computed",
 
-        # Medals
         "Medals": "Медали",
         "Gold": "Злато",
         "Silver": "Сребро",
@@ -341,7 +325,6 @@ translations = {
         "Player": "Състезател",
         "Total": "Общо",
 
-        # Sportdata in player
         "Sportdata": "Sportdata",
         "Sportdata Profiles": "Sportdata профили",
         "WKF Profile URL": "WKF профил (URL)",
@@ -349,7 +332,6 @@ translations = {
         "ENSO Profile URL": "ENSO профил (URL)",
         "Open": "Отвори",
 
-        # Auth & flashes
         "Username": "Потребител",
         "Password": "Парола",
         "Admin login required.": "Необходим е администраторски вход.",
@@ -363,7 +345,6 @@ translations = {
         "DB migration: nothing to do.": "Миграция: няма какво да се прави.",
         "DB migration failed: {err}": "Миграция: грешка: {err}",
 
-        # enums
         "—": "—",
         "Male": "Мъж", "Female": "Жена", "Other": "Друго",
         "White": "Бял", "Yellow": "Жълт", "Orange": "Оранжев",
@@ -545,6 +526,58 @@ class EventRegCategory(db.Model):
     category = db.relationship("EventCategory")
 
 # -----------------------------
+# NEW: PaymentRecord (generic receipts for training/event)
+# -----------------------------
+class PaymentRecord(db.Model):
+    """
+    Generic receipt for both training and event payments.
+
+    kind: 'training_month' | 'training_session' | 'event'
+    - training_month: (year, month) set; optionally link to Payment row
+    - training_session: sessions_paid/sessions_taken
+    - event: event_registration_id links to EventRegistration
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(20), nullable=False)
+
+    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    payment_id = db.Column(db.Integer, db.ForeignKey("payment.id"), nullable=True, index=True)
+    event_registration_id = db.Column(db.Integer, db.ForeignKey("event_registration.id"), nullable=True, index=True)
+
+    # Training (monthly)
+    year = db.Column(db.Integer, nullable=True)
+    month = db.Column(db.Integer, nullable=True)  # 1..12
+
+    # Training (per-session)
+    sessions_paid = db.Column(db.Integer, default=0)
+    sessions_taken = db.Column(db.Integer, default=0)
+
+    # Money
+    amount = db.Column(db.Integer, nullable=False)      # EUR
+    currency = db.Column(db.String(8), nullable=False, default="EUR")
+    method = db.Column(db.String(32), nullable=True)    # cash/card/bank
+    note = db.Column(db.Text, nullable=True)
+
+    # Receipt & timestamps
+    receipt_no = db.Column(db.String(40), unique=True, nullable=True)
+    paid_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    # Relationships
+    player = db.relationship("Player")
+    payment = db.relationship("Payment")
+    event_registration = db.relationship("EventRegistration")
+
+    def assign_receipt_no(self):
+        """Assign nice sequential-like receipt number: RCPT-YYYYMMDD-######"""
+        if not self.id:
+            return
+        stamp = (self.paid_at or datetime.utcnow()).strftime("%Y%m%d")
+        self.receipt_no = f"RCPT-{stamp}-{self.id:06d}"
+        db.session.add(self)
+        db.session.commit()
+
+# -----------------------------
 # Forms
 # -----------------------------
 class PlayerForm(FlaskForm):
@@ -572,8 +605,8 @@ class PlayerForm(FlaskForm):
     medical_expiry_date = DateField("Expiry Date", validators=[VOptional()])
     insurance_expiry_date = DateField("Insurance Expiry Date", validators=[VOptional()])
 
-    # Fees (EUR)
-    monthly_fee_amount = IntegerField("Monthly Fee (EUR)", validators=[VOptional(), NumberRange(min=0, max=10000)])
+    # Fees (EUR) — renamed label
+    monthly_fee_amount = IntegerField("Training Fee (EUR)", validators=[VOptional(), NumberRange(min=0, max=10000)])
     monthly_fee_is_monthly = BooleanField("Is Monthly (not per session)", default=True)
 
     # Parents
@@ -620,7 +653,7 @@ def set_localized_choices(form: PlayerForm):
     form.gender.choices = [("", _("—"))] + [(v, _(v)) for v in GENDER_VALUES]
 
 # -----------------------------
-# Helpers (belts & health)
+# Helpers & admin guard
 # -----------------------------
 def belt_hex(belt: Optional[str]) -> str:
     return BELT_PALETTE.get(belt or "", "#6c757d")
@@ -692,9 +725,6 @@ def ensure_payments_for_month(year: int, month: int) -> int:
         db.session.commit()
     return created
 
-# -----------------------------
-# Decorators
-# -----------------------------
 def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -1424,7 +1454,7 @@ def migrate():
             for name, coltype in to_add:
                 conn.execute(text(f"ALTER TABLE player ADD COLUMN {name} {coltype}"))
 
-        # Ensure all ORM tables exist (including EventRegCategory)
+        # Ensure all ORM tables exist (including EventRegCategory & PaymentRecord)
         db.create_all()
 
         if to_add:
@@ -1464,11 +1494,180 @@ def auto_migrate_on_startup():
             conn.execute(text(f"ALTER TABLE player ADD COLUMN {name} {coltype}"))
 
 with app.app_context():
-    db.create_all()  # ensures Payment + Event* + EventRegCategory tables exist
+    db.create_all()  # ensures Payment, Event*, EventRegCategory, PaymentRecord tables exist
     try:
         auto_migrate_on_startup()
     except Exception as e:
         app.logger.exception("Auto-migrate failed: %s", e)
+
+# -----------------------------
+# NEW: Payments & Receipts (admin-only)
+# -----------------------------
+@app.route("/admin/payments/new", methods=["GET", "POST"])
+@admin_required
+def payment_new():
+    """
+    Create a new PaymentRecord (receipt) for:
+      - Training fee (per month OR per session)
+      - Event fee (for a given EventRegistration)
+    Prefill via query params:
+      ?kind=training_month|training_session|event
+      ?player_id=...  (training)
+      ?month=YYYY-MM  (training_month)
+      ?sessions_paid=.. (training_session)
+      ?reg_id=...     (event)
+      ?amount=...&currency=...&method=...&note=...
+    """
+    player_id = request.values.get("player_id", type=int)
+    reg_id = request.values.get("reg_id", type=int)
+
+    if request.method == "GET":
+        player = Player.query.get(player_id) if player_id else None
+        reg = EventRegistration.query.get(reg_id) if reg_id else None
+        # Prefill amount for events
+        default_amount = reg.computed_fee() if reg else None
+        return render_template(
+            "payment_new.html",
+            player=player,
+            reg=reg,
+            today=date.today(),
+            default_amount=default_amount
+        )
+
+    # POST
+    kind = request.form.get("kind")  # 'training_month'|'training_session'|'event'
+    amount = request.form.get("amount", type=int)
+    currency = (request.form.get("currency") or "EUR").strip().upper()
+    method = request.form.get("method") or None
+    note = request.form.get("note") or None
+
+    # If the user didn't type an amount for event, try to prefill from computed fee.
+    if kind == "event" and amount is None:
+        rid = request.form.get("reg_id", type=int)
+        reg_tmp = EventRegistration.query.get(rid) if rid else None
+        if reg_tmp:
+            amount = reg_tmp.computed_fee()
+
+    if kind not in ("training_month", "training_session", "event"):
+        flash("Invalid payment kind.", "danger")
+        return redirect(url_for("payment_new", player_id=player_id, reg_id=reg_id))
+    if amount is None or amount < 0:
+        flash("Amount is required.", "danger")
+        return redirect(url_for("payment_new", player_id=player_id, reg_id=reg_id))
+
+    record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note)
+
+    if kind.startswith("training_"):
+        # Player required
+        pid = request.form.get("player_id", type=int)
+        player = Player.query.get(pid)
+        if not player:
+            flash("Player is required for training payments.", "danger")
+            return redirect(url_for("payment_new", player_id=player_id))
+        record.player_id = player.id
+
+        if kind == "training_month":
+            month_str = request.form.get("month")  # YYYY-MM
+            y, m = parse_month_str(month_str)
+            record.year = y
+            record.month = m
+            # Optional: link to Payment row if exists
+            pay = Payment.query.filter_by(player_id=player.id, year=y, month=m).first()
+            record.payment_id = pay.id if pay else None
+        else:
+            sessions_paid = request.form.get("sessions_paid", type=int) or 0
+            record.sessions_paid = max(0, sessions_paid)
+            record.sessions_taken = 0
+
+    else:
+        # Event payment: reg required
+        rid = request.form.get("reg_id", type=int)
+        reg = EventRegistration.query.get(rid)
+        if not reg:
+            flash("Event registration is required for event payments.", "danger")
+            return redirect(url_for("payment_new", reg_id=reg_id))
+        record.player_id = reg.player_id
+        record.event_registration_id = reg.id
+
+    db.session.add(record)
+    db.session.commit()  # get id
+    record.assign_receipt_no()
+    flash("Payment recorded. Receipt generated.", "success")
+    return redirect(url_for("receipt_view", rid=record.id))
+
+@app.route("/admin/players/<int:player_id>/due/print")
+@admin_required
+def player_due_print(player_id: int):
+    """Print-friendly page with this player's due fees for a given month:
+       - Training monthly fee (if unpaid)
+       - Unpaid event registrations for events starting in that month
+    """
+    month_str = request.args.get("month")
+    year, month = parse_month_str(month_str)
+
+    # ensure monthly Payment rows exist
+    ensure_payments_for_month(year, month)
+
+    player = Player.query.get_or_404(player_id)
+    # Monthly payment (this month) for this player
+    pay = Payment.query.filter_by(player_id=player.id, year=year, month=month).first()
+
+    # Unpaid event registrations whose event starts in the given month
+    first = date(year, month, 1)
+    last = date(year, month, calendar.monthrange(year, month)[1])
+    regs_unpaid = (EventRegistration.query
+                   .join(Event)
+                   .filter(EventRegistration.player_id == player.id)
+                   .filter(EventRegistration.paid.is_(False))
+                   .filter(Event.start_date >= first, Event.start_date <= last)
+                   .all())
+
+    monthly_due = (pay.amount or 0) if (pay and not pay.paid and pay.amount is not None) else 0
+    events_due = sum([(r.computed_fee() or 0) for r in regs_unpaid])
+    due_date = first_working_day(year, month)
+
+    return render_template(
+        "player_due_print.html",
+        player=player,
+        year=year, month=month, due_date=due_date,
+        pay=pay, regs_unpaid=regs_unpaid,
+        monthly_due=monthly_due, events_due=events_due
+    )
+
+@app.route("/admin/receipts/<int:rid>")
+@admin_required
+def receipt_view(rid: int):
+    rec = PaymentRecord.query.get_or_404(rid)
+    player = Player.query.get(rec.player_id)
+    ev = None
+    if rec.event_registration_id:
+        reg = EventRegistration.query.get(rec.event_registration_id)
+        ev = Event.query.get(reg.event_id) if reg else None
+    return render_template("receipt.html", rec=rec, player=player, ev=ev)
+
+
+@app.route("/admin/receipts/<int:rid>/tick", methods=["POST"])
+@admin_required
+def receipt_tick_session(rid: int):
+    rec = PaymentRecord.query.get_or_404(rid)
+    if rec.kind != "training_session":
+        flash("Only per-session training receipts can track sessions.", "warning")
+        return redirect(url_for("receipt_view", rid=rid))
+    if rec.sessions_taken >= (rec.sessions_paid or 0):
+        flash("All paid sessions already taken.", "info")
+        return redirect(url_for("receipt_view", rid=rid))
+    rec.sessions_taken += 1
+    db.session.commit()
+    flash("Session marked as taken.", "success")
+    return redirect(url_for("receipt_view", rid=rid))
+
+# Helper: JSON fee for a registration (used by New Payment form to prefill)
+@app.route("/admin/events/registrations/<int:reg_id>/fee.json")
+@admin_required
+def event_reg_fee_json(reg_id: int):
+    reg = EventRegistration.query.get_or_404(reg_id)
+    fee = reg.computed_fee()
+    return {"fee": fee}, 200
 
 # -----------------------------
 # Entrypoint
