@@ -4,10 +4,9 @@
   <h1 class="mb-0">{{ player.full_name() }}</h1>
   {% if session.get('is_admin') %}
     <div>
-      <a class="btn btn-outline-primary" href="{{ url_for('edit_player', player_id=player.id) }}">Edit</a>
-      <form class="d-inline" method="post" action="{{ url_for('delete_player', player_id=player.id) }}"
-            onsubmit="return confirm('Delete {{ player.full_name() }}?');">
-        <button class="btn btn-outline-danger" type="submit">Delete</button>
+      <a class="btn btn-outline-primary" href="{{ url_for('edit_player', player_id=player.id) }}">{{ _('Edit Player') }}</a>
+      <form class="d-inline" method="post" action="{{ url_for('delete_player', player_id=player.id) }}" onsubmit="return confirm('Delete?');">
+        <button class="btn btn-outline-danger" type="submit">{{ _('Delete') }}</button>
       </form>
     </div>
   {% endif %}
@@ -16,32 +15,51 @@
 <div class="row g-4">
   <div class="col-md-4">
     {% if player.photo_filename %}
-      <img class="player-photo img-fluid" src="{{ url_for('uploaded_file', filename=player.photo_filename) }}" alt="Photo">
+      <img class="player-photo img-fluid" src="{{ url_for('uploaded_file', filename=player.photo_filename) }}" alt="{{ player.full_name() }}">
     {% else %}
-      <div class="text-muted fst-italic">No photo uploaded</div>
+      <div class="text-muted fst-italic">{{ _('No photo uploaded') }}</div>
     {% endif %}
   </div>
   <div class="col-md-8">
     <dl class="row">
-      <dt class="col-sm-3">Belt</dt><dd class="col-sm-9">{{ player.belt_rank }}</dd>
-      <dt class="col-sm-3">Discipline</dt><dd class="col-sm-9">{{ player.discipline }}</dd>
-      <dt class="col-sm-3">Active</dt><dd class="col-sm-9">{{ "Yes" if player.active_member else "No" }}</dd>
-      <dt class="col-sm-3">Gender</dt><dd class="col-sm-9">{{ player.gender or "—" }}</dd>
-      <dt class="col-sm-3">Birthdate</dt><dd class="col-sm-9">{{ player.birthdate or "—" }}</dd>
-      <dt class="col-sm-3">Height</dt><dd class="col-sm-9">{{ player.height_cm or "—" }} cm</dd>
-      <dt class="col-sm-3">Weight</dt><dd class="col-sm-9">{{ player.weight_kg or "—" }} kg</dd>
-      <dt class="col-sm-3">Email</dt>
-      <dd class="col-sm-9">
-        {% if player.email %}
-          <a href="mailto:{{ player.email }}">{{ player.email }}</a>
-        {% else %}—{% endif %}
-      </dd>
-      <dt class="col-sm-3">Phone</dt><dd class="col-sm-9">{{ player.phone or "—" }}</dd>
-      <dt class="col-sm-3">Joined</dt><dd class="col-sm-9">{{ player.join_date or "—" }}</dd>
+      <dt class="col-sm-3">{{ _('Belt') }}</dt><dd class="col-sm-9">{{ _(player.belt_rank) }}</dd>
+      <dt class="col-sm-3">{{ _('Discipline') }}</dt><dd class="col-sm-9">{{ _(player.discipline) }}</dd>
+      <dt class="col-sm-3">{{ _('Active') }}</dt><dd class="col-sm-9">{{ _('Yes') if player.active_member else _('No') }}</dd>
+      <dt class="col-sm-3">{{ _('Gender') }}</dt><dd class="col-sm-9">{{ _(player.gender) if player.gender else _('—') }}</dd>
+      <dt class="col-sm-3">{{ _('Birthdate') }}</dt><dd class="col-sm-9">{{ player.birthdate or '—' }}</dd>
+      <dt class="col-sm-3">{{ _('Height (cm)') }}</dt><dd class="col-sm-9">{{ player.height_cm or '—' }}</dd>
+      <dt class="col-sm-3">{{ _('Weight (kg)') }}</dt><dd class="col-sm-9">{{ player.weight_kg or '—' }}</dd>
+      <dt class="col-sm-3">{{ _('Email') }}</dt>
+      <dd class="col-sm-9">{% if player.email %}<a href="mailto:{{ player.email }}">{{ player.email }}</a>{% else %}—{% endif %}</dd>
+      <dt class="col-sm-3">{{ _('Phone') }}</dt><dd class="col-sm-9">{{ player.phone or '—' }}</dd>
+      <dt class="col-sm-3">{{ _('Joined') }}</dt><dd class="col-sm-9">{{ player.join_date or '—' }}</dd>
     </dl>
-    {% if player.notes %}
-      <h5 class="mt-4">Notes</h5>
-      <p>{{ player.notes }}</p>
+
+    {% if player.sportdata_wkf_url or player.sportdata_bnfk_url or player.sportdata_enso_url %}
+      <h5 class="mt-4">{{ _('Sportdata Profiles') }}</h5>
+      <ul class="list-unstyled">
+        {% if player.sportdata_wkf_url %}
+          <li class="mb-1">
+            <a href="{{ player.sportdata_wkf_url }}" target="_blank" rel="noopener noreferrer">
+              <strong>WKF</strong> – {{ player.sportdata_wkf_url }}
+            </a>
+          </li>
+        {% endif %}
+        {% if player.sportdata_bnfk_url %}
+          <li class="mb-1">
+            <a href="{{ player.sportdata_bnfk_url }}" target="_blank" rel="noopener noreferrer">
+              <strong>BNFK</strong> – {{ player.sportdata_bnfk_url }}
+            </a>
+          </li>
+        {% endif %}
+        {% if player.sportdata_enso_url %}
+          <li class="mb-1">
+            <a href="{{ player.sportdata_enso_url }}" target="_blank" rel="noopener noreferrer">
+              <strong>ENSO</strong> – {{ player.sportdata_enso_url }}
+            </a>
+          </li>
+        {% endif %}
+      </ul>
     {% endif %}
   </div>
 </div>

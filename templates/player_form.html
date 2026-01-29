@@ -6,78 +6,99 @@
   {{ form.csrf_token }}
   <div class="row g-3">
     <div class="col-md-6">
-      <label class="form-label">First Name</label>
+      <label class="form-label">{{ _('First Name') }}</label>
       {{ form.first_name(class="form-control") }}
       {% for e in form.first_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-6">
-      <label class="form-label">Last Name</label>
+      <label class="form-label">{{ _('Last Name') }}</label>
       {{ form.last_name(class="form-control") }}
       {% for e in form.last_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     </div>
 
     <div class="col-md-4">
-      <label class="form-label">Gender</label>
+      <label class="form-label">{{ _('Gender') }}</label>
       {{ form.gender(class="form-select") }}
     </div>
     <div class="col-md-4">
-      <label class="form-label">Birthdate</label>
+      <label class="form-label">{{ _('Birthdate') }}</label>
       {{ form.birthdate(class="form-control", type="date") }}
     </div>
     <div class="col-md-4">
-      <label class="form-label">Belt Rank</label>
+      <label class="form-label">{{ _('Belt Rank') }}</label>
       {{ form.belt_rank(class="form-select") }}
       {% for e in form.belt_rank.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     </div>
 
     <div class="col-md-4">
-      <label class="form-label">Discipline</label>
+      <label class="form-label">{{ _('Discipline') }}</label>
       {{ form.discipline(class="form-select") }}
     </div>
     <div class="col-md-4">
-      <label class="form-label">Weight (kg)</label>
+      <label class="form-label">{{ _('Weight (kg)') }}</label>
       {{ form.weight_kg(class="form-control") }}
       {% for e in form.weight_kg.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-4">
-      <label class="form-label">Height (cm)</label>
+      <label class="form-label">{{ _('Height (cm)') }}</label>
       {{ form.height_cm(class="form-control") }}
     </div>
 
     <div class="col-md-6">
-      <label class="form-label">Email</label>
+      <label class="form-label">{{ _('Email') }}</label>
       {{ form.email(class="form-control") }}
       {% for e in form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-6">
-      <label class="form-label">Phone</label>
+      <label class="form-label">{{ _('Phone') }}</label>
       {{ form.phone(class="form-control") }}
     </div>
 
     <div class="col-md-4">
-      <label class="form-label">Join Date</label>
+      <label class="form-label">{{ _('Join Date') }}</label>
       {{ form.join_date(class="form-control", type="date") }}
     </div>
     <div class="col-md-4 d-flex align-items-center">
       <div class="form-check mt-4">
         {{ form.active_member(class="form-check-input") }}
-        <label class="form-check-label">Active Member</label>
+        <label class="form-check-label">{{ _('Active Member') }}</label>
       </div>
     </div>
 
     <div class="col-12">
-      <label class="form-label">Notes</label>
+      <label class="form-label">{{ _('Notes') }}</label>
       {{ form.notes(class="form-control", rows="4") }}
     </div>
 
     <div class="col-md-6">
-      <label class="form-label">Photo (jpg/png/gif/webp, ≤ 2MB)</label>
+      <label class="form-label">{{ _('Photo (jpg/png/gif/webp, ≤ 2MB)') }}</label>
       <input class="form-control" type="file" name="photo" accept=".png,.jpg,.jpeg,.gif,.webp">
     </div>
 
+    <!-- Sportdata section -->
+    <div class="col-12 mt-3">
+      <h5>{{ _('Sportdata Profiles') }}</h5>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">{{ _('WKF Profile URL') }}</label>
+      {{ form.sportdata_wkf_url(class="form-control", placeholder="https://www.sportdata.org/wkf/...") }}
+      {% for e in form.sportdata_wkf_url.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">{{ _('BNFK Profile URL') }}</label>
+      {{ form.sportdata_bnfk_url(class="form-control", placeholder="https://www.sportdata.org/...") }}
+      {% for e in form.sportdata_bnfk_url.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">{{ _('ENSO Profile URL') }}</label>
+      {{ form.sportdata_enso_url(class="form-control", placeholder="https://www.sportdata.org/enso/...") }}
+      {% for e in form.sportdata_enso_url.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+
     <div class="col-12">
-      <button class="btn btn-primary" type="submit">Save</button>
-      <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">Cancel</a>
+      <button class="btn btn-primary" type="submit">{{ _('Save') }}</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">{{ _('Cancel') }}</a>
     </div>
   </div>
 </form>

@@ -1,38 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="mb-0">Players</h1>
+  <h1 class="mb-0">{{ _('Players') }}</h1>
   {% if session.get('is_admin') %}
-    <a class="btn btn-primary" href="{{ url_for('create_player') }}">+ Add Player</a>
+    <a class="btn btn-primary" href="{{ url_for('create_player') }}">{{ _('+ Add Player') }}</a>
   {% endif %}
 </div>
 
-<form class="row row-cols-lg-auto g-3 align-items-end mb-4" method="get" action="{{ url_for('list_players') }}">
+<form class="row row-cols-lg-auto g-3 align-items-end mb-4" method="get">
   <div class="col-12">
-    <label class="form-label">Search</label>
-    <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="Name">
+    <label class="form-label">{{ _('Search') }}</label>
+    <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="{{ _('Name') }}">
   </div>
   <div class="col-12">
-    <label class="form-label">Belt</label>
+    <label class="form-label">{{ _('Belt') }}</label>
     <select class="form-select" name="belt">
-      <option value="">All</option>
-      {% for value,label in belts %}
-        <option value="{{ value }}" {% if belt==value %}selected{% endif %}>{{ label }}</option>
+      <option value="">{{ _('All') }}</option>
+      {% for value in belts %}
+        <option value="{{ value }}" {% if belt==value %}selected{% endif %}>{{ _(value) }}</option>
       {% endfor %}
     </select>
   </div>
   <div class="col-12">
-    <label class="form-label">Active</label>
+    <label class="form-label">{{ _('Active') }}</label>
     <select class="form-select" name="active">
-      <option value="">All</option>
-      <option value="yes" {% if active=="yes" %}selected{% endif %}>Active</option>
-      <option value="no" {% if active=="no" %}selected{% endif %}>Inactive</option>
+      <option value="">{{ _('All') }}</option>
+      <option value="yes" {% if active=="yes" %}selected{% endif %}>{{ _('Active') }}</option>
+      <option value="no" {% if active=="no" %}selected{% endif %}>{{ _('Inactive') }}</option>
     </select>
   </div>
   <div class="col-12">
-    <button class="btn btn-primary" type="submit">Apply</button>
-    <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">Reset</a>
-    <a class="btn btn-outline-success" href="{{ url_for('export_csv') }}">Export CSV</a>
+    <button class="btn btn-primary" type="submit">{{ _('Apply') }}</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">{{ _('Reset') }}</a>
+    <a class="btn btn-outline-success" href="{{ url_for('export_csv') }}">{{ _('Export CSV') }}</a>
   </div>
 </form>
 
@@ -40,45 +40,81 @@
   <table class="table table-striped align-middle">
     <thead>
       <tr>
-        <th>Name</th>
-        <th>Belt</th>
-        <th>Discipline</th>
-        <th>Active</th>
-        <th>Email</th>
-        {% if session.get('is_admin') %}<th style="width: 160px;"></th>{% endif %}
+        <th>{{ _('Name') }}</th>
+        <th>{{ _('Belt') }}</th>
+        <th>{{ _('Discipline') }}</th>
+        <th>{{ _('Active') }}</th>
+        <th>{{ _('Email') }}</th>
+        <th class="text-nowrap">{{ _('Sportdata') }}</th>
+        {% if session.get('is_admin') %}<th style="width: 170px;"></th>{% endif %}
       </tr>
     </thead>
     <tbody>
     {% for p in players %}
       <tr>
         <td><a href="{{ url_for('player_detail', player_id=p.id) }}">{{ p.full_name() }}</a></td>
-        <td>{{ p.belt_rank }}</td>
-        <td>{{ p.discipline }}</td>
+        <td>{{ _(p.belt_rank) }}</td>
+        <td>{{ _(p.discipline) }}</td>
         <td>
           {% if p.active_member %}
-            <span class="badge bg-success">Yes</span>
+            <span class="badge bg-success">{{ _('Yes') }}</span>
           {% else %}
-            <span class="badge bg-secondary">No</span>
+            <span class="badge bg-secondary">{{ _('No') }}</span>
           {% endif %}
         </td>
         <td>
           {% if p.email %}
-            <a href="mailto:{{
-              p.email }}">{{ p.email }}</a>
+            <a href="mailto:{{ p.email }}">{{ p.email }}</a>
           {% endif %}
         </td>
+        <td class="text-nowrap">
+          {% if p.sportdata_wkf_url %}
+            <a class="btn btn-sm btn-outline-secondary icon-btn me-1"
+               href="{{ p.sportdata_wkf_url }}" target="_blank" rel="noopener noreferrer"
+               title="WKF" aria-label="WKF">
+              <!-- external link icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6.5 2a.5.5 0 0 0 0 1h5.793L5.146 10.146a.5.5 0 0 0 .708.708L13 3.707V9.5a.5.5 0 0 0 1 0v-7A.5.5 0 0 0 13.5 2h-7z"/>
+                <path d="M13.5 14a.5.5 0 0 1-.5.5h-10A1.5 1.5 0 0 1 1.5 13V3a.5.5 0 0 1 1 0v10A.5.5 0 0 0 3 13.5h10a.5.5 0 0 1 .5.5z"/>
+              </svg>
+              WKF
+            </a>
+          {% endif %}
+          {% if p.sportdata_bnfk_url %}
+            <a class="btn btn-sm btn-outline-secondary icon-btn me-1"
+               href="{{ p.sportdata_bnfk_url }}" target="_blank" rel="noopener noreferrer"
+               title="BNFK" aria-label="BNFK">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6.5 2a.5.5 0 0 0 0 1h5.793L5.146 10.146a.5.5 0 0 0 .708.708L13 3.707V9.5a.5.5 0 0 0 1 0v-7A.5.5 0 0 0 13.5 2h-7z"/>
+                <path d="M13.5 14a.5.5 0 0 1-.5.5h-10A1.5 1.5 0 0 1 1.5 13V3a.5.5 0 0 1 1 0v10A.5.5 0 0 0 3 13.5h10a.5.5 0 0 1 .5.5z"/>
+              </svg>
+              BNFK
+            </a>
+          {% endif %}
+          {% if p.sportdata_enso_url %}
+            <a class="btn btn-sm btn-outline-secondary icon-btn"
+               href="{{ p.sportdata_enso_url }}" target="_blank" rel="noopener noreferrer"
+               title="ENSO" aria-label="ENSO">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6.5 2a.5.5 0 0 0 0 1h5.793L5.146 10.146a.5.5 0 0 0 .708.708L13 3.707V9.5a.5.5 0 0 0 1 0v-7A.5.5 0 0 0 13.5 2h-7z"/>
+                <path d="M13.5 14a.5.5 0 0 1-.5.5h-10A1.5 1.5 0 0 1 1.5 13V3a.5.5 0 0 1 1 0v10A.5.5 0 0 0 3 13.5h10a.5.5 0 0 1 .5.5z"/>
+              </svg>
+              ENSO
+            </a>
+          {% endif %}
+        </td>
+
         {% if session.get('is_admin') %}
         <td class="text-nowrap">
-          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_player', player_id=p.id) }}">Edit</a>
-          <form class="d-inline" method="post" action="{{ url_for('delete_player', player_id=p.id) }}"
-                onsubmit="return confirm('Delete {{ p.full_name() }}?');">
-            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_player', player_id=p.id) }}">{{ _('Edit Player') }}</a>
+          <form class="d-inline" method="post" action="{{ url_for('delete_player', player_id=p.id) }}" onsubmit="return confirm('Delete?');">
+            <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
           </form>
         </td>
         {% endif %}
       </tr>
     {% else %}
-      <tr><td colspan="6" class="text-center text-muted">No players found.</td></tr>
+      <tr><td colspan="7" class="text-center text-muted">{{ _('No players found.') }}</td></tr>
     {% endfor %}
     </tbody>
   </table>
