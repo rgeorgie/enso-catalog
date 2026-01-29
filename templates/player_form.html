@@ -23,18 +23,15 @@
       {{ form.birthdate(class="form-control", type="date") }}
     </div>
 
-    <!-- Belt & Grade -->
+    <!-- Grade (select only) -->
     <div class="col-md-4">
-      <label class="form-label">{{ _('Belt Color') }}</label>
-      {{ form.belt_rank(class="form-select", id="belt_rank") }}
+      <label class="form-label">{{ _('Grade Level') }}</label>
+      {{ form.grade_level(class="form-select", id="grade_level") }}
       <div class="form-text mt-1">
         <span id="belt_preview" class="belt-chip" style="border:1px solid #ced4da;">&nbsp;</span>
       </div>
     </div>
-    <div class="col-md-4">
-      <label class="form-label">{{ _('Grade Level') }}</label>
-      {{ form.grade_level(class="form-select", id="grade_level") }}
-    </div>
+    
     <div class="col-md-4">
       <label class="form-label">{{ _('Grade Date') }}</label>
       {{ form.grade_date(class="form-control", type="date") }}
@@ -210,7 +207,19 @@
     chip.style.color = idealTextColor(color);
     chip.textContent = sel.value || '';
   }
-  document.getElementById('belt_rank')?.addEventListener('change', updateBeltPreview);
+  const GRADE_TO_COLOR = {{ grade_to_color_json|safe }};
+  function updateBeltPreview() {
+    const sel = document.getElementById('grade_level');
+    const chip = document.getElementById('belt_preview');
+    if (!sel || !chip) return;
+    const grade = sel.value || '';
+    const belt = GRADE_TO_COLOR[grade] || '';
+    const color = BELT_COLORS[belt] || '#6c757d';
+    chip.style.background = color;
+    chip.style.color = idealTextColor(color);
+    chip.textContent = grade || '';
+  }
+  document.getElementById('grade_level')?.addEventListener('change', updateBeltPreview);
   updateBeltPreview();
   // Toggle label for training fee switch
   const ms = document.getElementById('monthly_switch');

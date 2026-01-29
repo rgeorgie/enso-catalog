@@ -376,15 +376,16 @@ GRADING_SCHEME = {
         "1 dan", "2 dan", "3 dan", "4 dan", "5 dan",
     ],
     "belt_colors": ["White", "Yellow", "Orange", "Green", "Blue", "Purple", "Brown", "Black"],
+    # Map grade level -> display color
     "grade_to_color": {
         "10 kyu": "White",
-        "9 kyu": "Yellow",
+        "9 kyu": "White",
         "8 kyu": "Yellow",
         "7 kyu": "Orange",
-        "6 kyu": "Orange",
-        "5 kyu": "Green",
-        "4 kyu": "Green",
-        "3 kyu": "Blue",
+        "6 kyu": "Green",
+        "5 kyu": "Blue",
+        "4 kyu": "Purple",
+        "3 kyu": "Brown",
         "2 kyu": "Brown",
         "1 kyu": "Brown",
         "1 dan": "Black",
@@ -596,8 +597,6 @@ class PlayerForm(FlaskForm):
     last_name = StringField("Last Name", validators=[DataRequired(), Length(max=80)])
     gender = SelectField("Gender", validators=[VOptional()])
     birthdate = DateField("Birthdate", validators=[VOptional()])
-
-    belt_rank = SelectField("Belt Rank", validators=[DataRequired()])
     grade_level = SelectField("Grade Level", validators=[VOptional()])
     grade_date = DateField("Grade Date", validators=[VOptional()])
 
@@ -658,8 +657,7 @@ class EventRegistrationForm(FlaskForm):
     submit = SubmitField("Add Registration")
 
 def set_localized_choices(form: PlayerForm):
-    form.belt_rank.choices = [(v, _(v)) for v in GRADING_SCHEME["belt_colors"]]
-    form.grade_level.choices = [("", _("—"))] + [(g, g) for g in GRADING_SCHEME["grades"]]
+    form.grade_level.choices = [(g, g) for g in GRADING_SCHEME["grades"]]
     form.discipline.choices = [(v, _(v)) for v in DISCIPLINE_VALUES]
     form.gender.choices = [("", _("—"))] + [(v, _(v)) for v in GENDER_VALUES]
 
@@ -1058,7 +1056,8 @@ def create_player():
         "player_form.html",
         form=form,
         title=_("Add Player"),
-        belt_colors_json=json.dumps(BELT_PALETTE)
+        belt_colors_json=json.dumps(BELT_PALETTE),
+        grade_to_color_json=json.dumps(GRADING_SCHEME.get("grade_to_color", {}))
     )
 
 @app.route("/admin/players/<int:player_id>/edit", methods=["GET", "POST"])
@@ -1094,6 +1093,7 @@ def edit_player(player_id: int):
         form=form,
         title=_("Edit Player"),
         belt_colors_json=json.dumps(BELT_PALETTE),
+        grade_to_color_json=json.dumps(GRADING_SCHEME.get("grade_to_color", {})),
         player=player,
     )
 

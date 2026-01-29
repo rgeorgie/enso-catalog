@@ -58,7 +58,7 @@
       {% set ins_text, ins_color = validity_badge(p.insurance_expiry_date) %}
       <tr>
         <td><a href="{{ url_for('player_detail', player_id=p.id) }}">{{ p.full_name() }}</a></td>
-        <td><span class="belt-chip" style="{{ belt_chip_style(p.belt_rank) }}">{{ _(p.belt_rank) }}</span></td>
+        <td><span class="belt-chip" style="{{ belt_chip_style(p.belt_rank) }}">{{ p.grade_level or _(p.belt_rank) }}</span></td>
         <td>{{ _(p.discipline) }}</td>
         <td>
           {% if p.monthly_fee_amount is not none %}

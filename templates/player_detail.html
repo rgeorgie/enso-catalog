@@ -44,8 +44,8 @@
             No photo uploaded
           </div>
         {% endif %}
-        <div class="mt-2">
-          <span style="{{ belt_chip_style(player.belt_rank) }}">{{ player.belt_rank }}</span>
+          <div class="mt-2">
+          <span style="{{ belt_chip_style(player.belt_rank) }}">{{ player.grade_level or player.belt_rank }}</span>
         </div>
       </div>
     </div>
