@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">Admin Login</h1>
+
+<form method="post" action="{{ url_for('login', next=next_url) }}" class="col-md-6">
+  <div class="mb-3">
+    <label class="form-label">Username</label>
+    <input class="form-control" name="username" autocomplete="username">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Password</label>
+    <input class="form-control" name="password" type="password" autocomplete="current-password">
+  </div>
+  <button class="btn btn-primary" type="submit">Login</button>
+</form>
+{% endblock %}
+``
