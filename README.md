@@ -1,40 +1,66 @@
-# enso-catalog
 a clean, cross‑platform (Linux/Windows) web app you can run locally for a karate club player catalog. It includes a simple web UI, search &amp; filters, admin login for CRUD, and optional photo uploads.
+# enso-catalog
 
-Tech stack: Python 3, Flask, SQLite (no external DB needed)
-Features:
+enso-catalog is a cross-platform (Linux/macOS/Windows) web app for managing a karate club's players, payments, events, and receipts. It provides a modern admin UI, search/filtering, CSV export, and photo uploads—all running locally with no external dependencies beyond Python.
 
-List/search/filter players
-View player profile
-Add/Edit/Delete players (admin only)
-Upload player photo (optional)
-Export list as CSV
+## Tech Stack
+- Python 3
+- Flask (single-file app)
+- SQLite (local DB, no server required)
+- WTForms (forms & validation)
 
+## Features
 
-Security:
+- **Players**: List, search, filter, add, edit, delete. Each player can have a photo, contact info, medical/insurance data, and parent contacts.
+- **Payments & Receipts**:
+    - Track monthly and per-session training fees.
+    - Mark payments as paid/unpaid; print or export receipts.
+    - Per-session logic: pay for a number of sessions, track sessions taken, and show remaining/prepaid balance.
+    - Admin can record payments for monthly dues, events, or session debts directly from the player profile.
+- **Events & Registrations**:
+    - Create/edit/delete events with categories and fees.
+    - Register players for events and mark event payments.
+    - Track medals per event/category.
+- **Reports & Exports**:
+    - Export player list, event registrations, and payment reports as CSV.
+    - Medals and fee reports for club bookkeeping.
+- **Photo Uploads**: Store player photos in `uploads/` (max 2MB, jpg/png/gif/webp).
+- **Localization**: Simple i18n (BG/EN) with in-app language switch.
+- **Admin UI**: All CRUD and sensitive actions require admin login (credentials via env vars).
 
-Simple admin login (env-configurable credentials)
-CSRF-protected forms
-File upload validation (size & extension)
+## Security
+- Admin login (username/password from environment variables)
+- CSRF-protected forms
+- File upload validation (type & size)
 
-Runs on Linux and Windows. No internet required once dependencies are installed.
+## Project Structure
 
-```Project structure
-karate-club/
-├─ app.py
-├─ requirements.txt
-├─ .gitignore
-├─ uploads/             # auto-created on first run
-└─ templates/
-   ├─ base.html
-   ├─ players_list.html
-   ├─ player_form.html
-   ├─ player_detail.html
-   └─ login.html
 ```
-How to run
-A) Linux/macOS (Bash/Zsh)
+enso-catalog/
+├─ app.py                # Main Flask app (all logic/models/routes)
+├─ requirements.txt      # Python dependencies
+├─ uploads/              # Uploaded player photos
+├─ static/               # CSS, images
+├─ templates/            # Jinja2 HTML templates
+│   ├─ base.html
+│   ├─ players_list.html
+│   ├─ player_form.html
+│   ├─ player_detail.html
+│   ├─ event_form.html
+│   ├─ event_detail.html
+│   ├─ event_categories.html
+│   ├─ event_registrations.html
+│   ├─ payment_new.html
+│   ├─ report_fees.html
+│   ├─ report_medals.html
+│   └─ login.html
+└─ karate_club.db        # SQLite database (auto-created)
 ```
+
+## How to Run
+
+### A) Linux/macOS (Bash/Zsh)
+```sh
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -46,8 +72,9 @@ export ADMIN_PASS="change_me"
 python app.py
 # Open http://127.0.0.1:5000
 ```
-B) Windows (PowerShell)
-```
+
+### B) Windows (PowerShell)
+```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -59,6 +86,11 @@ $env:ADMIN_PASS = "change_me"
 python app.py
 # Open http://127.0.0.1:5000
 ```
+
+## Notes
+- All data is stored locally in `karate_club.db`.
+- To reset, delete the DB and uploads folder.
+- For more, see comments in `app.py` and the `.github/copilot-instructions.md` file.
 
 7) Optional: Docker
 Create Dockerfile:
