@@ -14,7 +14,7 @@
   </style>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+<nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top" style="border-bottom:1px solid #e0e0e0;">
   <div class="container">
     <a class="navbar-brand d-flex align-items-center gap-2" href="https://www.ensokarate.bg/" target="_blank" rel="noopener">
       <img src="{{ url_for('static', filename='img/enso-logo.webp') }}" alt="Team ENSO logo">
@@ -40,10 +40,16 @@
         <!-- Language switch -->
         <li class="nav-item me-2">
           <div class="btn-group" role="group" aria-label="{{ _('Language') }}">
-            <a class="btn btn-sm btn-outline-light {% if current_lang=='bg' %}active{% endif %}"
-               href="{{ url_for('set_language', lang_code='bg', next=request.full_path) }}">{{ _('BG') }}</a>
-            <a class="btn btn-sm btn-outline-light {% if current_lang=='en' %}active{% endif %}"
-               href="{{ url_for('set_language', lang_code='en', next=request.full_path) }}">{{ _('EN') }}</a>
+            <a class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 {% if current_lang=='bg' %}active btn-primary text-white{% endif %}"
+               href="{{ url_for('set_language', lang_code='bg', next=request.full_path) }}">
+              <span class="fi fi-bg" style="width:18px;height:18px;display:inline-block;background:url('https://cdn.jsdelivr.net/npm/flag-icons@6.7.0/flags/4x3/bg.svg') no-repeat center/cover;"></span>
+              {{ _('BG') }}
+            </a>
+            <a class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 {% if current_lang=='en' %}active btn-primary text-white{% endif %}"
+               href="{{ url_for('set_language', lang_code='en', next=request.full_path) }}">
+              <span class="fi fi-us" style="width:18px;height:18px;display:inline-block;background:url('https://cdn.jsdelivr.net/npm/flag-icons@6.7.0/flags/4x3/us.svg') no-repeat center/cover;"></span>
+              {{ _('EN') }}
+            </a>
           </div>
         </li>
 

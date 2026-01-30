@@ -15,7 +15,7 @@
   <table class="table table-bordered">
     <thead class="table-light">
       <tr>
-        <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th>
+        <th>{{ _('Mon') }}</th><th>{{ _('Tue') }}</th><th>{{ _('Wed') }}</th><th>{{ _('Thu') }}</th><th>{{ _('Fri') }}</th><th>{{ _('Sat') }}</th><th>{{ _('Sun') }}</th>
       </tr>
     </thead>
     <tbody>
@@ -24,7 +24,15 @@
         {% for cell in week %}
           <td style="vertical-align: top; width:14%;">
             {% if cell.day %}
-              <div class="fw-semibold">{{ cell.day.day }}</div>
+              <div class="fw-semibold">
+                {% if session.get('is_admin') %}
+                  <a href="{{ url_for('event_new') }}?date={{ cell.day.isoformat() }}" class="text-decoration-none text-dark" title="{{ _('New Event') }}">
+                    {{ cell.day.day }} <span class="text-primary">+</span>
+                  </a>
+                {% else %}
+                  {{ cell.day.day }}
+                {% endif %}
+              </div>
               <div class="mt-1 d-grid gap-1">
                 {% for e in cell.events %}
                   <a class="btn btn-sm btn-outline-dark text-start" href="{{ url_for('event_detail', event_id=e.id) }}">

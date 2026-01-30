@@ -2,33 +2,37 @@
 
 {% block content %}
 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-  <h2 class="m-0">Fees Report – {{ year }}-{{ "%02d"|format(month) }}</h2>
+  <h2 class="m-0">{{ _('Fees Report') }} – {{ year }}-{{ "%02d"|format(month) }}</h2>
 
-  <form method="get" class="d-flex align-items-center gap-2">
-    <label class="form-label m-0" for="month">Month</label>
-    <input type="text" id="month" name="month" class="form-control" style="width: 140px"
-           value="{{ '%04d-%02d'|format(year, month) }}" placeholder="YYYY-MM">
-    <button class="btn btn-primary">Open</button>
+  <form method="get" class="d-flex align-items-center gap-2" id="monthForm">
+    <label class="form-label m-0" for="month">{{ _('Month') }}</label>
+    <input type="month" id="month" name="month" class="form-control" style="width: 160px"
+           value="{{ '%04d-%02d'|format(year, month) }}">
+    <button class="btn btn-primary">{{ _('Open') }}</button>
     <a class="btn btn-outline-secondary" href="{{ url_for('fees_export_csv', month='%04d-%02d'|format(year, month)) }}">
-      Export CSV
+      {{ _('Export CSV') }}
     </a>
   </form>
 </div>
 
-<p class="text-muted mb-3">Due date: <strong>{{ due_date }}</strong></p>
+<p class="text-muted mb-3">{{ _('Due date') }}: <strong>{{ due_date }}</strong></p>
 
 {% if payments %}
   <div class="table-responsive">
-    <table class="table table-sm align-middle">
+    <table class="table table-sm align-middle" id="feesTable">
       <thead>
         <tr>
           <th>#</th>
-          <th>Player</th>
-          <th>Belt</th>
-          <th class="text-end">Amount (EUR)</th>
-          <th class="text-center">Paid</th>
-          <th class="text-center">Toggle</th>
-          <th class="text-center">Receipt</th>
+          <th>{{ _('Player') }}</th>
+          <th>{{ _('Belt') }}</th>
+          <th class="text-end">{{ _('Amount') }} (EUR)</th>
+          <th class="text-center">{{ _('Paid') }}</th>
+          <th class="text-center">{{ _('Toggle Paid') }}</th>
+          <th class="text-center">{{ _('Receipt') }}</th>
+          <th class="text-center">{{ _('Sessions paid') }}</th>
+          <th class="text-center">{{ _('Sessions taken') }}</th>
+          <th class="text-center">{{ _('Prepaid amount') }}</th>
+          <th class="text-center">{{ _('Owed amount') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -39,32 +43,136 @@
             <a href="{{ url_for('player_detail', player_id=p.player_id) }}">{{ p.player.full_name() }}</a>
           </td>
           <td><span style="{{ belt_chip_style(p.player.belt_rank) }}">{{ p.player.belt_rank }}</span></td>
-          <td class="text-end">{{ p.amount if p.amount is not none else "—" }}</td>
-          <td class="text-center">
-            {% if p.paid %}<span class="badge text-bg-success">yes</span>{% else %}<span class="badge text-bg-secondary">no</span>{% endif %}
+          <td class="text-end">
+            {% if p.is_monthly %}
+              {{ p.amount if p.amount is not none else "—" }}
+            {% else %}
+              —
+            {% endif %}
           </td>
           <td class="text-center">
-            <form method="post" action="{{ url_for('toggle_payment', payment_id=p.id) }}">
-              <button class="btn btn-sm {% if p.paid %}btn-outline-warning{% else %}btn-outline-success{% endif %}">Toggle</button>
-            </form>
+            {% if p.is_monthly %}
+              {% if p.paid %}<span class="badge text-bg-success">{{ _('Yes') }}</span>{% else %}<span class="badge text-bg-secondary">{{ _('No') }}</span>{% endif %}
+            {% else %}
+              —
+            {% endif %}
           </td>
           <td class="text-center">
-            <!-- Prefill: training per month -->
-            <a class="btn btn-sm btn-outline-primary"
-               href="{{ url_for('payment_new',
-                                kind='training_month',
-                                player_id=p.player_id,
-                                month='%04d-%02d'|format(p.year, p.month),
-                                amount=p.amount if p.amount is not none else None) }}">
-              New receipt
-            </a>
+            {% if p.is_monthly %}
+              <form method="post" action="{{ url_for('toggle_payment', payment_id=p.id) }}">
+                <button class="btn btn-sm {% if p.paid %}btn-outline-warning{% else %}btn-outline-success{% endif %}">{{ _('Toggle') }}</button>
+              </form>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if p.is_monthly %}
+              <a class="btn btn-sm btn-outline-primary"
+                 href="{{ url_for('payment_new',
+                                  kind='training_month',
+                                  player_id=p.player_id,
+                                  month='%04d-%02d'|format(p.year, p.month),
+                                  amount=p.amount if p.amount is not none else None) }}">
+                {{ _('New receipt') }}
+              </a>
+            {% else %}
+              <a class="btn btn-sm btn-outline-primary"
+                 href="{{ url_for('payment_new',
+                                  kind='training_session',
+                                  player_id=p.player_id,
+                                  month='%04d-%02d'|format(p.year, p.month)) }}">
+                {{ _('New receipt') }}
+              </a>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if not p.is_monthly %}{{ p.sessions_paid }}{% else %}—{% endif %}
+          </td>
+          <td class="text-center">
+            {% if not p.is_monthly %}{{ p.sessions_taken }}{% else %}—{% endif %}
+          </td>
+          <td class="text-center">
+            {% if not p.is_monthly %}{{ p.prepaid_amount }}{% else %}—{% endif %}
+          </td>
+          <td class="text-center">
+            {% if not p.is_monthly %}{{ p.owed_amount }}{% else %}—{% endif %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot>
+        <tr>
+          <th colspan="3" class="text-end">Total:</th>
+          <th class="text-end" id="totalAmount"></th>
+          <th colspan="3"></th>
+          <th class="text-center" id="totalSessionsPaid"></th>
+          <th class="text-center" id="totalSessionsTaken"></th>
+          <th class="text-center" id="totalPrepaid"></th>
+          <th class="text-center" id="totalOwed"></th>
+        </tr>
+      </tfoot>
     </table>
   </div>
 {% else %}
-  <div class="alert alert-info">Nothing to show.</div>
+  <div class="alert alert-info">{{ _('Nothing to show.') }}</div>
 {% endif %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(function() {
+  // DataTables
+  var table = $('#feesTable').DataTable({
+    order: [[1, 'asc']],
+    paging: false,
+    info: false,
+    searching: true,
+    select: true,
+    columnDefs: [
+      { orderable: false, targets: [5,6] }
+    ],
+    language: {
+      search: '{{ _('Search') }}:',
+      zeroRecords: '{{ _('No players found.') }}',
+    }
+  });
+
+  // Totals calculation
+  function updateTotals() {
+    let totalAmount = 0, totalSessionsPaid = 0, totalSessionsTaken = 0, totalPrepaid = 0, totalOwed = 0;
+    table.rows({search:'applied'}).every(function() {
+      var d = this.data();
+      // Amount (EUR)
+      var amt = $(d[3]).text() || d[3];
+      if (!isNaN(parseInt(amt))) totalAmount += parseInt(amt);
+      // Sessions Paid
+      var sp = $(d[7]).text() || d[7];
+      if (!isNaN(parseInt(sp))) totalSessionsPaid += parseInt(sp);
+      // Sessions Taken
+      var st = $(d[8]).text() || d[8];
+      if (!isNaN(parseInt(st))) totalSessionsTaken += parseInt(st);
+      // Prepaid
+      var pp = $(d[9]).text() || d[9];
+      if (!isNaN(parseInt(pp))) totalPrepaid += parseInt(pp);
+      // Owed
+      var ow = $(d[10]).text() || d[10];
+      if (!isNaN(parseInt(ow))) totalOwed += parseInt(ow);
+    });
+    $('#totalAmount').text(totalAmount);
+    $('#totalSessionsPaid').text(totalSessionsPaid);
+    $('#totalSessionsTaken').text(totalSessionsTaken);
+    $('#totalPrepaid').text(totalPrepaid);
+    $('#totalOwed').text(totalOwed);
+  }
+  table.on('draw', updateTotals);
+  updateTotals();
+
+  // Month picker auto-submit
+  $('#month').on('change', function() {
+    $('#monthForm').submit();
+  });
+});
+</script>
 {% endblock %}

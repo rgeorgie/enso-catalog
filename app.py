@@ -58,6 +58,7 @@ translations = {
         "Players": "Players",
         "Calendar": "Calendar",
         "Fees Report": "Fees Report",
+        "Event List": "Event List",
         "+ Add Player": "+ Add Player",
         "Run DB migration": "Run DB migration",
         "Admin Login": "Admin Login",
@@ -204,6 +205,7 @@ translations = {
         "Green": "Green", "Blue": "Blue", "Purple": "Purple",
         "Brown": "Brown", "Black": "Black",
         "Kata": "Kata", "Kumite": "Kumite", "Both": "Both",
+        "Mon": "Mon", "Tue": "Tue", "Wed": "Wed", "Thu": "Thu", "Fri": "Fri", "Sat": "Sat", "Sun": "Sun",
     },
     "bg": {
         "Team ENSO": "Team ENSO",
@@ -453,6 +455,7 @@ translations = {
         "No per-session receipts found.": "Няма намерени квитанции за тренировки.",
         "No registrations yet.": "Все още няма записвания.",
         "Fees Report": "Отчет за такси",
+        "Event List": "Списък събития",
         "+ Add Player": "+ Добави състезател",
         "Run DB migration": "Стартирай миграция",
         "Admin Login": "Админ вход",
@@ -599,6 +602,7 @@ translations = {
         "Green": "Зелен", "Blue": "Син", "Purple": "Лилав",
         "Brown": "Кафяв", "Black": "Черен",
         "Kata": "Ката", "Kumite": "Кумите", "Both": "И двете",
+        "Mon": "Пон", "Tue": "Вт", "Wed": "Ср", "Thu": "Чет", "Fri": "Пет", "Sat": "Съб", "Sun": "Нед",
     },
 }
 
@@ -1345,16 +1349,62 @@ def fees_report():
     year, month = parse_month_str(month_str)
     ensure_payments_for_month(year, month)
 
-    payments = (Payment.query
-                .filter_by(year=year, month=month)
-                .join(Player)
-                .order_by(Player.last_name.asc(), Player.first_name.asc())
-                .all())
+
+    # Get all active players
+    players = Player.query.filter_by(active_member=True).order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+    payments = {p.player_id: p for p in Payment.query.filter_by(year=year, month=month).all()}
+
+    # Build a list of dicts for all players, including per-session
+    report_rows = []
+    for player in players:
+        payment = payments.get(player.id)
+        if payment:
+            # Monthly fee (existing logic)
+            report_rows.append({
+                'player': player,
+                'player_id': player.id,
+                'amount': payment.amount,
+                'paid': payment.paid,
+                'id': payment.id,
+                'year': payment.year,
+                'month': payment.month,
+                'is_monthly': True,
+            })
+        else:
+            # Per-session: show row for per-session players
+            if player.monthly_fee_is_monthly is False and player.monthly_fee_amount:
+                # Calculate sessions paid/taken and owed for this month
+                # Find receipts for this player/month
+                from sqlalchemy import extract
+                receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').filter(
+                    extract('year', PaymentRecord.paid_at) == year,
+                    extract('month', PaymentRecord.paid_at) == month
+                ).all()
+                sessions_paid = sum(r.sessions_paid or 0 for r in receipts)
+                sessions_taken = sum(r.sessions_taken or 0 for r in receipts)
+                prepaid_amount = sum(r.amount or 0 for r in receipts)
+                per_session_amount = player.monthly_fee_amount
+                owed_amount = max(0, (sessions_taken - sessions_paid) * per_session_amount)
+                report_rows.append({
+                    'player': player,
+                    'player_id': player.id,
+                    'amount': None,
+                    'paid': None,
+                    'id': None,
+                    'year': year,
+                    'month': month,
+                    'is_monthly': False,
+                    'sessions_paid': sessions_paid,
+                    'sessions_taken': sessions_taken,
+                    'prepaid_amount': prepaid_amount,
+                    'per_session_amount': per_session_amount,
+                    'owed_amount': owed_amount,
+                })
 
     due = first_working_day(year, month)
     return render_template(
         "report_fees.html",
-        payments=payments,
+        payments=report_rows,
         year=year,
         month=month,
         due_date=due,
@@ -1566,6 +1616,13 @@ def event_detail(event_id: int):
 @admin_required
 def event_new():
     form = EventForm()
+    # Pre-fill date if provided in query string
+    date_str = request.args.get("date")
+    if date_str and not form.start_date.data:
+        try:
+            form.start_date.data = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except Exception:
+            pass
     if form.validate_on_submit():
         ev = Event(
             title=form.title.data,
