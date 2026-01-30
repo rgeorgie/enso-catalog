@@ -206,11 +206,11 @@
           <div class="col-sm-6">
             <div><strong>{{ _('First Name') }}:</strong> {{ player.first_name }}</div>
             <div><strong>{{ _('Last Name') }}:</strong> {{ player.last_name }}</div>
-            <div><strong>{{ _('Gender') }}:</strong> {{ player.gender or '—' }}</div>
+            <div><strong>{{ _('Gender') }}:</strong> {{ _(player.gender) if player.gender else '—' }}</div>
             <div><strong>{{ _('Birthdate') }}:</strong> {{ player.birthdate or '—' }}</div>
           </div>
           <div class="col-sm-6">
-            <div><strong>{{ _('Discipline') }}:</strong> {{ player.discipline }}</div>
+            <div><strong>{{ _('Discipline') }}:</strong>{{ _(player.discipline) if player.discipline else '—' }}</div>
             <div><strong>{{ _('Weight (kg)') }}:</strong> {{ player.weight_kg or '—' }}</div>
             <div><strong>{{ _('Height (cm)') }}:</strong> {{ player.height_cm or '—' }}</div>
             <div><strong>{{ _('Join Date') }}:</strong> {{ player.join_date or '—' }}</div>
