@@ -8,8 +8,8 @@
   </h2>
 
   <div class="d-flex gap-2">
-    <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">← Back</a>
-    <a class="btn btn-outline-primary" href="{{ url_for('edit_player', player_id=player.id) }}">✏️ Edit</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">← {{ _('Back') }}</a>
+    <a class="btn btn-outline-primary" href="{{ url_for('edit_player', player_id=player.id) }}">✏️ {{ _('Edit') }}</a>
   </div>
 </div>
 
@@ -45,14 +45,14 @@
           </div>
         {% endif %}
           <div class="mt-2">
-          <span style="{{ belt_chip_style(player.belt_rank) }}">{{ player.grade_level or player.belt_rank }}</span>
-        </div>
+            <span style="{{ belt_chip_style(player.belt_rank) | safe }}">{{ player.grade_level or player.belt_rank }}</span>
+          </div>
       </div>
     </div>
 
     <!-- Quick actions -->
     <div class="card">
-      <div class="card-header"><strong>Quick actions</strong></div>
+      <div class="card-header"><strong>{{ _('Quick actions') }}</strong></div>
       <div class="card-body">
         <!-- Print due fees -->
         <form class="row g-2 align-items-end" method="get"
@@ -66,7 +66,7 @@
             <div class="form-text">Leave empty for current month</div>
           </div>
           <div class="col-5 d-grid">
-            <button class="btn btn-outline-primary" type="submit">🖨️ Print Due Fees</button>
+            <button class="btn btn-outline-primary" type="submit">🖨️ {{ _('Print Due Fees') }}</button>
           </div>
         </form>
         <hr>
@@ -76,38 +76,38 @@
           <!-- Training per month -->
           <a class="btn btn-outline-primary"
              href="{{ url_for('payment_new', kind='training_month', player_id=player.id) }}">
-            ➕ New Training Receipt (per month)
+            ➕ {{ _('New Training Receipt (per month)') }}
           </a>
 
           <!-- Training per session (default 8 sessions) -->
           <a class="btn btn-outline-primary"
              href="{{ url_for('payment_new', kind='training_session', player_id=player.id, sessions_paid=8) }}">
-            ➕ New Training Receipt (per session)
+            ➕ {{ _('New Training Receipt (per session)') }}
           </a>
 
           <!-- Event receipt (generic: admin can type the Reg ID on the form) -->
           <a class="btn btn-outline-primary"
              href="{{ url_for('payment_new', kind='event') }}">
-            ➕ New Event Receipt
+            ➕ {{ _('New Event Receipt') }}
           </a>
         </div>
         <hr>
         <div class="d-grid gap-2">
           <form method="post" action="{{ url_for('player_pay_due', player_id=player.id) }}" onsubmit="return confirm('Pay monthly dues for this player?');">
             <input type="hidden" name="kind" value="monthly">
-            <button class="btn btn-outline-success">Pay Monthly Dues</button>
+            <button class="btn btn-outline-success">{{ _('Pay Monthly Dues') }}</button>
           </form>
           <form method="post" action="{{ url_for('player_pay_due', player_id=player.id) }}" onsubmit="return confirm('Pay unpaid event fees for this player?');">
             <input type="hidden" name="kind" value="events">
-            <button class="btn btn-outline-success">Pay Event Fees</button>
+            <button class="btn btn-outline-success">{{ _('Pay Event Fees') }}</button>
           </form>
           <form method="post" action="{{ url_for('player_pay_due', player_id=player.id) }}" onsubmit="return confirm('Pay outstanding session debts for this player?');">
             <input type="hidden" name="kind" value="debts">
-            <button class="btn btn-outline-success">Pay Session Debts</button>
+            <button class="btn btn-outline-success">{{ _('Pay Session Debts') }}</button>
           </form>
           <form method="post" action="{{ url_for('player_pay_due', player_id=player.id) }}" onsubmit="return confirm('Pay all outstanding dues for this player?');">
             <input type="hidden" name="kind" value="all">
-            <button class="btn btn-success">Pay All Dues</button>
+            <button class="btn btn-success">{{ _('Pay All Dues') }}</button>
           </form>
         </div>
       </div>
@@ -116,23 +116,23 @@
     <!-- Per-session summary (if player pays per session) -->
     {% if not player.monthly_fee_is_monthly %}
     <div class="card mt-3">
-      <div class="card-header"><strong>Training sessions</strong></div>
+      <div class="card-header"><strong>{{ _('Training sessions') }}</strong></div>
       <div class="card-body">
-        <div><strong>Sessions paid:</strong> {{ total_sessions_paid }}</div>
-        <div><strong>Sessions taken:</strong> {{ total_sessions_taken }}</div>
+        <div><strong>{{ _('Sessions paid') }}:</strong> {{ total_sessions_paid }}</div>
+        <div><strong>{{ _('Sessions taken') }}:</strong> {{ total_sessions_taken }}</div>
         {% set rem = total_sessions_paid - total_sessions_taken %}
-        <div><strong>Remaining sessions:</strong>
+        <div><strong>{{ _('Remaining sessions') }}:</strong>
           {% if rem >= 0 %}
             {{ rem }}
           {% else %}
-            <span class="text-danger">Overused by {{ -rem }}</span>
+            <span class="text-danger">{{ _('Overused by') }} {{ -rem }}</span>
           {% endif %}
         </div>
-        <div class="mt-2"><strong>Prepaid amount:</strong> {{ total_prepaid_amount }} EUR</div>
+        <div class="mt-2"><strong>{{ _('Prepaid amount') }}:</strong> {{ total_prepaid_amount }} EUR</div>
         {% if per_session_amount is not none %}
-          <div><strong>Per-session price:</strong> {{ per_session_amount }} EUR</div>
-          <div><strong>Cost for sessions taken:</strong> {{ expected_cost }} EUR</div>
-          <div><strong>Owed (cost - prepaid):</strong> {{ owed_amount }} EUR</div>
+          <div><strong>{{ _('Per-session price') }}:</strong> {{ per_session_amount }} EUR</div>
+          <div><strong>{{ _('Cost for sessions taken') }}:</strong> {{ expected_cost }} EUR</div>
+          <div><strong>{{ _('Owed (cost - prepaid)') }}:</strong> {{ owed_amount }} EUR</div>
         {% endif %}
 
         <hr>
@@ -148,10 +148,10 @@
                   &nbsp;• {{ r.amount }} EUR
                 </div>
                 <div class="d-flex gap-2">
-                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('receipt_view', rid=r.id) }}">View</a>
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('receipt_view', rid=r.id) }}">{{ _('View') }}</a>
                   {% if session.get('is_admin') %}
                     <form method="post" action="{{ url_for('receipt_tick_session', rid=r.id) }}">
-                      <button class="btn btn-sm btn-outline-success" type="submit">Mark session taken</button>
+                      <button class="btn btn-sm btn-outline-success" type="submit">{{ _('Mark session taken') }}</button>
                     </form>
                   {% endif %}
                 </div>
@@ -170,20 +170,20 @@
   <div class="col-12 col-lg-8">
     <!-- Profile -->
     <div class="card mb-3">
-      <div class="card-header"><strong>Profile</strong></div>
+      <div class="card-header"><strong>{{ _('Profile') }}</strong></div>
       <div class="card-body">
         <div class="row g-3">
           <div class="col-sm-6">
-            <div><strong>First Name:</strong> {{ player.first_name }}</div>
-            <div><strong>Last Name:</strong> {{ player.last_name }}</div>
-            <div><strong>Gender:</strong> {{ player.gender or '—' }}</div>
-            <div><strong>Birthdate:</strong> {{ player.birthdate or '—' }}</div>
+            <div><strong>{{ _('First Name') }}:</strong> {{ player.first_name }}</div>
+            <div><strong>{{ _('Last Name') }}:</strong> {{ player.last_name }}</div>
+            <div><strong>{{ _('Gender') }}:</strong> {{ player.gender or '—' }}</div>
+            <div><strong>{{ _('Birthdate') }}:</strong> {{ player.birthdate or '—' }}</div>
           </div>
           <div class="col-sm-6">
-            <div><strong>Discipline:</strong> {{ player.discipline }}</div>
-            <div><strong>Weight (kg):</strong> {{ player.weight_kg or '—' }}</div>
-            <div><strong>Height (cm):</strong> {{ player.height_cm or '—' }}</div>
-            <div><strong>Join Date:</strong> {{ player.join_date or '—' }}</div>
+            <div><strong>{{ _('Discipline') }}:</strong> {{ player.discipline }}</div>
+            <div><strong>{{ _('Weight (kg)') }}:</strong> {{ player.weight_kg or '—' }}</div>
+            <div><strong>{{ _('Height (cm)') }}:</strong> {{ player.height_cm or '—' }}</div>
+            <div><strong>{{ _('Join Date') }}:</strong> {{ player.join_date or '—' }}</div>
             <div><strong>{{ _('Monthly Fee Type') }}:</strong>
               {% if player.monthly_fee_amount is not none %}
                 {{ player.monthly_fee_amount }} EUR ({{ _('monthly') if player.monthly_fee_is_monthly else _('per session') }})
@@ -198,18 +198,18 @@
 
     <!-- Contacts -->
     <div class="card mb-3">
-      <div class="card-header"><strong>Contacts</strong></div>
+      <div class="card-header"><strong>{{ _('Contacts') }}</strong></div>
       <div class="card-body">
         <div class="row g-3">
           <div class="col-sm-6">
-            <div><strong>Email:</strong> {{ player.email or '—' }}</div>
-            <div><strong>Phone:</strong> {{ player.phone or '—' }}</div>
+            <div><strong>{{ _('Email') }}:</strong> {{ player.email or '—' }}</div>
+            <div><strong>{{ _('Phone') }}:</strong> {{ player.phone or '—' }}</div>
           </div>
           <div class="col-sm-6">
-            <div><strong>Mother Name:</strong> {{ player.mother_name or '—' }}</div>
-            <div><strong>Mother Phone:</strong> {{ player.mother_phone or '—' }}</div>
-            <div><strong>Father Name:</strong> {{ player.father_name or '—' }}</div>
-            <div><strong>Father Phone:</strong> {{ player.father_phone or '—' }}</div>
+            <div><strong>{{ _('Mother Name') }}:</strong> {{ player.mother_name or '—' }}</div>
+            <div><strong>{{ _('Mother Phone') }}:</strong> {{ player.mother_phone or '—' }}</div>
+            <div><strong>{{ _('Father Name') }}:</strong> {{ player.father_name or '—' }}</div>
+            <div><strong>{{ _('Father Phone') }}:</strong> {{ player.father_phone or '—' }}</div>
           </div>
         </div>
       </div>
@@ -217,22 +217,22 @@
 
     <!-- Health & Insurance -->
     <div class="card mb-3">
-      <div class="card-header"><strong>Health & Insurance</strong></div>
+      <div class="card-header"><strong>{{ _('Health & Insurance') }}</strong></div>
       <div class="card-body">
         <div class="row g-3">
           <div class="col-sm-4">
             {% set txt1, color1 = validity_badge(player.medical_expiry_date) %}
-            <div><strong>Medical Examination:</strong> {{ player.medical_exam_date or '—' }}</div>
+            <div><strong>{{ _('Medical Examination') }}:</strong> {{ player.medical_exam_date or '—' }}</div>
             <div><span class="badge text-bg-{{ color1 }}">{{ txt1 }}</span></div>
           </div>
           <div class="col-sm-4">
             {% set txt2, color2 = validity_badge(player.medical_expiry_date) %}
-            <div><strong>Expiry Date:</strong> {{ player.medical_expiry_date or '—' }}</div>
+            <div><strong>{{ _('Expiry Date') }}:</strong> {{ player.medical_expiry_date or '—' }}</div>
             <div><span class="badge text-bg-{{ color2 }}">{{ txt2 }}</span></div>
           </div>
           <div class="col-sm-4">
             {% set txt3, color3 = validity_badge(player.insurance_expiry_date) %}
-            <div><strong>Insurance Expiry Date:</strong> {{ player.insurance_expiry_date or '—' }}</div>
+            <div><strong>{{ _('Insurance Expiry Date') }}:</strong> {{ player.insurance_expiry_date or '—' }}</div>
             <div><span class="badge text-bg-{{ color3 }}">{{ txt3 }}</span></div>
           </div>
         </div>
@@ -241,7 +241,7 @@
 
     <!-- Recent Event Registrations -->
     <div class="card">
-      <div class="card-header"><strong>Recent Event Registrations</strong></div>
+      <div class="card-header"><strong>{{ _('Recent Event Registrations') }}</strong></div>
       <div class="card-body">
         {% if regs %}
           <div class="table-responsive">
@@ -273,18 +273,18 @@
                   </td>
                   <td class="text-end">{{ fee if fee is not none else '—' }}</td>
                   <td class="text-center">
-                    {% if r.paid %}<span class="badge text-bg-success">yes</span>{% else %}<span class="badge text-bg-secondary">no</span>{% endif %}
+                    {% if r.paid %}<span class="badge text-bg-success">{{ _('yes') }}</span>{% else %}<span class="badge text-bg-secondary">{{ _('no') }}</span>{% endif %}
                   </td>
                   <td class="text-center">
                     <div class="d-flex justify-content-center flex-wrap gap-2">
                       <form method="post" action="{{ url_for('event_reg_toggle_paid', reg_id=r.id) }}">
                         <button class="btn btn-sm {% if r.paid %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
-                          Toggle paid
+                          {{ _('Toggle paid') }}
                         </button>
                       </form>
                       <a class="btn btn-sm btn-outline-primary"
                          href="{{ url_for('payment_new', kind='event', reg_id=r.id) }}">
-                        New receipt
+                        {{ _('New receipt') }}
                       </a>
                     </div>
                   </td>
