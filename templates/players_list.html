@@ -65,6 +65,31 @@
             {{ p.monthly_fee_amount }} EUR ({{ _('monthly') if p.monthly_fee_is_monthly else _('per session') }})
             {% if not p.monthly_fee_is_monthly %}
               <div class="small text-muted">Paid: {{ p.total_sessions_paid }} • Taken: {{ p.total_sessions_taken }} • Owed: {{ p.owed_amount if p.owed_amount is not none else '—' }} EUR</div>
+                {% if p.has_debt %}
+                  <div class="small mt-1">
+                    {% if p.debt_total_recorded and p.debt_total_recorded > 0 %}
+                      {% if p.debt_total_expected and p.debt_total_expected > 0 %}
+                        {% set remaining = (p.debt_total_expected - p.debt_total_recorded) %}
+                        {% if remaining > 0 %}
+                          <span class="badge bg-danger">Recorded debt: {{ p.debt_total_recorded }} EUR</span>
+                          <span class="small text-danger ms-2">Remaining owed: {{ remaining }} EUR</span>
+                        {% elif remaining < 0 %}
+                          <span class="badge bg-success">Recorded debt: {{ p.debt_total_recorded }} EUR</span>
+                          <span class="small text-success ms-2">Overpaid: {{ -remaining }} EUR</span>
+                        {% else %}
+                          <span class="badge bg-success">Recorded debt: {{ p.debt_total_recorded }} EUR</span>
+                          <span class="small text-success ms-2">Fully recorded</span>
+                        {% endif %}
+                      {% else %}
+                        <span class="badge bg-success">Recorded debt: {{ p.debt_total_recorded }} EUR</span>
+                      {% endif %}
+                    {% else %}
+                      {% if p.debt_total_expected and p.debt_total_expected > 0 %}
+                        <span class="badge bg-danger">Owed (not recorded): {{ p.debt_total_expected }} EUR</span>
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                {% endif %}
             {% endif %}
             {% if p.payment_count == 0 %}
               <div class="small mt-1"><span class="badge text-bg-warning text-dark">No payments</span></div>
@@ -104,16 +129,25 @@
           <span class="badge bg-{{ ins_color }}">Ins: {{ ins_text }}</span>
         </td>
         {% if session.get('is_admin') %}
-        <td class="text-nowrap">
-          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_player', player_id=p.id) }}">{{ _('Edit Player') }}</a>
-          <form class="d-inline" method="post" action="{{ url_for('delete_player', player_id=p.id) }}" onsubmit="return confirm('Delete this player?');">
-            <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
-          </form>
-          <!-- Quick pay dues button -->
-          <form class="d-inline" method="post" action="{{ url_for('player_pay_due', player_id=p.id) }}" onsubmit="return confirm('Pay all outstanding dues for this player?');">
-            <input type="hidden" name="kind" value="all">
-            <button class="btn btn-sm btn-outline-success" type="submit">Pay Due</button>
-          </form>
+        <td>
+          <div class="d-flex flex-column flex-sm-row gap-2">
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_player', player_id=p.id) }}">{{ _('Edit') }}</a>
+
+            <form class="m-0" method="post" action="{{ url_for('delete_player', player_id=p.id) }}" onsubmit="return confirm('Delete this player?');">
+              <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
+            </form>
+
+            {% if not p.monthly_fee_is_monthly %}
+              <form class="m-0" method="post" action="{{ url_for('record_session', player_id=p.id) }}">
+                <button class="btn btn-sm btn-outline-secondary" type="submit">Record Session</button>
+              </form>
+            {% endif %}
+
+            <form class="m-0" method="post" action="{{ url_for('player_pay_due', player_id=p.id) }}" onsubmit="return confirm('Pay all outstanding dues for this player?');">
+              <input type="hidden" name="kind" value="all">
+              <button class="btn btn-sm btn-outline-success" type="submit">Pay Due</button>
+            </form>
+          </div>
         </td>
         {% endif %}
       </tr>
