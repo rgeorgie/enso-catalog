@@ -31,10 +31,7 @@
       <p><strong>Plan:</strong> Per session</p>
       <p><strong>Sessions:</strong> {{ rec.sessions_taken }}/{{ rec.sessions_paid }} taken</p>
       <form method="post" action="{{ url_for('receipt_tick_session', rid=rec.id) }}" class="no-print">
-        <button class="btn btn-sm btn-outline-primary"
-                {% if rec.sessions_taken >= rec.sessions_paid %}disabled{% endif %}>
-          Mark one session taken
-        </button>
+        <button class="btn btn-sm btn-outline-primary">Mark one session taken</button>
       </form>
     {% endif %}
   {% else %}
@@ -44,6 +41,19 @@
         ({{ ev.start_date }}{% if ev.end_date %} – {{ ev.end_date }}{% endif %})
       </p>
     {% endif %}
+  {% endif %}
+
+  {% if rec.note and 'AUTO_DEBT' in rec.note %}
+    <hr>
+    <div class="no-print">
+      <form method="post" action="{{ url_for('receipt_pay_debt', rid=rec.id) }}">
+        <div class="mb-2 form-text">This receipt was auto-generated as a debt for extra sessions.</div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-success" type="submit">Record payment for this debt</button>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('payment_new', player_id=rec.player_id, amount=rec.amount) }}">Open payment form</a>
+        </div>
+      </form>
+    </div>
   {% endif %}
 
   <p class="mt-3">
