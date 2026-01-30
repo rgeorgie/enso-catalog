@@ -1,4 +1,3 @@
-a clean, cross‑platform (Linux/Windows) web app you can run locally for a karate club player catalog. It includes a simple web UI, search &amp; filters, admin login for CRUD, and optional photo uploads.
 # enso-catalog
 
 enso-catalog is a cross-platform (Linux/macOS/Windows) web app for managing a karate club's players, payments, events, and receipts. It provides a modern admin UI, search/filtering, CSV export, and photo uploads—all running locally with no external dependencies beyond Python.
