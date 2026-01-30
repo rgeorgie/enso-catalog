@@ -1,32 +1,167 @@
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="importModalLabel">{{ _('Paste/Import Categories') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="importTextarea" class="form-label">{{ _('Paste tabular data (one row per category, columns: Name, Age from, Age to, Sex, Fee, Team size, KYU, DAN, Other cut-off date, Limit, Team Limit)') }}</label>
+          <textarea id="importTextarea" class="form-control" rows="8" placeholder="Category\t10\t12\tM\t50\t3\t8\t1\t2024-05-01\t20\t5"></textarea>
+        </div>
+        <div id="importPreview" class="mb-3"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+        <button type="button" class="btn btn-primary" id="importSubmitBtn">{{ _('Import') }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Parse pasted data and preview
+function parseCategoryRows(text) {
+  const lines = text.trim().split(/\r?\n/);
+  return lines.map(line => line.split(/\t|\s{2,}/));
+}
+
+function renderPreview(rows) {
+  if (!rows.length) return '';
+  let html = '<table class="table table-bordered table-sm"><thead><tr>' +
+    ['Name','Age from','Age to','Sex','Fee','Team size','KYU','DAN','Other cut-off date','Limit','Team Limit']
+      .map(h=>`<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+  for (const row of rows) {
+    html += '<tr>' + row.map(cell => `<td>${cell||''}</td>`).join('') + '</tr>';
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const ta = document.getElementById('importTextarea');
+  const preview = document.getElementById('importPreview');
+  ta.addEventListener('input', function() {
+    const rows = parseCategoryRows(ta.value);
+    preview.innerHTML = renderPreview(rows);
+  });
+
+  document.getElementById('importSubmitBtn').addEventListener('click', function() {
+    const rows = parseCategoryRows(ta.value);
+    if (!rows.length) return;
+    // Always use the correct event_id for the import endpoint
+    const eventId = {{ ev.id }};
+    fetch(`/admin/events/${eventId}/categories/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ form.csrf_token._value() }}' },
+      body: JSON.stringify({ rows })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert(data.error || 'Import failed');
+      }
+    })
+    .catch(()=>alert('Import failed'));
+  });
+});
+</script>
 {% extends "base.html" %}
 {% block content %}
 <h1 class="mb-3">{{ _('Categories') }} — {{ ev.title }}</h1>
 
+
 <form method="post" class="row g-3 mb-4">
   {{ form.csrf_token }}
-  <div class="col-md-6">
-    <label class="form-label">{{ _('Category Name') }}</label>
-    {{ form.name(class="form-control") }}
-  </div>
   <div class="col-md-3">
-    <label class="form-label">{{ _('Category Fee') }}</label>
-    {{ form.fee(class="form-control", placeholder="e.g. 50") }}
+    <label class="form-label">{{ _('Category Name') }}</label>
+    <input name="name" class="form-control" required>
   </div>
-  <div class="col-md-3 d-flex align-items-end">
-    <button class="btn btn-primary" type="submit">{{ _('Add Category') }}</button>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Age from') }}</label>
+    <input name="age_from" type="number" class="form-control">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Age to') }}</label>
+    <input name="age_to" type="number" class="form-control">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Sex') }}</label>
+    <input name="sex" class="form-control" placeholder="M/F">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Category Fee') }}</label>
+    <input name="fee" type="number" class="form-control" placeholder="EUR">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Team size') }}</label>
+    <input name="team_size" class="form-control">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('KYU') }}</label>
+    <input name="kyu" class="form-control">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('DAN') }}</label>
+    <input name="dan" class="form-control">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Other cut-off date') }}</label>
+    <input name="other_cutoff_date" class="form-control" placeholder="YYYY-MM-DD">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Limit') }}</label>
+    <input name="limit" class="form-control">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Team Limit') }}</label>
+    <input name="limit_team" class="form-control">
+  </div>
+  <div class="col-md-2 d-flex align-items-end">
+    <button class="btn btn-primary w-100" type="submit">{{ _('Add Category') }}</button>
   </div>
 </form>
 
+
 {% if cats %}
   <div class="table-responsive">
-    <table class="table table-striped align-middle">
-      <thead><tr><th>#</th><th>{{ _('Category Name') }}</th><th class="text-end">{{ _('Category Fee') }}</th><th></th></tr></thead>
+    <table class="table table-striped align-middle table-sm">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>{{ _('Category Name') }}</th>
+          <th>{{ _('Age from') }}</th>
+          <th>{{ _('Age to') }}</th>
+          <th>{{ _('Sex') }}</th>
+          <th>{{ _('Category Fee') }}</th>
+          <th>{{ _('Team size') }}</th>
+          <th>{{ _('KYU') }}</th>
+          <th>{{ _('DAN') }}</th>
+          <th>{{ _('Other cut-off date') }}</th>
+          <th>{{ _('Limit') }}</th>
+          <th>{{ _('Team Limit') }}</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
       {% for c in cats %}
         <tr>
           <td>{{ loop.index }}</td>
           <td>{{ c.name }}</td>
-          <td class="text-end">{{ c.fee if c.fee is not none else '—' }}</td>
+          <td>{{ c.age_from or '—' }}</td>
+          <td>{{ c.age_to or '—' }}</td>
+          <td>{{ c.sex or '—' }}</td>
+          <td>{{ c.fee if c.fee is not none else '—' }}</td>
+          <td>{{ c.team_size or '—' }}</td>
+          <td>{{ c.kyu or '—' }}</td>
+          <td>{{ c.dan or '—' }}</td>
+          <td>{{ c.other_cutoff_date or '—' }}</td>
+          <td>{{ c.limit or '—' }}</td>
+          <td>{{ c.limit_team or '—' }}</td>
           <td class="text-end">
             <form method="post" action="{{ url_for('event_category_delete', event_id=ev.id, cat_id=c.id) }}" onsubmit="return confirm('{{ _('Delete Category') }}?');">
               <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
@@ -41,8 +176,12 @@
   <div class="text-muted">{{ _('No categories yet.') }}</div>
 {% endif %}
 
-<div class="mt-3">
+<div class="mt-3 d-flex gap-2">
   <a class="btn btn-outline-secondary" href="{{ url_for('event_detail', event_id=ev.id) }}">{{ _('Event') }}</a>
   <a class="btn btn-outline-secondary" href="{{ url_for('event_registrations', event_id=ev.id) }}">{{ _('Registrations') }}</a>
+  <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">{{ _('Paste/Import Categories') }}</button>
 </div>
+
+<!-- Import Modal (to be implemented in next step) -->
+<!-- Modal markup and JS will be added in the next step -->
 {% endblock %}

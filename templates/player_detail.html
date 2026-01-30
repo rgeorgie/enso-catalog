@@ -219,7 +219,8 @@
       </div>
     </div>
 
-    <!-- CONTACTS -->
+
+    <!-- CONTACTS & PARENTS -->
     <div class="card mb-3">
       <div class="card-header"><strong>{{ _('Contacts') }}</strong></div>
       <div class="card-body">
@@ -227,6 +228,12 @@
           <div class="col-sm-6">
             <div><strong>{{ _('Email') }}:</strong> {{ player.email or '—' }}</div>
             <div><strong>{{ _('Phone') }}:</strong> {{ player.phone or '—' }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div><strong>{{ _('Mother Name') }}:</strong> {{ player.mother_name or '—' }}</div>
+            <div><strong>{{ _('Mother Phone') }}:</strong> {{ player.mother_phone or '—' }}</div>
+            <div><strong>{{ _('Father Name') }}:</strong> {{ player.father_name or '—' }}</div>
+            <div><strong>{{ _('Father Phone') }}:</strong> {{ player.father_phone or '—' }}</div>
           </div>
         </div>
       </div>
@@ -236,7 +243,33 @@
     <div class="card mb-3">
       <div class="card-header"><strong>{{ _('Health & Insurance') }}</strong></div>
       <div class="card-body">
-        <!-- unchanged validity logic -->
+        <div class="row g-3">
+          <div class="col-sm-4"><strong>{{ _('Examination Date') }}:</strong> {{ player.medical_exam_date or '—' }}</div>
+          <div class="col-sm-4"><strong>{{ _('Expiry Date') }}:</strong> {{ player.medical_expiry_date or '—' }}</div>
+          <div class="col-sm-4"><strong>{{ _('Insurance Expiry Date') }}:</strong> {{ player.insurance_expiry_date or '—' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+    {% if player.notes %}
+    <div class="card mb-3">
+      <div class="card-header"><strong>{{ _('Notes') }}</strong></div>
+      <div class="card-body">
+        <div>{{ player.notes }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- SPORTDATA PROFILES -->
+    <div class="card mb-3">
+      <div class="card-header"><strong>{{ _('Sportdata Profiles') }}</strong></div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-sm-4"><strong>{{ _('WKF Profile URL') }}:</strong> {% if player.sportdata_wkf_url %}<a href="{{ player.sportdata_wkf_url }}" target="_blank">{{ player.sportdata_wkf_url }}</a>{% else %}—{% endif %}</div>
+          <div class="col-sm-4"><strong>{{ _('BNFK Profile URL') }}:</strong> {% if player.sportdata_bnfk_url %}<a href="{{ player.sportdata_bnfk_url }}" target="_blank">{{ player.sportdata_bnfk_url }}</a>{% else %}—{% endif %}</div>
+          <div class="col-sm-4"><strong>{{ _('ENSO Profile URL') }}:</strong> {% if player.sportdata_enso_url %}<a href="{{ player.sportdata_enso_url }}" target="_blank">{{ player.sportdata_enso_url }}</a>{% else %}—{% endif %}</div>
+        </div>
       </div>
     </div>
 

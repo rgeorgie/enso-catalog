@@ -1,3 +1,6 @@
+
+# Place this after the event_categories and event_category_delete routes:
+
 # app.py
 import os
 import json
@@ -790,8 +793,17 @@ class Event(db.Model):
 class EventCategory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=False, index=True)
-    name = db.Column(db.String(120), nullable=False)
+    name = db.Column(db.String(120), nullable=False)  # Categories
+    age_from = db.Column(db.Integer, nullable=True)
+    age_to = db.Column(db.Integer, nullable=True)
+    sex = db.Column(db.String(10), nullable=True)
     fee = db.Column(db.Integer, nullable=True)  # EUR
+    team_size = db.Column(db.String(20), nullable=True)
+    kyu = db.Column(db.String(20), nullable=True)
+    dan = db.Column(db.String(20), nullable=True)
+    other_cutoff_date = db.Column(db.String(40), nullable=True)
+    limit_team = db.Column(db.String(20), nullable=True)
+    limit = db.Column(db.String(20), nullable=True)
 
 class EventRegistration(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1318,52 +1330,83 @@ def fees_report():
     players = Player.query.filter_by(active_member=True).order_by(Player.last_name.asc(), Player.first_name.asc()).all()
     payments = {p.player_id: p for p in Payment.query.filter_by(year=year, month=month).all()}
 
-    # Build a list of dicts for all players, including per-session
+
+
+    # Consolidate all payments per athlete
+    from sqlalchemy import extract
     report_rows = []
     for player in players:
+        # Monthly
         payment = payments.get(player.id)
-        if payment:
-            # Monthly fee (existing logic)
-            report_rows.append({
-                'player': player,
-                'player_id': player.id,
-                'amount': payment.amount,
-                'paid': payment.paid,
-                'id': payment.id,
-                'year': payment.year,
-                'month': payment.month,
-                'is_monthly': True,
+        monthly_amount = payment.amount if payment else 0
+        monthly_paid = payment.paid if payment else False
+        monthly_id = payment.id if payment else None
+        # Per-session
+        session_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').filter(
+            extract('year', PaymentRecord.paid_at) == year,
+            extract('month', PaymentRecord.paid_at) == month
+        ).all()
+        sessions_paid = sum(r.sessions_paid or 0 for r in session_receipts)
+        sessions_taken = sum(r.sessions_taken or 0 for r in session_receipts)
+        prepaid_amount = sum(r.amount or 0 for r in session_receipts)
+        per_session_amount = player.monthly_fee_amount if player.monthly_fee_is_monthly is False else None
+        owed_amount = max(0, (sessions_taken - sessions_paid) * per_session_amount) if per_session_amount else 0
+        # Events
+        event_payments = PaymentRecord.query.filter_by(player_id=player.id, kind='event').filter(
+            extract('year', PaymentRecord.paid_at) == year,
+            extract('month', PaymentRecord.paid_at) == month
+        ).all()
+        event_total = sum(ep.amount or 0 for ep in event_payments)
+        # Owed for events: sum of unpaid event registrations (per category) for this month
+        event_owed = 0
+        category_fees = 0
+        from calendar import monthrange
+        month_start = date(year, month, 1)
+        month_end = date(year, month, monthrange(year, month)[1])
+        # All event registrations for this player in this month
+        regs_in_month = [reg for reg in player.event_registrations if reg.event and reg.event.start_date and month_start <= reg.event.start_date <= month_end]
+        for reg in regs_in_month:
+            # Sum all category fees for this registration
+            for rc in reg.reg_categories:
+                if rc.category and rc.category.fee is not None:
+                    category_fees += int(rc.category.fee)
+            # Owed only if unpaid
+            if not reg.paid:
+                for rc in reg.reg_categories:
+                    if rc.category and rc.category.fee is not None:
+                        event_owed += int(rc.category.fee)
+                # If no categories, fallback to registration fee
+                if not reg.reg_categories and reg.computed_fee():
+                    event_owed += reg.computed_fee()
+        # Details for expansion
+        event_details = []
+        for ep in event_payments:
+            event_name = ep.event_registration.event.title if ep.event_registration and ep.event_registration.event else None
+            event_details.append({
+                'amount': ep.amount,
+                'event_name': event_name,
+                'receipt_no': ep.receipt_no,
+                'paid_on': ep.paid_at.date() if ep.paid_at else None,
+                'id': ep.id,
             })
-        else:
-            # Per-session: show row for per-session players
-            if player.monthly_fee_is_monthly is False and player.monthly_fee_amount:
-                # Calculate sessions paid/taken and owed for this month
-                # Find receipts for this player/month
-                from sqlalchemy import extract
-                receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').filter(
-                    extract('year', PaymentRecord.paid_at) == year,
-                    extract('month', PaymentRecord.paid_at) == month
-                ).all()
-                sessions_paid = sum(r.sessions_paid or 0 for r in receipts)
-                sessions_taken = sum(r.sessions_taken or 0 for r in receipts)
-                prepaid_amount = sum(r.amount or 0 for r in receipts)
-                per_session_amount = player.monthly_fee_amount
-                owed_amount = max(0, (sessions_taken - sessions_paid) * per_session_amount)
-                report_rows.append({
-                    'player': player,
-                    'player_id': player.id,
-                    'amount': None,
-                    'paid': None,
-                    'id': None,
-                    'year': year,
-                    'month': month,
-                    'is_monthly': False,
-                    'sessions_paid': sessions_paid,
-                    'sessions_taken': sessions_taken,
-                    'prepaid_amount': prepaid_amount,
-                    'per_session_amount': per_session_amount,
-                    'owed_amount': owed_amount,
-                })
+        report_rows.append({
+            'player': player,
+            'player_id': player.id,
+            'monthly_amount': monthly_amount,
+            'monthly_paid': monthly_paid,
+            'monthly_id': monthly_id,
+            'sessions_paid': sessions_paid,
+            'sessions_taken': sessions_taken,
+            'prepaid_amount': prepaid_amount,
+            'per_session_amount': per_session_amount,
+            'owed_amount': (owed_amount or 0) + (event_owed or 0),
+            'event_total': event_total,
+            'event_owed': event_owed,
+            'category_fees': category_fees,
+            'event_details': event_details,
+            'year': year,
+            'month': month,
+        })
 
     due = first_working_day(year, month)
     return render_template(
@@ -1637,6 +1680,7 @@ def event_categories(event_id: int):
     cats = ev.categories.order_by(EventCategory.name.asc()).all()
     return render_template("event_categories.html", ev=ev, cats=cats, form=form)
 
+
 @app.route("/admin/events/<int:event_id>/categories/<int:cat_id>/delete", methods=["POST"])
 @admin_required
 def event_category_delete(event_id: int, cat_id: int):
@@ -1647,6 +1691,45 @@ def event_category_delete(event_id: int, cat_id: int):
     flash(_("Category deleted."), "info")
     return redirect(url_for("event_categories", event_id=ev.id))
 
+# Bulk import endpoint for event categories
+@app.route("/admin/events/<int:event_id>/categories/import", methods=["POST"])
+@admin_required
+def event_categories_import(event_id: int):
+    ev = Event.query.get_or_404(event_id)
+    data = request.get_json()
+    rows = data.get("rows", [])
+    imported = 0
+    errors = []
+    for idx, row in enumerate(rows):
+        # Expect: name, age_from, age_to, sex, fee, team_size, kyu, dan, other_cutoff_date, limit, limit_team
+        if not row or not row[0]:
+            continue
+        try:
+            cat = EventCategory(
+                event_id=ev.id,
+                name=row[0],
+                age_from=int(row[1]) if len(row) > 1 and row[1] else None,
+                age_to=int(row[2]) if len(row) > 2 and row[2] else None,
+                sex=row[3] if len(row) > 3 and row[3] else None,
+                fee=int(row[4]) if len(row) > 4 and row[4] else None,
+                team_size=row[5] if len(row) > 5 and row[5] else None,
+                kyu=row[6] if len(row) > 6 and row[6] else None,
+                dan=row[7] if len(row) > 7 and row[7] else None,
+                other_cutoff_date=row[8] if len(row) > 8 and row[8] else None,
+                limit=row[9] if len(row) > 9 and row[9] else None,
+                limit_team=row[10] if len(row) > 10 and row[10] else None,
+            )
+            db.session.add(cat)
+            imported += 1
+        except Exception as e:
+            errors.append(f"Row {idx+1}: {str(e)}")
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "error": str(e)}
+    return {"success": True, "imported": imported, "errors": errors}
+
 # -------- Registrations --------
 @app.route("/admin/events/<int:event_id>/registrations", methods=["GET", "POST"])
 @admin_required
@@ -1654,10 +1737,56 @@ def event_registrations(event_id: int):
     ev = Event.query.get_or_404(event_id)
     form = EventRegistrationForm()
 
+
     players = Player.query.filter_by(active_member=True).order_by(Player.last_name.asc(), Player.first_name.asc()).all()
     form.player_ids.choices = [(p.id, p.full_name()) for p in players]
     cats = ev.categories.order_by(EventCategory.name.asc()).all()
-    form.category_ids.choices = [(c.id, c.name) for c in cats]
+
+    # If a player is selected, filter categories for that player
+    selected_player_id = None
+    if request.method == "POST":
+        # Try to get the first selected player (single or multi)
+        if form.player_ids.data:
+            selected_player_id = form.player_ids.data[0] if isinstance(form.player_ids.data, list) else form.player_ids.data
+    elif request.method == "GET" and request.args.get("player_id"):
+        selected_player_id = int(request.args.get("player_id"))
+        # Pre-select the athlete in the form
+        form.player_ids.data = [selected_player_id]
+
+    filtered_cats = cats
+    if selected_player_id:
+        player = Player.query.get(selected_player_id)
+        if player:
+            today = date.today()
+            age = None
+            if player.birthdate:
+                age = today.year - player.birthdate.year - ((today.month, today.day) < (player.birthdate.month, player.birthdate.day))
+            weight = player.weight_kg
+            sex_raw = (player.gender or '').strip().lower()
+            # Map common values to 'm'/'f'
+            sex_map = {'male': 'm', 'm': 'm', 'man': 'm', 'мъж': 'm', 'female': 'f', 'f': 'f', 'woman': 'f', 'жена': 'f', 'ж': 'f'}
+            sex = sex_map.get(sex_raw, sex_raw)
+            def cat_ok(cat):
+                # Sex match (or not set)
+                cat_sex = (cat.sex or '').strip().lower()
+                if cat_sex and cat_sex not in (sex, '', None):
+                    return False
+                # Age match (within +2 years)
+                if age is not None:
+                    if cat.age_from is not None and age < cat.age_from:
+                        return False
+                    if cat.age_to is not None and age > (cat.age_to + 2):
+                        return False
+                # Weight match (under or equal to limit)
+                if weight is not None and cat.limit is not None:
+                    try:
+                        if int(weight) > int(cat.limit):
+                            return False
+                    except Exception:
+                        pass
+                return True
+            filtered_cats = [c for c in cats if cat_ok(c)]
+    form.category_ids.choices = [(c.id, c.name) for c in filtered_cats]
 
     if form.validate_on_submit():
         selected_cats = [EventCategory.query.get(cid) for cid in form.category_ids.data]
@@ -1883,6 +2012,24 @@ def fix_receipt_numbers():
 def migrate():
     try:
         with db.engine.begin() as conn:
+            # --- EventCategory columns migration ---
+            result3 = conn.execute(text("PRAGMA table_info(event_category)"))
+            existing3 = {row[1] for row in result3}
+            eventcat_cols = [
+                ("age_from", "INTEGER"),
+                ("age_to", "INTEGER"),
+                ("sex", "VARCHAR(10)"),
+                ("team_size", "VARCHAR(20)"),
+                ("kyu", "VARCHAR(20)"),
+                ("dan", "VARCHAR(20)"),
+                ("other_cutoff_date", "VARCHAR(40)"),
+                ("limit_team", "VARCHAR(20)"),
+                ("limit", "VARCHAR(20)")
+            ]
+            for col, t in eventcat_cols:
+                col_sql = f'"{col}"' if col in ("limit", "limit_team") else col
+                if col not in existing3:
+                    conn.execute(text(f"ALTER TABLE event_category ADD COLUMN {col_sql} {t}"))
             result = conn.execute(text("PRAGMA table_info(player)"))
             existing = {row[1] for row in result}
             to_add = []
@@ -1921,6 +2068,25 @@ def migrate():
     return redirect(url_for("list_players"))
 
 def auto_migrate_on_startup():
+    with db.engine.begin() as conn:
+        # --- EventCategory columns migration ---
+        result3 = conn.execute(text("PRAGMA table_info(event_category)"))
+        existing3 = {row[1] for row in result3}
+        eventcat_cols = [
+            ("age_from", "INTEGER"),
+            ("age_to", "INTEGER"),
+            ("sex", "VARCHAR(10)"),
+            ("team_size", "VARCHAR(20)"),
+            ("kyu", "VARCHAR(20)"),
+            ("dan", "VARCHAR(20)"),
+            ("other_cutoff_date", "VARCHAR(40)"),
+            ("limit_team", "VARCHAR(20)"),
+            ("limit", "VARCHAR(20)")
+        ]
+        for col, t in eventcat_cols:
+            col_sql = f'"{col}"' if col in ("limit", "limit_team") else col
+            if col not in existing3:
+                conn.execute(text(f"ALTER TABLE event_category ADD COLUMN {col_sql} {t}"))
     with db.engine.begin() as conn:
         result = conn.execute(text("PRAGMA table_info(player)"))
         existing = {row[1] for row in result}
@@ -2364,7 +2530,7 @@ def player_pay_due(player_id: int):
                                 amount=amt, event_registration_id=r.id,
                                 currency='EUR', note='PAY_FROM_LIST')
             db.session.add(rec)
-            db.session.commit()
+            db.session.flush()  # Ensure rec.id is available
             try:
                 rec.assign_receipt_no()
             except Exception:
@@ -2372,6 +2538,7 @@ def player_pay_due(player_id: int):
             r.paid = True
             r.paid_on = today
             db.session.add(r)
+            db.session.commit()  # Commit after each registration to ensure status is saved
             total_amount += amt
             created.append(rec)
 

@@ -24,99 +24,92 @@
         <tr>
           <th>#</th>
           <th>{{ _('Player') }}</th>
-          <th>{{ _('Belt') }}</th>
-          <th class="text-end">{{ _('Amount') }} (EUR)</th>
+          <!-- Belt column removed -->
+          <th class="text-end">{{ _('Monthly') }}</th>
+          <th class="text-end">{{ _('Session') }}</th>
+          <th class="text-end">{{ _('Event') }}</th>
+          <th class="text-end">{{ _('Category Fees') }}</th>
           <th class="text-center">{{ _('Paid') }}</th>
-          <th class="text-center">{{ _('Toggle Paid') }}</th>
-          <th class="text-center">{{ _('Receipt') }}</th>
-          <th class="text-center">{{ _('Sessions paid') }}</th>
-          <th class="text-center">{{ _('Sessions taken') }}</th>
-          <th class="text-center">{{ _('Prepaid amount') }}</th>
-          <th class="text-center">{{ _('Owed amount') }}</th>
+          <th class="text-end">{{ _('Owed') }}</th>
+          <th class="text-center">{{ _('Expand') }}</th>
         </tr>
       </thead>
       <tbody>
+        {% set ns = namespace(total_monthly=0, total_session=0, total_event=0, total_category=0, total_owed=0) %}
         {% for p in payments %}
-        <tr>
+        <tr data-bs-toggle="collapse" data-bs-target="#details-{{ p.player_id }}" aria-expanded="false" aria-controls="details-{{ p.player_id }}" style="cursor:pointer;">
           <td>{{ p.player_id }}</td>
           <td>
             <a href="{{ url_for('player_detail', player_id=p.player_id) }}">{{ p.player.full_name() }}</a>
           </td>
-          <td><span style="{{ belt_chip_style(p.player.belt_rank) }}">{{ p.player.belt_rank }}</span></td>
+          <td class="text-end">{% if p.monthly_amount %}{{ p.monthly_amount }}{% set ns.total_monthly = ns.total_monthly + p.monthly_amount %}{% else %}—{% endif %}</td>
+          <td class="text-end">{% if p.prepaid_amount %}{{ p.prepaid_amount }}{% set ns.total_session = ns.total_session + p.prepaid_amount %}{% else %}—{% endif %}</td>
+          <td class="text-end">{% if p.event_total %}{{ p.event_total }}{% set ns.total_event = ns.total_event + p.event_total %}{% else %}—{% endif %}</td>
+          <td class="text-end">{% if p.category_fees %}{{ p.category_fees }}{% set ns.total_category = ns.total_category + p.category_fees %}{% else %}—{% endif %}</td>
+          <td class="text-center">
+            {% if p.monthly_paid or p.event_total %}<span class="badge text-bg-success">{{ _('Yes') }}</span>{% else %}<span class="badge text-bg-secondary">{{ _('No') }}</span>{% endif %}
+          </td>
           <td class="text-end">
-            {% if p.is_monthly %}
-              {{ p.amount if p.amount is not none else "—" }}
+            {% if p.owed_amount and p.owed_amount > 0 %}
+              <span class="badge bg-danger">{{ p.owed_amount }}</span>
+              {% set ns.total_owed = ns.total_owed + p.owed_amount %}
+            {% elif p.owed_amount == 0 %}
+              <span class="badge bg-success">0</span>
             {% else %}
               —
             {% endif %}
           </td>
           <td class="text-center">
-            {% if p.is_monthly %}
-              {% if p.paid %}<span class="badge text-bg-success">{{ _('Yes') }}</span>{% else %}<span class="badge text-bg-secondary">{{ _('No') }}</span>{% endif %}
-            {% else %}
-              —
-            {% endif %}
+            <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#details-{{ p.player_id }}" aria-expanded="false" aria-controls="details-{{ p.player_id }}">{{ _('Details') }}</button>
           </td>
-          <td class="text-center">
-            {% if p.is_monthly %}
-              <form method="post" action="{{ url_for('toggle_payment', payment_id=p.id) }}">
-                <button class="btn btn-sm {% if p.paid %}btn-outline-warning{% else %}btn-outline-success{% endif %}">{{ _('Toggle') }}</button>
-              </form>
-            {% else %}
-              —
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if p.is_monthly %}
-              <a class="btn btn-sm btn-outline-primary"
-                 href="{{ url_for('payment_new',
-                                  kind='training_month',
-                                  player_id=p.player_id,
-                                  month='%04d-%02d'|format(p.year, p.month),
-                                  amount=p.amount if p.amount is not none else None) }}">
-                {{ _('New receipt') }}
-              </a>
-            {% else %}
-              <a class="btn btn-sm btn-outline-primary"
-                 href="{{ url_for('payment_new',
-                                  kind='training_session',
-                                  player_id=p.player_id,
-                                  month='%04d-%02d'|format(p.year, p.month)) }}">
-                {{ _('New receipt') }}
-              </a>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if not p.is_monthly %}{{ p.sessions_paid }}{% else %}—{% endif %}
-          </td>
-          <td class="text-center">
-            {% if not p.is_monthly %}{{ p.sessions_taken }}{% else %}—{% endif %}
-          </td>
-          <td class="text-center">
-            {% if not p.is_monthly %}{{ p.prepaid_amount }}{% else %}—{% endif %}
-          </td>
-          <td class="text-center">
-            {% if not p.is_monthly %}{{ p.owed_amount }}{% else %}—{% endif %}
+        </tr>
+        <tr class="collapse" id="details-{{ p.player_id }}">
+          <td colspan="8">
+            <div>
+              <strong>{{ _('Monthly') }}:</strong> {{ p.monthly_amount if p.monthly_amount else '—' }} {% if p.monthly_paid %}<span class="badge text-bg-success">{{ _('Paid') }}</span>{% else %}<span class="badge text-bg-secondary">{{ _('Unpaid') }}</span>{% endif %}
+              {% if p.monthly_id %}
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('payment_new', kind='training_month', player_id=p.player_id, month='%04d-%02d'|format(p.year, p.month), amount=p.monthly_amount) }}">{{ _('New receipt') }}</a>
+              {% endif %}
+            </div>
+            <div>
+              <strong>{{ _('Session') }}:</strong> {{ p.prepaid_amount if p.prepaid_amount else '—' }} ({{ _('Paid') }}), {{ p.owed_amount if p.owed_amount else '—' }} ({{ _('Owed') }})
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('payment_new', kind='training_session', player_id=p.player_id, month='%04d-%02d'|format(p.year, p.month)) }}">{{ _('New receipt') }}</a>
+            </div>
+            <div>
+              <strong>{{ _('Events') }}:</strong>
+              {% if p.event_details %}
+                <ul>
+                  {% for ev in p.event_details %}
+                  <li>{{ ev.event_name or '—' }}: {{ ev.amount }} EUR, <a href="{{ url_for('receipt_view', rid=ev.id) }}">{{ _('View receipt') }}</a></li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                —
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% endfor %}
       </tbody>
       <tfoot>
-        <tr>
-          <th colspan="3" class="text-end">Total:</th>
-          <th class="text-end" id="totalAmount"></th>
-          <th colspan="3"></th>
-          <th class="text-center" id="totalSessionsPaid"></th>
-          <th class="text-center" id="totalSessionsTaken"></th>
-          <th class="text-center" id="totalPrepaid"></th>
-          <th class="text-center" id="totalOwed"></th>
+        <tr class="fw-bold bg-light">
+          <td colspan="2" class="text-end">{{ _('Totals') }}</td>
+          <td class="text-end">{{ ns.total_monthly }}</td>
+          <td class="text-end">{{ ns.total_session }}</td>
+          <td class="text-end">{{ ns.total_event }}</td>
+          <td class="text-end">{{ ns.total_category }}</td>
+          <td></td>
+          <td class="text-end">{{ ns.total_owed }}</td>
+          <td></td>
         </tr>
       </tfoot>
-    </table>
-  </div>
-{% else %}
-  <div class="alert alert-info">{{ _('Nothing to show.') }}</div>
-{% endif %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-info">{{ _('Nothing to show.') }}</div>
+    {% endif %}
+
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
@@ -131,12 +124,15 @@ $(function() {
     searching: true,
     select: true,
     columnDefs: [
-      { orderable: false, targets: [5,6] }
+      { orderable: false, targets: [5, 6, 7, 8] }
     ],
     language: {
       search: '{{ _('Search') }}:',
       zeroRecords: '{{ _('No players found.') }}',
-    }
+    },
+    columns: [
+      null, null, null, null, null, null, null, null, null
+    ]
   });
 
   // Totals calculation

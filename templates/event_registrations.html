@@ -109,7 +109,7 @@
   {{ form.hidden_tag() }}
   <div class="col-12 col-md-6">
     <label class="form-label">{{ _('Athlete(s)') }}</label>
-    {{ form.player_ids(class_='form-select', multiple=True, size=8) }}
+    {{ form.player_ids(class_='form-select', multiple=True, size=8, id='player_ids_select') }}
   </div>
   <div class="col-12 col-md-6">
     <label class="form-label">{{ _('Select Categories') }}</label>
@@ -130,4 +130,29 @@
     <button class="btn btn-primary">{{ _('Add Registration') }}</button>
   </div>
 </form>
+
+<script>
+// Auto-submit the form on player selection change to update eligible categories
+document.addEventListener('DOMContentLoaded', function() {
+  var playerSelect = document.getElementById('player_ids_select');
+  if (playerSelect) {
+    playerSelect.addEventListener('change', function() {
+      // Only auto-submit if a single player is selected
+      if (playerSelect.selectedOptions.length === 1) {
+        // Create a GET form to preserve player selection and reload eligible categories
+        var form = document.createElement('form');
+        form.method = 'GET';
+        form.action = window.location.pathname;
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'player_id';
+        input.value = playerSelect.value;
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+      }
+    });
+  }
+});
+</script>
 {% endblock %}
