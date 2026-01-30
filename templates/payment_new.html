@@ -6,42 +6,44 @@
 {% endblock %}
 
 {% block content %}
-<h2>New Payment / Receipt</h2>
+<h2>{{ _('New receipt') }}</h2>
 
 <form method="post" action="{{ url_for('payment_new') }}" class="mt-3" novalidate>
   <div class="mb-3">
-    <label class="form-label">Kind</label>
+    <label class="form-label">{{ _('Kind') }}</label>
     <select name="kind" id="kind" class="form-select" required>
-      <option value="training_month">Training (per month)</option>
-      <option value="training_session">Training (per session)</option>
-      <option value="event">Event</option>
+      <option value="training_month"  {{ 'selected' if (kind or '') == 'training_month' else '' }}>{{ _('Training (per month)') }}</option>
+      <option value="training_session" {{ 'selected' if (kind or '') == 'training_session' else '' }}>{{ _('Training (per session)') }}</option>
+      <option value="event" {{ 'selected' if (kind or '') == 'event' else '' }}>{{ _('Event') }}</option>
     </select>
   </div>
 
   <!-- Training inputs -->
   <div id="training-wrap">
     <div class="mb-3">
-      <label class="form-label">Player ID</label>
+      <label class="form-label">{{ _('Player ID') }}</label>
       <input type="number" name="player_id" id="player_id" class="form-control"
              value="{{ player.id if player else '' }}">
     </div>
 
     <div class="mb-3" id="month-wrap">
-      <label class="form-label">Month (YYYY-MM)</label>
+      <label class="form-label">{{ _('Month (YYYY-MM)') }}</label>
       <input type="text" name="month" id="month" class="form-control"
+             value="{{ default_month or '' }}"
              placeholder="{{ today.year }}-{{ '%02d' % today.month }}">
     </div>
 
     <div class="mb-3 d-none" id="sessions-wrap">
-      <label class="form-label">Sessions paid</label>
-      <input type="number" name="sessions_paid" id="sessions_paid" class="form-control" min="1" value="8">
+      <label class="form-label">{{ _('Sessions paid') }}</label>
+      <input type="number" name="sessions_paid" id="sessions_paid" class="form-control" min="1"
+             value="{{ default_sessions or 5 }}">
     </div>
   </div>
 
   <!-- Event inputs -->
   <div id="event-wrap" class="d-none">
     <div class="mb-3">
-      <label class="form-label">Event Registration ID</label>
+      <label class="form-label">{{ _('Event Registration ID') }}</label>
       <input type="number" name="reg_id" id="reg_id" class="form-control"
              value="{{ reg.id if reg else '' }}">
     </div>
@@ -49,31 +51,31 @@
 
   <div class="row">
     <div class="col-md-4 mb-3">
-      <label class="form-label">Amount</label>
-      <!-- NOTE: NOT required. For kind=event, the server will compute from computed_fee() if empty -->
+      <label class="form-label">{{ _('Amount') }}</label>
+      <!-- Not required; the server/JS will compute as needed -->
       <input type="number" step="1" min="0" name="amount" id="amount" class="form-control"
              value="{{ default_amount if default_amount is not none else '' }}">
     </div>
     <div class="col-md-4 mb-3">
-      <label class="form-label">Currency</label>
+      <label class="form-label">{{ _('Currency') }}</label>
       <input type="text" name="currency" id="currency" class="form-control" value="EUR">
     </div>
     <div class="col-md-4 mb-3">
-      <label class="form-label">Method</label>
+      <label class="form-label">{{ _('Method') }}</label>
       <input type="text" name="method" id="method" class="form-control" placeholder="cash / card / bank">
     </div>
   </div>
 
   <div class="mb-3">
-    <label class="form-label">Notes</label>
+    <label class="form-label">{{ _('Notes') }}</label>
     <textarea name="note" id="note" class="form-control" rows="2"></textarea>
   </div>
 
-  <button type="submit" class="btn btn-primary">Save &amp; Print</button>
+  <button type="submit" class="btn btn-primary">{{ _('Save &amp; Print') }}</button>
 </form>
 
 <script>
-  // Toggle sections
+  // Sections toggle
   const kindEl = document.getElementById('kind');
   const trainingWrap = document.getElementById('training-wrap');
   const monthWrap = document.getElementById('month-wrap');
@@ -90,7 +92,7 @@
   }
   kindEl.addEventListener('change', syncSections);
 
-  // Prefill from query string
+  // Prefill from query string (kept)
   (function () {
     const params = new URLSearchParams(window.location.search);
     const ids = ['kind','player_id','month','sessions_paid','reg_id','amount','currency','method','note'];
@@ -103,7 +105,67 @@
     });
   })();
 
-  // Auto-fetch event fee if amount blank
+  // Auto-calc for per-session
+  function updateSessionAmount() {
+    const k = kindEl.value;
+    if (k !== 'training_session') return;
+    const playerId = document.getElementById('player_id')?.value;
+    const sessions = parseInt(document.getElementById('sessions_paid')?.value || '5', 10) || 5;
+    const amtEl = document.getElementById('amount');
+    if (!playerId || !amtEl) return;
+
+    // Don't override if user already typed a value
+    if (amtEl.value && amtEl.value !== '') return;
+
+    fetch(`/api/player/${playerId}/session_fee`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.fee) {
+          amtEl.value = Math.round(data.fee * sessions);
+        }
+      }).catch(() => {});
+  }
+
+  // Auto-calc for monthly
+  function updateMonthlyAmount() {
+    const k = kindEl.value;
+    if (k !== 'training_month') return;
+    const playerId = document.getElementById('player_id')?.value;
+    const amtEl = document.getElementById('amount');
+    if (!playerId || !amtEl) return;
+
+    // Don't override if user already typed a value
+    if (amtEl.value && amtEl.value !== '') return;
+
+    fetch(`/api/player/${playerId}/monthly_fee`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.fee != null) {
+          amtEl.value = data.fee;
+        }
+      }).catch(() => {});
+  }
+
+  document.getElementById('sessions_paid')?.addEventListener('input', () => {
+    // If amount was manually edited, don't force-recalc
+    const amtEl = document.getElementById('amount');
+    if (!amtEl.value) updateSessionAmount();
+  });
+  document.getElementById('player_id')?.addEventListener('change', () => {
+    updateSessionAmount();
+    updateMonthlyAmount();
+  });
+  kindEl.addEventListener('change', () => {
+    updateSessionAmount();
+    updateMonthlyAmount();
+  });
+
+  // Default 5 if blank when focusing sessions
+  document.getElementById('sessions_paid')?.addEventListener('focus', function() {
+    if (!this.value) this.value = 5;
+  });
+
+  // Event fee (kept)
   async function maybeFetchEventFee() {
     if (kindEl.value !== 'event') return;
     const reg = document.getElementById('reg_id')?.value;
@@ -122,6 +184,11 @@
 
   // Init
   syncSections();
-  maybeFetchEventFee();
+  // Try to fill if still blank on load
+  window.addEventListener('DOMContentLoaded', () => {
+    updateSessionAmount();
+    updateMonthlyAmount();
+    maybeFetchEventFee();
+  });
 </script>
 {% endblock %}
