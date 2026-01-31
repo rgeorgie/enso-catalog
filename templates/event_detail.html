@@ -15,6 +15,7 @@
         <button class="btn btn-outline-danger btn-sm" type="submit">{{ _('Delete') }}</button>
       </form>
     {% endif %}
+    <a class="btn btn-secondary btn-sm ms-2" href="{{ request.referrer or url_for('event_list') }}">{{ _('Back') }}</a>
   </div>
 </div>
 

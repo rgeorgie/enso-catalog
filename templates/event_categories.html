@@ -121,8 +121,9 @@ document.addEventListener('DOMContentLoaded', function() {
     <label class="form-label">{{ _('Team Limit') }}</label>
     <input name="limit_team" class="form-control">
   </div>
-  <div class="col-md-2 d-flex align-items-end">
+  <div class="col-md-2 d-flex align-items-end gap-2">
     <button class="btn btn-primary w-100" type="submit">{{ _('Add Category') }}</button>
+    <a class="btn btn-secondary w-100" href="{{ url_for('event_detail', event_id=ev.id) }}">{{ _('Back') }}</a>
   </div>
 </form>
 

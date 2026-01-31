@@ -208,6 +208,7 @@
             <div><strong>{{ _('Last Name') }}:</strong> {{ player.last_name }}</div>
             <div><strong>{{ _('Gender') }}:</strong> {{ _(player.gender) if player.gender else '—' }}</div>
             <div><strong>{{ _('Birthdate') }}:</strong> {{ player.birthdate or '—' }}</div>
+             <div><strong>{{ _('PN#') }}:</strong> {{ player.pn or '—' }}</div>
           </div>
           <div class="col-sm-6">
             <div><strong>{{ _('Discipline') }}:</strong>{{ _(player.discipline) if player.discipline else '—' }}</div>
@@ -284,19 +285,38 @@
                 <th>#</th>
                 <th>{{ _('Event') }}</th>
                 <th>{{ _('Dates') }}</th>
-                <th>{{ _('Categories') }}</th>
+                <th>{{ _('Categories Medals& ') }}</th>
                 <th>{{ _('Fee (EUR)') }}</th>
                 <th>{{ _('Paid') }}</th>
                 <th>{{ _('Actions') }}</th>
               </tr>
             </thead>
             <tbody>
+              {% set medal_counts = {'gold': 0, 'silver': 0, 'bronze': 0} %}
               {% for r in regs %}
-              <tr>
+              <tr data-bs-toggle="collapse" data-bs-target="#reg-details-{{ r.id }}" aria-expanded="false" aria-controls="reg-details-{{ r.id }}" style="cursor:pointer;">
                 <td>{{ r.id }}</td>
                 <td>{{ r.event.title }}</td>
                 <td>{{ r.event.start_date }}</td>
-                <td>{{ r.reg_categories | map(attribute='category.name') | join(', ') }}</td>
+                <td>
+                  {% if r.reg_categories %}
+                    <ul class="mb-0 ps-3">
+                    {% for rc in r.reg_categories %}
+                      <li>
+                        {{ rc.category.name if rc.category else '—' }}
+                        {% if rc.medal %}
+                          {% set _ = medal_counts.__setitem__(rc.medal, medal_counts.get(rc.medal, 0) + 1) %}
+                          <span class="badge {% if rc.medal == 'gold' %}bg-warning text-dark{% elif rc.medal == 'silver' %}bg-secondary{% elif rc.medal == 'bronze' %}bg-warning" style="color:#cd7f32!important;"{% endif %}">
+                            {{ rc.medal|capitalize }}
+                          </span>
+                        {% endif %}
+                      </li>
+                    {% endfor %}
+                    </ul>
+                  {% else %}
+                    <em>—</em>
+                  {% endif %}
+                </td>
                 <td>{{ r.computed_fee() }}</td>
                 <td>{{ _('yes') if r.paid else _('no') }}</td>
                 <td>
@@ -306,8 +326,41 @@
                   </a>
                 </td>
               </tr>
+              <tr class="collapse" id="reg-details-{{ r.id }}">
+                <td colspan="7">
+                  {% if r.reg_categories %}
+                    <div class="ps-3">
+                      <strong>{{ _('Categories & Medals') }}:</strong>
+                      <ul class="mb-0">
+                        {% for rc in r.reg_categories %}
+                          <li>
+                            {{ rc.category.name if rc.category else '—' }}
+                            {% if rc.medal %}
+                              <span class="badge {% if rc.medal == 'gold' %}bg-warning text-dark{% elif rc.medal == 'silver' %}bg-secondary{% elif rc.medal == 'bronze' %}bg-warning" style="color:#cd7f32!important;"{% endif %}">
+                                {{ rc.medal|capitalize }}
+                              </span>
+                            {% endif %}
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+                  {% else %}
+                    <em>{{ _('No categories for this registration.') }}</em>
+                  {% endif %}
+                </td>
+              </tr>
               {% endfor %}
             </tbody>
+            <tfoot>
+              <tr class="fw-bold bg-light">
+                <td colspan="3" class="text-end">{{ _('Total medals') }}</td>
+                <td colspan="4">
+                  <span class="me-3">🥇 {{ medal_counts['gold'] }}</span>
+                  <span class="me-3">🥈 {{ medal_counts['silver'] }}</span>
+                  <span>🥉 {{ medal_counts['bronze'] }}</span>
+                </td>
+              </tr>
+            </tfoot>
           </table>
         {% else %}
           <em>{{ _('No registrations yet.') }}</em>

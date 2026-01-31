@@ -2,7 +2,7 @@
 
 {% block head %}
   {{ super() }}
-  <link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}?v=20260129">
+  <link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}?v=20260131">
 {% endblock %}
 
 {% block content %}
@@ -71,10 +71,24 @@
     <textarea name="note" id="note" class="form-control" rows="2"></textarea>
   </div>
 
-  <button type="submit" class="btn btn-primary">{{ _('Save &amp; Print') }}</button>
+
+  <button type="submit" class="btn btn-primary">{{ _('Save') }}</button>
+  <a class="btn btn-secondary mt-2" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
 </form>
 
+<div class="mt-3 no-print d-flex gap-2">
+  <button class="btn btn-primary" type="button" onclick="window.print()">Print</button>
+  <a class="btn btn-outline-secondary" href="{{ request.referrer or url_for('list_players') }}">Back</a>
+</div>
+
 <script>
+  // Change submit button text to 'Save' only
+  document.addEventListener('DOMContentLoaded', function() {
+    var submitBtn = document.querySelector('form button[type="submit"]');
+    if (submitBtn) submitBtn.textContent = '{{ _('Save') }}';
+  });
+</form>
+
   // Sections toggle
   const kindEl = document.getElementById('kind');
   const trainingWrap = document.getElementById('training-wrap');

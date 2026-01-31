@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% block head %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}?v=20260131">
+{% endblock %}
 {% block content %}
 <h1 class="mb-4">{{ title }}</h1>
 
@@ -21,6 +25,10 @@
     <div class="col-md-4">
       <label class="form-label">{{ _('Birthdate') }}</label>
       {{ form.birthdate(class="form-control", type="date") }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ _('PN#') }}</label>
+      {{ form.pn(class="form-control") }}
     </div>
 
     <!-- Grade (select only) -->
@@ -146,11 +154,12 @@
     <div class="col-12">
         <button class="btn btn-primary" type="submit">{{ _('Save') }}</button>
         <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">{{ _('Cancel') }}</a>
+        <a class="btn btn-secondary mt-2" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
       </div>
 
       <!-- Inline prepay (only when editing an existing player) -->
       {% if player %}
-      <div class="col-12 mt-4">
+      <div class="col-12 mt-4" id="prepay_card" style="display: {% if player.monthly_fee_is_monthly %}none{% else %}block{% endif %};">
         <div class="card p-3">
           <div class="card-header"><strong>Pre-pay training sessions</strong></div>
           <div class="card-body">
@@ -189,6 +198,18 @@
 {% endif %}
 
 <script>
+  // Show/hide prepay card based on monthly/session switch
+  document.addEventListener('DOMContentLoaded', function() {
+    var monthlySwitch = document.getElementById('monthly_switch');
+    var prepayCard = document.getElementById('prepay_card');
+    if (monthlySwitch && prepayCard) {
+      function updatePrepayCard() {
+        prepayCard.style.display = monthlySwitch.checked ? 'none' : 'block';
+      }
+      monthlySwitch.addEventListener('change', updatePrepayCard);
+      updatePrepayCard();
+    }
+  });
   const BELT_COLORS = {{ belt_colors_json|safe }};
   function idealTextColor(hex) {
     const c = hex.replace('#','');

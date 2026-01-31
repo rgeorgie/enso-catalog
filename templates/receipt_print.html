@@ -3,11 +3,19 @@
 {% block head %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}?v=20260131">
+<script>
+  // Use requestAnimationFrame to ensure print dialog opens after render
+  window.onload = function() {
+    setTimeout(function() {
+      window.print();
+    }, 100);
+  };
+</script>
 {% endblock %}
 
 {% block content %}
+<body onload="setTimeout(function(){window.print()}, 100)">
 <div class="receipt card p-4">
-
   <div class="d-flex justify-content-between align-items-start mb-3">
     <div>
       <h3 class="mb-1">Payment Receipt</h3>
@@ -19,9 +27,7 @@
       <div><strong>ID:</strong> {{ player.id }}</div>
     </div>
   </div>
-
   <hr/>
-
   {% if rec.kind.startswith('training') %}
     <p><strong>Category:</strong> Training fee</p>
     {% if rec.kind == 'training_month' %}
@@ -30,9 +36,6 @@
     {% else %}
       <p><strong>Plan:</strong> Per session</p>
       <p><strong>Sessions:</strong> {{ rec.sessions_taken }}/{{ rec.sessions_paid }} taken</p>
-      <form method="post" action="{{ url_for('receipt_tick_session', rid=rec.id) }}" class="no-print">
-        <button class="btn btn-sm btn-outline-primary">Mark one session taken</button>
-      </form>
     {% endif %}
   {% else %}
     <p><strong>Category:</strong> Event</p>
@@ -42,41 +45,17 @@
       </p>
     {% endif %}
   {% endif %}
-
-  {% if rec.note and 'AUTO_DEBT' in rec.note %}
-    <hr>
-    <div class="no-print">
-      <form method="post" action="{{ url_for('receipt_pay_debt', rid=rec.id) }}">
-        <div class="mb-2 form-text">This receipt was auto-generated as a debt for extra sessions.</div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-sm btn-success" type="submit">Record payment for this debt</button>
-          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('payment_new', player_id=rec.player_id, amount=rec.amount) }}">Open payment form</a>
-        </div>
-      </form>
-    </div>
-  {% endif %}
-
   <p class="mt-3">
     <strong>Amount:</strong> {{ rec.amount }} {{ rec.currency }}
     {% if rec.method %}&nbsp;|&nbsp;<strong>Method:</strong> {{ rec.method }}{% endif %}
   </p>
-
   {% if rec.note %}
     <p><strong>Notes:</strong> {{ rec.note }}</p>
   {% endif %}
-
-  <!-- Stamp: small and bottom-right (size comes from print.css; inline is a safety cap) -->
   <div class="stamp">
     <img src="{{ url_for('static', filename='img/enso-logo.webp') }}"
          alt="ENSO Stamp" style="max-width: 3.2cm; max-height: 3.2cm;">
   </div>
-
-  <div class="mt-3 no-print d-flex gap-2">
-    <a class="btn btn-outline-secondary" href="{{ request.referrer or url_for('list_players') }}">Back</a>
-    <a class="btn btn-success" href="{{ url_for('receipt_print_view', rid=rec.id) }}" target="_blank">Print (clean)</a>
   </div>
-
-</div>
-
-<!-- Print dialog auto-open removed -->
+</body>
 {% endblock %}

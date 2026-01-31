@@ -5,6 +5,7 @@
   {% if session.get('is_admin') %}
     <a class="btn btn-primary" href="{{ url_for('event_new') }}">{{ _('New Event') }}</a>
   {% endif %}
+  <a class="btn btn-secondary ms-2" href="{{ request.referrer or url_for('events_calendar') }}">{{ _('Back') }}</a>
 </div>
 
 <form class="row row-cols-lg-auto g-3 align-items-end mb-4" method="get">

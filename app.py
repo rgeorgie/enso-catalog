@@ -1,6 +1,3 @@
-
-# Place this after the event_categories and event_category_delete routes:
-
 # app.py
 import os
 import json
@@ -101,6 +98,7 @@ translations = {
         "Last Name": "Last Name",
         "Gender": "Gender",
         "Birthdate": "Birthdate",
+            "PN#": "PN#",
         "Belt Rank": "Belt Rank",
         "Grade Level": "Grade Level",
         "Grade Date": "Grade Date",
@@ -218,6 +216,9 @@ translations = {
         "No unpaid event registrations in this month.": "No unpaid event registrations in this month.",
 
         # --- Sports Calendar / Events ---
+        "Paste/Import Categories": "Paste/Import Categories",
+        "Paste tabular data (one row per category, columns: Name, Age from, Age to, Sex, Fee, Team size, KYU, DAN, Other cut-off date, Limit, Team Limit)": "Paste tabular data (one row per category, columns: Name, Age from, Age to, Sex, Fee, Team size, KYU, DAN, Other cut-off date, Limit, Team Limit)",
+        "Import": "Import",
         "Sports Calendar": "Sports Calendar",
         "New Event": "New Event",
         "Edit Event": "Edit Event",
@@ -301,7 +302,7 @@ translations = {
         "White": "White", "Yellow": "Yellow", "Orange": "Orange",
         "Green": "Green", "Blue": "Blue", "Purple": "Purple",
         "Brown": "Brown", "Black": "Black",
-        "Kata": "Kata", "Kumite": "Kumite", "Both": "Both",
+        "Kata": "Kata", "Kumite": "Kumite", "Makiwara": "Makiwara", "All": "All",
         "Mon": "Mon", "Tue": "Tue", "Wed": "Wed", "Thu": "Thu", "Fri": "Fri", "Sat": "Sat", "Sun": "Sun",
 
         # --- Forms / Admin forms ---
@@ -335,6 +336,7 @@ translations = {
         "All": "Всички",
 
         # --- Filters / Table headers ---
+        "Category Fees": "Такси за категории",
         "Search": "Търсене",
         "Belt": "Колан",
         "Belt Color": "Цвят на колана",
@@ -359,6 +361,7 @@ translations = {
         "Last Name": "Фамилия",
         "Gender": "Пол",
         "Birthdate": "Дата на раждане",
+            "PN#": "ЕГН",
         "Belt Rank": "Колан",
         "Grade Level": "Степен (кю/дан)",
         "Grade Date": "Дата на изпит",
@@ -380,6 +383,8 @@ translations = {
         "Contacts": "Контакти",
         "Fee": "Такса",
         "Fee (EUR)": "Такса (EUR)",
+        "Categories & Medals": "Категории и медали",
+
 
         # --- Health / Insurance ---
         "Medical Examination": "Медицински преглед",
@@ -476,6 +481,9 @@ translations = {
         "No unpaid event registrations in this month.": "Няма неплатени записвания за този месец.",
 
         # --- Sports Calendar / Events ---
+        "Paste/Import Categories": "Постави/Импортирай категории",
+        "Paste tabular data (one row per category, columns: Name, Age from, Age to, Sex, Fee, Team size, KYU, DAN, Other cut-off date, Limit, Team Limit)": "Поставете таблични данни (по един ред за категория, колони: Име, Възраст от, Възраст до, Пол, Такса, Отбор, KYU, DAN, Друга дата, Лимит, Лимит отбор)",
+        "Import": "Импортирай",
         "Sports Calendar": "Спортен календар",
         "New Event": "Ново събитие",
         "Edit Event": "Редакция на събитие",
@@ -559,7 +567,7 @@ translations = {
         "White": "Бял", "Yellow": "Жълт", "Orange": "Оранжев",
         "Green": "Зелен", "Blue": "Син", "Purple": "Лилав",
         "Brown": "Кафяв", "Black": "Черен",
-        "Kata": "Ката", "Kumite": "Кумите", "Both": "И двете",
+        "Kata": "Ката", "Kumite": "Кумите", "Makiwara": "Макивара", "All": "Всички дисциплини",
         "Mon": "Пон", "Tue": "Вт", "Wed": "Ср", "Thu": "Чет", "Fri": "Пет", "Sat": "Съб", "Sun": "Нед",
 
         # --- Forms / Admin forms ---
@@ -607,6 +615,7 @@ GRADING_SCHEME = {
     },
 }
 
+
 BELT_PALETTE = {
     "White":  "#f8f9fa",
     "Yellow": "#ffd60a",
@@ -618,7 +627,14 @@ BELT_PALETTE = {
     "Black":  "#111111",
 }
 
-DISCIPLINE_VALUES = ["Kata", "Kumite", "Both"]
+# Medal color palette for icons
+MEDAL_COLORS = {
+    "gold":   "#ffd700",
+    "silver": "#bfc1c2",
+    "bronze": "#a97142",  # darker bronze
+}
+
+DISCIPLINE_VALUES = ["Kata", "Kumite", "Makiwara", "All"]
 GENDER_VALUES = ["Male", "Female", "Other"]
 
 # -----------------------------
@@ -636,10 +652,15 @@ def ideal_text_color(bg_hex: str) -> str:
     except Exception:
         return "#000000"
 
+
 def belt_chip_style(belt: Optional[str]) -> str:
     bg = belt_hex(belt)
     fg = ideal_text_color(bg)
     return f"background:{bg};color:{fg};padding:.35rem .6rem;border-radius:999px;display:inline-block;min-width:64px;text-align:center;"
+
+def medal_icon_style(medal: Optional[str]) -> str:
+    color = MEDAL_COLORS.get((medal or '').lower(), '#cccccc')
+    return f"color: {color}; font-size: 1.2em;"
 
 def validity_badge(exp_date: Optional[date], warn_days: int = 30) -> Tuple[str, str]:
     if not exp_date:
@@ -719,12 +740,13 @@ class Player(db.Model):
     last_name = db.Column(db.String(80), nullable=False)
     gender = db.Column(db.String(10), nullable=True)
     birthdate = db.Column(db.Date, nullable=True)
+    pn = db.Column(db.String(20), nullable=True)  # Personal Number / ЕГН
 
     belt_rank = db.Column(db.String(20), nullable=False, default="White")
     grade_level = db.Column(db.String(20), nullable=True)
     grade_date = db.Column(db.Date, nullable=True)
 
-    discipline = db.Column(db.String(10), nullable=False, default="Both")
+    discipline = db.Column(db.String(10), nullable=False, default="All")
     weight_kg = db.Column(db.Integer, nullable=True)
     height_cm = db.Column(db.Integer, nullable=True)
 
@@ -893,8 +915,9 @@ class PaymentRecord(db.Model):
 class PlayerForm(FlaskForm):
     first_name = StringField("First Name", validators=[DataRequired(), Length(max=80)])
     last_name = StringField("Last Name", validators=[DataRequired(), Length(max=80)])
-    gender = SelectField("Gender", validators=[VOptional()])
-    birthdate = DateField("Birthdate", validators=[VOptional()])
+    gender = SelectField("Gender", validators=[VOptional()], render_kw={"style": "max-width: 99px; display: inline-block;"})
+    birthdate = DateField("Birthdate", validators=[VOptional()], render_kw={"style": "max-width: 132px; display: inline-block;"})
+    pn = StringField("PN#", validators=[VOptional(), Length(max=20)], render_kw={"style": "max-width: 120px; display: inline-block;"})
     grade_level = SelectField("Grade Level", validators=[VOptional()])
     grade_date = DateField("Grade Date", validators=[VOptional()])
 
@@ -971,11 +994,13 @@ def utility_processor():
     return dict(
         safe_url_for=safe_url_for,
         belt_chip_style=belt_chip_style,
+        medal_icon_style=medal_icon_style,
         validity_badge=validity_badge,
         first_working_day=first_working_day,
         EventRegistration=EventRegistration,
         EventRegCategory=EventRegCategory,
     )
+
 
 # -----------------------------
 # Routes
@@ -1364,7 +1389,7 @@ def fees_report():
         month_start = date(year, month, 1)
         month_end = date(year, month, monthrange(year, month)[1])
         # All event registrations for this player in this month
-        regs_in_month = [reg for reg in player.event_registrations if reg.event and reg.event.start_date and month_start <= reg.event.start_date <= month_end]
+        regs_in_month = [reg for reg in EventRegistration.query.filter_by(player_id=player.id).join(Event).filter(Event.start_date >= month_start, Event.start_date <= month_end).all()]
         for reg in regs_in_month:
             # Sum all category fees for this registration
             for rc in reg.reg_categories:
@@ -1566,7 +1591,7 @@ def events_calendar():
 
 @app.route("/event-list")
 def event_list():
-    events = Event.query.order_by(Event.start_date.desc()).all()
+    events = Event.query.order_by(Event.start_date.asc()).all()
     return render_template(
         "event_list.html",
         events=events,
@@ -1690,6 +1715,28 @@ def event_category_delete(event_id: int, cat_id: int):
     db.session.commit()
     flash(_("Category deleted."), "info")
     return redirect(url_for("event_categories", event_id=ev.id))
+#-----------------------------
+# Manually added
+#-----------------------------
+# --- Update medals for event registration categories ---
+@app.route("/admin/events/registrations/<int:reg_id>/update_medals", methods=["POST"])
+@admin_required
+def event_reg_update_medals(reg_id):
+    reg = EventRegistration.query.get_or_404(reg_id)
+    changed = False
+    for rc in reg.reg_categories:
+        field = f"medal_{rc.category_id}"
+        new_val = request.form.get(field)
+        if new_val != (rc.medal or ""):
+            rc.medal = new_val or None
+            changed = True
+    if changed:
+        db.session.commit()
+        flash("Medals updated.", "success")
+    else:
+        flash("No changes made.", "info")
+    return redirect(request.referrer or url_for("event_registrations", event_id=reg.event_id))
+
 
 # Bulk import endpoint for event categories
 @app.route("/admin/events/<int:event_id>/categories/import", methods=["POST"])
@@ -2047,6 +2094,8 @@ def migrate():
             if "mother_phone" not in existing: to_add.append(("mother_phone", "VARCHAR(40)"))
             if "father_name" not in existing: to_add.append(("father_name", "VARCHAR(120)"))
             if "father_phone" not in existing: to_add.append(("father_phone", "VARCHAR(40)"))
+            if "pn" not in existing:
+                conn.execute(text("ALTER TABLE player ADD COLUMN pn VARCHAR(20)"))
             for name, coltype in to_add:
                 conn.execute(text(f"ALTER TABLE player ADD COLUMN {name} {coltype}"))
 
@@ -2092,6 +2141,7 @@ def auto_migrate_on_startup():
         existing = {row[1] for row in result}
         to_add = []
         for col, t in [
+            ("pn", "VARCHAR(20)"),
             ("sportdata_wkf_url", "VARCHAR(255)"),
             ("sportdata_bnfk_url", "VARCHAR(255)"),
             ("sportdata_enso_url", "VARCHAR(255)"),
@@ -2163,42 +2213,50 @@ def payment_new():
         flash("Amount is required.", "danger")
         return redirect(url_for("payment_new", player_id=player_id, reg_id=reg_id))
 
-    record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note)
 
-    if kind.startswith("training_"):
+    # Uniqueness checks (except per-session)
+    if kind == "training_month":
         pid = request.form.get("player_id", type=int)
         player = Player.query.get(pid)
         if not player:
             flash("Player is required for training payments.", "danger")
             return redirect(url_for("payment_new", player_id=player_id))
-        record.player_id = player.id
-
-        if kind == "training_month":
-            month_str = request.form.get("month")
-            y, m = parse_month_str(month_str)
-            record.year = y
-            record.month = m
-            pay = Payment.query.filter_by(player_id=player.id, year=y, month=m).first()
-            record.payment_id = pay.id if pay else None
-        else:
-            sessions_paid = request.form.get("sessions_paid", type=int) or 0
-            record.sessions_paid = max(0, sessions_paid)
-            record.sessions_taken = 0
-            if player.monthly_fee_amount is not None and not player.monthly_fee_is_monthly:
-                try:
-                    per_price = float(player.monthly_fee_amount)
-                    record.amount = int(round(record.sessions_paid * per_price))
-                except Exception:
-                    pass
-
-    else:
+        month_str = request.form.get("month")
+        y, m = parse_month_str(month_str)
+        # Check for duplicate monthly payment
+        exists = PaymentRecord.query.filter_by(kind="training_month", player_id=player.id, year=y, month=m).first()
+        if exists:
+            flash("Duplicate monthly payment for this player and month is not allowed.", "danger")
+            return redirect(url_for("payment_new", player_id=player.id))
+        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=player.id, year=y, month=m)
+        pay = Payment.query.filter_by(player_id=player.id, year=y, month=m).first()
+        record.payment_id = pay.id if pay else None
+    elif kind == "event":
         rid = request.form.get("reg_id", type=int)
         reg = EventRegistration.query.get(rid)
         if not reg:
             flash("Event registration is required for event payments.", "danger")
             return redirect(url_for("payment_new", reg_id=reg_id))
-        record.player_id = reg.player_id
-        record.event_registration_id = reg.id
+        # Check for duplicate event payment for this registration
+        exists = PaymentRecord.query.filter_by(kind="event", player_id=reg.player_id, event_registration_id=reg.id).first()
+        if exists:
+            flash("Duplicate event/category payment for this player and event registration is not allowed.", "danger")
+            return redirect(url_for("payment_new", player_id=reg.player_id, reg_id=reg.id))
+        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=reg.player_id, event_registration_id=reg.id)
+    elif kind == "training_session":
+        pid = request.form.get("player_id", type=int)
+        player = Player.query.get(pid)
+        if not player:
+            flash("Player is required for training payments.", "danger")
+            return redirect(url_for("payment_new", player_id=player_id))
+        sessions_paid = request.form.get("sessions_paid", type=int) or 0
+        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=player.id, sessions_paid=max(0, sessions_paid), sessions_taken=0)
+        if player.monthly_fee_amount is not None and not player.monthly_fee_is_monthly:
+            try:
+                per_price = float(player.monthly_fee_amount)
+                record.amount = int(round(record.sessions_paid * per_price))
+            except Exception:
+                pass
 
     db.session.add(record)
     db.session.commit()
@@ -2290,16 +2348,33 @@ def player_due_print(player_id: int):
         owed_amount=int(round(owed_amount)) if owed_amount is not None else None,
     )
 
+
 @app.route("/admin/receipts/<int:rid>")
 @admin_required
 def receipt_view(rid: int):
-    rec = PaymentRecord.query.get_or_404(rid)
-    player = Player.query.get(rec.player_id)
+    rec = db.session.get(PaymentRecord, rid)
+    if not rec:
+        abort(404)
+    player = db.session.get(Player, rec.player_id)
     ev = None
     if rec.event_registration_id:
-        reg = EventRegistration.query.get(rec.event_registration_id)
-        ev = Event.query.get(reg.event_id) if reg else None
+        reg = db.session.get(EventRegistration, rec.event_registration_id)
+        ev = db.session.get(Event, reg.event_id) if reg else None
     return render_template("receipt.html", rec=rec, player=player, ev=ev)
+
+# Dedicated print-friendly receipt view
+@app.route("/admin/receipts/<int:rid>/print")
+@admin_required
+def receipt_print_view(rid: int):
+    rec = db.session.get(PaymentRecord, rid)
+    if not rec:
+        abort(404)
+    player = db.session.get(Player, rec.player_id)
+    ev = None
+    if rec.event_registration_id:
+        reg = db.session.get(EventRegistration, rec.event_registration_id)
+        ev = db.session.get(Event, reg.event_id) if reg else None
+    return render_template("receipt_print.html", rec=rec, player=player, ev=ev)
 
 @app.route("/admin/receipts/print_batch")
 @admin_required
@@ -2501,25 +2576,43 @@ def player_pay_due(player_id: int):
         flash("Cannot pay training debts: per-session price is not set in player profile.", "warning")
         return redirect(request.referrer or url_for('player_detail', player_id=player.id))
 
-    # Monthly
+    # Monthly (pay only selected month, prevent duplicate receipts)
     if kind in ("monthly", "all"):
-        unpaid = Payment.query.filter_by(player_id=player.id, paid=False).all()
-        for p in unpaid:
-            amt = p.amount or 0
-            rec = PaymentRecord(kind='training_month', player_id=player.id,
-                                amount=amt, year=p.year, month=p.month,
-                                payment_id=p.id, currency='EUR', note='PAY_FROM_LIST')
-            db.session.add(rec)
-            db.session.commit()
+        # Get selected month from form (YYYY-MM), else default to current month
+        month_str = request.form.get("month")
+        if month_str:
             try:
-                rec.assign_receipt_no()
+                y, m = [int(x) for x in month_str.split("-")]
             except Exception:
-                pass
-            p.paid = True
-            p.paid_on = today
-            db.session.add(p)
-            total_amount += amt
-            created.append(rec)
+                y, m = today.year, today.month
+        else:
+            y, m = today.year, today.month
+
+        # Find unpaid Payment for that month
+        p = Payment.query.filter_by(player_id=player.id, year=y, month=m, paid=False).first()
+        if p:
+            # Prevent duplicate PaymentRecord for this player/month
+            exists = PaymentRecord.query.filter_by(kind='training_month', player_id=player.id, year=y, month=m).first()
+            if exists:
+                flash(f"Payment for {y}-{m:02d} already exists.", "warning")
+            else:
+                amt = p.amount or 0
+                rec = PaymentRecord(kind='training_month', player_id=player.id,
+                                    amount=amt, year=p.year, month=p.month,
+                                    payment_id=p.id, currency='EUR', note='PAY_FROM_LIST')
+                db.session.add(rec)
+                db.session.commit()
+                try:
+                    rec.assign_receipt_no()
+                except Exception:
+                    pass
+                p.paid = True
+                p.paid_on = today
+                db.session.add(p)
+                total_amount += amt
+                created.append(rec)
+        else:
+            flash("No unpaid monthly fee for the selected month.", "warning")
 
     # Events
     if kind in ("events", "all"):
