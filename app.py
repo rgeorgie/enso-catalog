@@ -54,6 +54,22 @@ def get_lang() -> str:
 
 translations = {
     "en": {
+        # --- Grade/Belt labels ---
+        "10 kyu – white belt": "10 kyu – white belt",
+        "9 kyu – white with yellow stripe": "9 kyu – white with yellow stripe",
+        "8 kyu – yellow belt": "8 kyu – yellow belt",
+        "7 kyu – orange belt": "7 kyu – orange belt",
+        "6 kyu – orange belt": "6 kyu – orange belt",
+        "5 kyu – green belt": "5 kyu – green belt",
+        "4 kyu – blue belt": "4 kyu – blue belt",
+        "3 kyu – blue belt": "3 kyu – blue belt",
+        "2 kyu – brown belt": "2 kyu – brown belt",
+        "1 kyu – brown belt": "1 kyu – brown belt",
+        "1 dan – black belt": "1 dan – black belt",
+        "2 dan – black belt": "2 dan – black belt",
+        "3 dan – black belt": "3 dan – black belt",
+        "4 dan – black belt": "4 dan – black belt",
+        "5 dan – black belt": "5 dan – black belt",
         # --- Navigation / Common ---
         "Team ENSO": "Team ENSO",
         "Karate Club": "Karate Club",
@@ -316,6 +332,22 @@ translations = {
         "Method": "Method",
     },
     "bg": {
+        # --- Grade/Belt labels ---
+        "10 kyu – white belt": "10 кю – бял пояс",
+        "9 kyu – white with yellow stripe": "9 кю – бял с жълта лента",
+        "8 kyu – yellow belt": "8 кю – жълт пояс",
+        "7 kyu – orange belt": "7 кю – оранжев пояс",
+        "6 kyu – orange belt": "6 кю – оранжев пояс",
+        "5 kyu – green belt": "5 кю – зелен пояс",
+        "4 kyu – blue belt": "4 кю – син пояс",
+        "3 kyu – blue belt": "3 кю – син пояс",
+        "2 kyu – brown belt": "2 кю – кафяв пояс",
+        "1 kyu – brown belt": "1 кю – кафяв пояс",
+        "1 dan – black belt": "1 дан – черен пояс",
+        "2 dan – black belt": "2 дан – черен пояс",
+        "3 dan – black belt": "3 дан – черен пояс",
+        "4 dan – black belt": "4 дан – черен пояс",
+        "5 dan – black belt": "5 дан – черен пояс",
         # --- Navigation / Common ---
         "Team ENSO": "Team ENSO",
         "Karate Club": "Карате клуб",
@@ -598,21 +630,21 @@ GRADING_SCHEME = {
     ],
     "belt_colors": ["White", "Yellow", "Orange", "Green", "Blue", "Purple", "Brown", "Black"],
     "grade_to_color": {
-        "10 kyu": "White",
-        "9 kyu": "White",
-        "8 kyu": "Yellow",
-        "7 kyu": "Orange",
-        "6 kyu": "Green",
-        "5 kyu": "Blue",
-        "4 kyu": "Purple",
-        "3 kyu": "Brown",
-        "2 kyu": "Brown",
-        "1 kyu": "Brown",
-        "1 dan": "Black",
-        "2 dan": "Black",
-        "3 dan": "Black",
-        "4 dan": "Black",
-        "5 dan": "Black",
+           "10 kyu": "White",
+           "9 kyu": "WhiteYellow",
+           "8 kyu": "Yellow",
+           "7 kyu": "Orange",
+           "6 kyu": "Orange",
+           "5 kyu": "Green",
+           "4 kyu": "Blue",
+           "3 kyu": "Blue",
+           "2 kyu": "Brown",
+           "1 kyu": "Brown",
+           "1 dan": "Black",
+           "2 dan": "Black",
+           "3 dan": "Black",
+           "4 dan": "Black",
+           "5 dan": "Black",
     },
 }
 
@@ -626,6 +658,7 @@ BELT_PALETTE = {
     "Purple": "#9c36b5",
     "Brown":  "#8d5524",
     "Black":  "#111111",
+    "WhiteYellow": "linear-gradient(90deg, #f8f9fa 50%, #ffd60a 50%)",
 }
 
 # Medal color palette for icons
@@ -1050,6 +1083,40 @@ def list_players():
     month_year = (y, m)
 
     for p in players:
+        # Health/insurance badge logic
+        today = date.today()
+        # Medical
+        if p.medical_expiry_date:
+            if p.medical_expiry_date < today:
+                p.med_color = 'danger'
+                p.med_text = _('Expired')
+            else:
+                days = (p.medical_expiry_date - today).days
+                if days < 30:
+                    p.med_color = 'warning'
+                    p.med_text = _('Expires in {d}d').format(d=days)
+                else:
+                    p.med_color = 'success'
+                    p.med_text = _('Valid until {dt}').format(dt=p.medical_expiry_date.strftime('%Y-%m-%d'))
+        else:
+            p.med_color = 'secondary'
+            p.med_text = _('—')
+        # Insurance
+        if p.insurance_expiry_date:
+            if p.insurance_expiry_date < today:
+                p.ins_color = 'danger'
+                p.ins_text = _('Expired')
+            else:
+                days = (p.insurance_expiry_date - today).days
+                if days < 30:
+                    p.ins_color = 'warning'
+                    p.ins_text = _('Expires in {d}d').format(d=days)
+                else:
+                    p.ins_color = 'success'
+                    p.ins_text = _('Valid until {dt}').format(dt=p.insurance_expiry_date.strftime('%Y-%m-%d'))
+        else:
+            p.ins_color = 'secondary'
+            p.ins_text = _('—')
         sess_records = (PaymentRecord.query
                         .filter_by(player_id=p.id, kind='training_session')
                         .order_by(PaymentRecord.paid_at.desc())
@@ -1430,16 +1497,30 @@ def fees_report():
                 'paid_on': ep.paid_at.date() if ep.paid_at else None,
                 'id': ep.id,
             })
+        # Find monthly receipt (PaymentRecord)
+        monthly_receipt = None
+        if payment:
+            monthly_receipt = PaymentRecord.query.filter_by(player_id=player.id, kind='training_month', year=year, month=month).first()
+        monthly_receipt_no = monthly_receipt.receipt_no if monthly_receipt else None
+        monthly_receipt_id = monthly_receipt.id if monthly_receipt else None
+        # Find session receipt (if only one for the month, show it; if multiple, show first)
+        session_receipt = session_receipts[0] if session_receipts else None
+        session_receipt_no = session_receipt.receipt_no if session_receipt else None
+        session_receipt_id = session_receipt.id if session_receipt else None
         report_rows.append({
             'player': player,
             'player_id': player.id,
             'monthly_amount': monthly_amount,
             'monthly_paid': monthly_paid,
             'monthly_id': monthly_id,
+            'monthly_receipt_no': monthly_receipt_no,
+            'monthly_receipt_id': monthly_receipt_id,
             'sessions_paid': sessions_paid,
             'sessions_taken': sessions_taken,
             'prepaid_amount': prepaid_amount,
             'per_session_amount': per_session_amount,
+            'session_receipt_no': session_receipt_no,
+            'session_receipt_id': session_receipt_id,
             'owed_amount': (owed_amount or 0) + (event_owed or 0),
             'event_total': event_total,
             'event_owed': event_owed,

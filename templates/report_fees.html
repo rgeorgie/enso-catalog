@@ -37,15 +37,19 @@
       <tbody>
         {% for p in payments %}
         <tr class="details-toggle"
-            data-player-id="{{ p.player_id }}"
-            data-monthly-amount="{{ p.monthly_amount or '' }}"
-            data-monthly-paid="{{ '1' if p.monthly_paid else '0' }}"
-            data-monthly-id="{{ p.monthly_id or '' }}"
-            data-session-prepaid="{{ p.prepaid_amount or '' }}"
-            data-session-owed="{{ p.owed_amount or '' }}"
-            data-year="{{ p.year }}"
-            data-month="{{ '%02d'|format(p.month) }}"
-            data-events='{{ (p.event_details | default([], true) | tojson) | safe }}'>
+          data-player-id="{{ p.player_id }}"
+          data-monthly-amount="{{ p.monthly_amount or '' }}"
+          data-monthly-paid="{{ '1' if p.monthly_paid else '0' }}"
+          data-monthly-id="{{ p.monthly_id or '' }}"
+          data-monthly-receipt-no="{{ p.monthly_receipt_no or '' }}"
+          data-monthly-receipt-id="{{ p.monthly_receipt_id or '' }}"
+          data-session-prepaid="{{ p.prepaid_amount or '' }}"
+          data-session-owed="{{ p.owed_amount or '' }}"
+          data-session-receipt-no="{{ p.session_receipt_no or '' }}"
+          data-session-receipt-id="{{ p.session_receipt_id or '' }}"
+          data-year="{{ p.year }}"
+          data-month="{{ '%02d'|format(p.month) }}"
+          data-events='{{ (p.event_details | default([], true) | tojson) | safe }}'>
           <td>{{ p.player_id }}</td>
           <td>
             {{ p.player.full_name() }}
@@ -133,77 +137,75 @@ $(function() {
     }
   });
 
-  function buildDetailsHtml(tr) {
-    var $tr = $(tr);
-    var playerId = $tr.data('player-id');
-    var monthlyAmount = $tr.data('monthly-amount') || '—';
-    var monthlyPaid = String($tr.data('monthly-paid')) === '1';
-    var monthlyId = $tr.data('monthly-id') || '';
-    var sessionPrepaid = $tr.data('session-prepaid') || '—';
-    var sessionOwed = $tr.data('session-owed') || '—';
-    var year = $tr.data('year');
-    var month = $tr.data('month');
-    var events = [];
-    try {
-      events = JSON.parse($tr.attr('data-events') || '[]');
-    } catch(e) { events = []; }
+    function buildDetailsHtml(tr) {
+      var $tr = $(tr);
+      var playerId = $tr.data('player-id');
+      var monthlyAmount = $tr.data('monthly-amount') || '—';
+      var monthlyPaid = String($tr.data('monthly-paid')) === '1';
+      var monthlyId = $tr.data('monthly-id') || '';
+      var monthlyReceiptNo = $tr.data('monthly-receipt-no') || '';
+      var monthlyReceiptId = $tr.data('monthly-receipt-id') || '';
+      var sessionPrepaid = $tr.data('session-prepaid') || '—';
+      var sessionOwed = $tr.data('session-owed') || '—';
+      var sessionReceiptNo = $tr.data('session-receipt-no') || '';
+      var sessionReceiptId = $tr.data('session-receipt-id') || '';
+      var year = $tr.data('year');
+      var month = $tr.data('month');
+      var events = [];
+      try {
+        events = JSON.parse($tr.attr('data-events') || '[]');
+      } catch(e) { events = []; }
 
-    var monthlyBadge = monthlyPaid
-      ? '<span class="badge text-bg-success">{{ _("Paid") }}</span>'
-      : '<span class="badge text-bg-secondary">{{ _("Unpaid") }}</span>';
+      var monthlyBadge = monthlyPaid
+        ? '<span class="badge text-bg-success">{{ _("Paid") }}</span>'
+        : '<span class="badge text-bg-secondary">{{ _("Unpaid") }}</span>';
 
-    // Build server URLs for "New receipt" actions using url_for safely
-    var monthlyReceiptBtn = monthlyId
-      ? `<a class="btn btn-sm btn-outline-primary"
-             href="{{ url_for('payment_new', kind='training_month', player_id='__PID__', month='__YYYY__-__MM__', amount='__AMNT__') }}"
-         >{{ _('New receipt') }}</a>`
-          .replace('__PID__', playerId)
-          .replace('__YYYY__', String(year).padStart(4,'0'))
-          .replace('__MM__', String(month).padStart(2,'0'))
-          .replace('__AMNT__', monthlyAmount)
-      : '';
+      // Monthly receipt link
+      var monthlyReceiptHtml = '';
+      if (monthlyReceiptNo && monthlyReceiptId) {
+        monthlyReceiptHtml = `<a href="${receiptViewBase}${monthlyReceiptId}" target="_blank">${monthlyReceiptNo}</a>`;
+      }
 
-    var sessionReceiptBtn =
-      `<a class="btn btn-sm btn-outline-primary"
-            href="{{ url_for('payment_new', kind='training_session', player_id='__PID__', month='__YYYY__-__MM__') }}"
-       >{{ _('New receipt') }}</a>`
-        .replace('__PID__', playerId)
-        .replace('__YYYY__', String(year).padStart(4,'0'))
-        .replace('__MM__', String(month).padStart(2,'0'));
+      // Session receipt link
+      var sessionReceiptHtml = '';
+      if (sessionReceiptNo && sessionReceiptId) {
+        sessionReceiptHtml = `<a href="${receiptViewBase}${sessionReceiptId}" target="_blank">${sessionReceiptNo}</a>`;
+      }
 
-    // Events list with safe receipt links
-    var eventsHtml = '—';
-    if (Array.isArray(events) && events.length) {
-      eventsHtml = '<ul class="mb-0">';
-      events.forEach(function(ev) {
-        var name = (ev.event_name || '—');
-        var amount = (ev.amount != null ? ev.amount : '—');
-        var rid = ev.id;
-        var viewLink = (rid != null && /^[0-9]+$/.test(String(rid)))
-          ? `<a href="${receiptViewBase}${rid}">{{ _('View receipt') }}</a>`
-          : '';
-        eventsHtml += `<li>${name}: ${amount} EUR${ viewLink ? ', ' + viewLink : ''}</li>`;
-      });
-      eventsHtml += '</ul>';
+      // Events list with safe receipt links
+      var eventsHtml = '—';
+      if (Array.isArray(events) && events.length) {
+        eventsHtml = '<ul class="mb-0">';
+        events.forEach(function(ev) {
+          var name = (ev.event_name || '—');
+          var amount = (ev.amount != null ? ev.amount : '—');
+          var rid = ev.id;
+          var receiptNo = ev.receipt_no || '';
+          var viewLink = (rid != null && /^[0-9]+$/.test(String(rid)))
+            ? `<a href="${receiptViewBase}${rid}" target="_blank">${receiptNo ? receiptNo : '{{ _('View receipt') }}'}</a>`
+            : '';
+          eventsHtml += `<li>${name}: ${amount} EUR${ viewLink ? ', ' + viewLink : ''}</li>`;
+        });
+        eventsHtml += '</ul>';
+      }
+
+      return `
+        <div class="p-2">
+          <div class="mb-1">
+            <strong>{{ _('Monthly') }}:</strong> ${monthlyAmount} ${monthlyBadge}
+            ${monthlyReceiptHtml ? ' | ' + monthlyReceiptHtml : ''}
+          </div>
+          <div class="mb-1">
+            <strong>{{ _('Session') }}:</strong> ${sessionPrepaid} ({{ _('Paid') }})
+            ${sessionReceiptHtml ? ' | ' + sessionReceiptHtml : ''},
+            ${sessionOwed} ({{ _('Owed') }})
+          </div>
+          <div class="mb-1">
+            <strong>{{ _('Events') }}:</strong> ${eventsHtml}
+          </div>
+        </div>
+      `;
     }
-
-    return `
-      <div class="p-2">
-        <div class="mb-1">
-          <strong>{{ _('Monthly') }}:</strong> ${monthlyAmount} ${monthlyBadge}
-          ${monthlyReceiptBtn}
-        </div>
-        <div class="mb-1">
-          <strong>{{ _('Session') }}:</strong> ${sessionPrepaid} ({{ _('Paid') }}),
-          ${sessionOwed} ({{ _('Owed') }})
-          ${sessionReceiptBtn}
-        </div>
-        <div class="mb-1">
-          <strong>{{ _('Events') }}:</strong> ${eventsHtml}
-        </div>
-      </div>
-    `;
-  }
 
   // Month picker auto-submit
   $('#month').on('change', function() {

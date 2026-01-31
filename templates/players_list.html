@@ -127,8 +127,8 @@
             {% if p.sportdata_enso_url %}<a class="btn btn-sm btn-outline-primary" target="_blank" href="{{ p.sportdata_enso_url }}">ENSO</a>{% endif %}
           </td>
           <td class="text-nowrap">
-            <span class="badge bg-{{ med_color }} me-1">Med: {{ med_text }}</span>
-            <span class="badge bg-{{ ins_color }}">Ins: {{ ins_text }}</span>
+            <span class="badge bg-{{ p.med_color }} me-1">Med: {{ p.med_text }}</span>
+            <span class="badge bg-{{ p.ins_color }}">Ins: {{ p.ins_text }}</span>
           </td>
           <td>
             <div class="d-flex flex-column flex-sm-row gap-2">

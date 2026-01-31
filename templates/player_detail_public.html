@@ -26,7 +26,25 @@
         {% endif %}
         <div class="mt-2">
           <span style="{{ belt_chip_style(player.belt_rank) | safe }}">
-            {{ player.grade_level or player.belt_rank }}
+            {% set gl = player.grade_level %}
+            {% if gl in ['10 kyu','9 kyu','8 kyu','7 kyu','6 kyu','5 kyu','4 kyu','3 kyu','2 kyu','1 kyu'] %}
+              {{ _(gl ~ ' – ' ~ {
+                '10 kyu': 'white belt',
+                '9 kyu': 'white with yellow stripe',
+                '8 kyu': 'yellow belt',
+                '7 kyu': 'orange belt',
+                '6 kyu': 'orange belt',
+                '5 kyu': 'green belt',
+                '4 kyu': 'blue belt',
+                '3 kyu': 'blue belt',
+                '2 kyu': 'brown belt',
+                '1 kyu': 'brown belt',
+              }[gl]) }}
+            {% elif gl and 'dan' in gl %}
+              {{ _(gl ~ ' – black belt') }}
+            {% else %}
+              {{ gl or player.belt_rank }}
+            {% endif %}
           </span>
         </div>
       </div>
