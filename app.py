@@ -1213,7 +1213,10 @@ def player_detail(player_id: int):
     total_sessions_unpaid = len(unpaid_sessions)
     per_session_price = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
     owed_amount = int(round(total_sessions_unpaid * per_session_price)) if per_session_price else 0
-    sess_records = PaymentRecord.query.filter_by(player_id=player.id).order_by(PaymentRecord.paid_at.desc()).all()
+    # Only show session receipts for sessions counted as paid
+    # Filter PaymentRecords for kind='training_session' and limit to total_sessions_paid
+    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    sess_records = all_receipts[:total_sessions_paid]
     return render_template(
         "player_detail.html",
         player=player,

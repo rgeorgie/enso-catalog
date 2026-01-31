@@ -246,26 +246,15 @@
           <ul class="list-unstyled mt-2">
             {% for r in sess_records %}
               <li class="d-flex justify-content-between align-items-center py-1">
-                <div>
-                  <strong>{{ r.receipt_no or ('#' ~ r.id) }}</strong>
-                  — {{ r.paid_at.date() if r.paid_at else '' }}
-                  • {{ r.sessions_paid }} {{ _('paid') }},
-                    {{ r.sessions_taken }} {{ _('taken') }}
-                  • {{ r.amount }} EUR
-                </div>
-                <div class="d-flex gap-2">
-                  <a class="btn btn-sm btn-outline-primary"
-                     href="{{ url_for('receipt_view', rid=r.id) }}">{{ _('View') }}</a>
-
-                  {% if session.get('is_admin') %}
-                    <form method="post"
-                          action="{{ url_for('receipt_tick_session', rid=r.id) }}">
-                      <button class="btn btn-sm btn-outline-success">
-                        {{ _('Mark session taken') }}
-                      </button>
-                    </form>
-                  {% endif %}
-                </div>
+                <a href="{{ url_for('receipt_view', rid=r.id) }}" class="text-decoration-none w-100">
+                  <div>
+                    <strong>{{ r.receipt_no or ('#' ~ r.id) }}</strong>
+                    — {{ r.paid_at.date() if r.paid_at else '' }}
+                    • {{ r.sessions_paid }} {{ _('paid') }},
+                      {{ r.sessions_taken }} {{ _('taken') }}
+                    • {{ r.amount }} EUR
+                  </div>
+                </a>
               </li>
             {% endfor %}
           </ul>
