@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>{{ _('Training Session Preview') }}</h2>
+  <div class="card mt-3">
+    <div class="card-body">
+      <h5 class="card-title">{{ player.full_name }}</h5>
+      <p class="card-text">
+        <strong>{{ _('Session ID') }}:</strong> {{ session.session_id }}<br>
+        <strong>{{ _('Date') }}:</strong> {{ session.date.strftime('%Y-%m-%d') if session.date else '?' }}<br>
+        <strong>{{ _('Status') }}:</strong>
+        {% if session.paid %}
+          <span class="text-success">{{ _('Paid') }}</span>
+        {% else %}
+          <span class="text-danger">{{ _('Unpaid') }}</span>
+        {% endif %}<br>
+        <strong>{{ _('Created at') }}:</strong> {{ session.created_at.strftime('%Y-%m-%d %H:%M') if session.created_at else '?' }}
+      </p>
+      <a href="{{ url_for('player_detail', player_id=player.id) }}" class="btn btn-secondary">{{ _('Back to Player') }}</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
