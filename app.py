@@ -1624,10 +1624,23 @@ def fees_report():
         monthly_paid = payment.paid if payment else False
         monthly_id = payment.id if payment else None
         # Per-session
-        session_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').filter(
-            extract('year', PaymentRecord.paid_at) == year,
-            extract('month', PaymentRecord.paid_at) == month
-        ).all()
+        # Include session receipts by session date (from TrainingSession)
+        session_receipts = []
+        all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').all()
+        for rec in all_receipts:
+            # Find related TrainingSession(s) for this receipt
+            # If note contains session IDs, parse them
+            session_ids = []
+            if rec.note and 'Session ID:' in rec.note:
+                session_ids = [rec.note.split('Session ID:')[1].strip()]
+            elif rec.note and 'Session IDs:' in rec.note:
+                session_ids = [x.strip() for x in rec.note.split('Session IDs:')[1].split(',')]
+            # For each session, check if its date matches the report month
+            for sid in session_ids:
+                ts = TrainingSession.query.filter_by(session_id=sid).first()
+                if ts and ts.date and ts.date.year == year and ts.date.month == month:
+                    session_receipts.append(rec)
+                    break
         sessions_paid = sum(r.sessions_paid or 0 for r in session_receipts)
         sessions_taken = sum(r.sessions_taken or 0 for r in session_receipts)
         prepaid_amount = sum(r.amount or 0 for r in session_receipts)
@@ -1704,7 +1717,12 @@ def fees_report():
             'month': month,
         })
 
-    due = first_working_day(year, month)
+    # Show due date as today if today is in the target month, else use first working day
+    today_dt = date.today()
+    if today_dt.year == year and today_dt.month == month:
+        due = today_dt
+    else:
+        due = first_working_day(year, month)
     return render_template(
         "report_fees.html",
         payments=report_rows,
