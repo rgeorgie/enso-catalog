@@ -100,7 +100,7 @@ translations = {
         "Birthdate": "Birthdate",
             "PN#": "PN#",
         "Belt Rank": "Belt Rank",
-        "Grade Level": "Grade Level",
+        "Grade": "Grade",
         "Grade Date": "Grade Date",
         "Weight (kg)": "Weight (kg)",
         "Height (cm)": "Height (cm)",
@@ -338,6 +338,7 @@ translations = {
         # --- Filters / Table headers ---
         "Category Fees": "Такси за категории",
         "Search": "Търсене",
+        "Grade": "Степен",
         "Belt": "Колан",
         "Belt Color": "Цвят на колана",
         "Discipline": "Дисциплина",
@@ -1124,9 +1125,24 @@ def list_players():
         players=players, q=q, belt=belt, active=active,
         belts=GRADING_SCHEME["belt_colors"]
     )
+@app.route("/public/player/<int:player_id>")
+def player_detail_public(player_id: int):
+    player = Player.query.get_or_404(player_id)
+    regs = (EventRegistration.query
+            .filter_by(player_id=player.id)
+            .join(Event)
+            .order_by(Event.start_date.desc())
+            .all())
+    return render_template(
+        "player_detail_public.html",
+        player=player,
+        regs=regs,
+    )
 
 @app.route("/players/<int:player_id>")
 def player_detail(player_id: int):
+    if not session.get('is_admin'):
+        abort(403)
     player = Player.query.get_or_404(player_id)
     today = date.today()
     try:

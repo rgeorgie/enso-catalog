@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+  <h2 class="m-0">
+    {{ player.full_name() }}
+    <small class="text-muted">#{{ player.id }}</small>
+  </h2>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">← {{ _('Back') }}</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-4">
+    <div class="card mb-3">
+      <div class="card-body d-flex flex-column align-items-center">
+        {% if player.photo_filename %}
+          <img src="{{ url_for('uploaded_file', filename=player.photo_filename) }}"
+               alt="{{ player.full_name() }}" style="max-height:240px;width:auto;">
+        {% else %}
+          <div class="text-muted text-center"
+               style="height:180px;display:flex;align-items:center;justify-content:center;background:#f8f9fa;border-radius:.5rem;">
+            {{ _('No photo uploaded') }}
+          </div>
+        {% endif %}
+        <div class="mt-2">
+          <span style="{{ belt_chip_style(player.belt_rank) | safe }}">
+            {{ player.grade_level or player.belt_rank }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-8">
+    <div class="card mb-3">
+      <div class="card-header"><strong>{{ _('Profile') }}</strong></div>
+      <div class="card-body">
+        <div><strong>{{ _('First Name') }}:</strong> {{ player.first_name }}</div>
+        <div><strong>{{ _('Last Name') }}:</strong> {{ player.last_name }}</div>
+        <div><strong>{{ _('Discipline') }}:</strong> {{ _(player.discipline) if player.discipline else '—' }}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><strong>{{ _('Recent Event Registrations') }}</strong></div>
+      <div class="card-body">
+        {% if regs %}
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>{{ _('Event') }}</th>
+                <th>{{ _('Dates') }}</th>
+                <th>{{ _('Categories Medals& ') }}</th>
+                <th>{{ _('Fee (EUR)') }}</th>
+                <th>{{ _('Paid') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set medal_counts = {'gold': 0, 'silver': 0, 'bronze': 0} %}
+              {% for r in regs %}
+              <tr data-bs-toggle="collapse" data-bs-target="#reg-details-{{ r.id }}" aria-expanded="false" aria-controls="reg-details-{{ r.id }}" style="cursor:pointer;">
+                <td>{{ r.id }}</td>
+                <td>{{ r.event.title }}</td>
+                <td>{{ r.event.start_date }}</td>
+                <td>
+                  {% if r.reg_categories %}
+                    <ul class="mb-0 ps-3">
+                    {% for rc in r.reg_categories %}
+                      <li>
+                        {{ rc.category.name if rc.category else '—' }}
+                        {% if rc.medal %}
+                          {% set _ = medal_counts.__setitem__(rc.medal, medal_counts.get(rc.medal, 0) + 1) %}
+                          <span class="badge {% if rc.medal == 'gold' %}bg-warning text-dark{% elif rc.medal == 'silver' %}bg-secondary{% elif rc.medal == 'bronze' %}bg-warning" style="color:#cd7f32!important;"{% endif %}">
+                            {{ rc.medal|capitalize }}
+                          </span>
+                        {% endif %}
+                      </li>
+                    {% endfor %}
+                    </ul>
+                  {% else %}
+                    <em>—</em>
+                  {% endif %}
+                </td>
+                <td>{{ r.computed_fee() }}</td>
+                <td>{{ _('yes') if r.paid else _('no') }}</td>
+              </tr>
+              <tr class="collapse" id="reg-details-{{ r.id }}">
+                <td colspan="6">
+                  {% if r.reg_categories %}
+                    <div class="ps-3">
+                      <strong>{{ _('Categories & Medals') }}:</strong>
+                      <ul class="mb-0">
+                        {% for rc in r.reg_categories %}
+                          <li>
+                            {{ rc.category.name if rc.category else '—' }}
+                            {% if rc.medal %}
+                              <span class="badge {% if rc.medal == 'gold' %}bg-warning text-dark{% elif rc.medal == 'silver' %}bg-secondary{% elif rc.medal == 'bronze' %}bg-warning" style="color:#cd7f32!important;"{% endif %}">
+                                {{ rc.medal|capitalize }}
+                              </span>
+                            {% endif %}
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+                  {% else %}
+                    <em>{{ _('No categories for this registration.') }}</em>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="fw-bold bg-light">
+                <td colspan="3" class="text-end">{{ _('Total medals') }}</td>
+                <td colspan="3">
+                  <span class="me-3">🥇 {{ medal_counts['gold'] }}</span>
+                  <span class="me-3">🥈 {{ medal_counts['silver'] }}</span>
+                  <span>🥉 {{ medal_counts['bronze'] }}</span>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        {% else %}
+          <em>{{ _('No registrations yet.') }}</em>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

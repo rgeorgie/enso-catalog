@@ -44,7 +44,13 @@
       {% for r in regs %}
       <tr data-bs-toggle="collapse" data-bs-target="#reg-details-{{ r.id }}" aria-expanded="false" aria-controls="reg-details-{{ r.id }}" style="cursor:pointer;">
         <td>{{ r.id }}</td>
-        <td><a href="{{ url_for('player_detail', player_id=r.player_id) }}">{{ r.player.full_name() }}</a></td>
+        <td>
+          {% if session.get('is_admin') %}
+            <a href="{{ url_for('player_detail', player_id=r.player_id) }}">{{ r.player.full_name() }}</a>
+          {% else %}
+            {{ r.player.full_name() }}
+          {% endif %}
+        </td>
 
         <td>
           {% if r.reg_categories %}
