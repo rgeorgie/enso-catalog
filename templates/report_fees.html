@@ -2,17 +2,19 @@
 
 {% block content %}
 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-  <h2 class="m-0">{{ _('Fees Report') }} – {{ year }}-{{ "%02d"|format(month) }}</h2>
+  <h2 class="m-0">{{ _('Fees Report') }}  – {{ year }}-{{ "%02d"|format(month) }}</h2>
 
   <form method="get" class="d-flex align-items-center gap-2" id="monthForm">
     <label class="form-label m-0" for="month">{{ _('Month') }}</label>
     <input type="month" id="month" name="month" class="form-control" style="width: 160px"
            value="{{ '%04d-%02d'|format(year, month) }}">
     <button class="btn btn-primary">{{ _('Open') }}</button>
-    <a class="btn btn-outline-secondary" href="{{ url_for('fees_export_csv', month='%04d-%02d'|format(year, month)) }}">
+    <a class="btn btn-outline-secondary"
+       href="{{ url_for('fees_export_csv', month='%04d-%02d'|format(year, month)) }}">
       {{ _('Export CSV') }}
     </a>
   </form>
+  <a class="btn btn-secondary ms-2" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
 </div>
 
 <p class="text-muted mb-3">{{ _('Due date') }}: <strong>{{ due_date }}</strong></p>
@@ -24,92 +26,68 @@
         <tr>
           <th>#</th>
           <th>{{ _('Player') }}</th>
-          <th>{{ _('Belt') }}</th>
-          <th class="text-end">{{ _('Amount') }} (EUR)</th>
+          <th class="text-end">{{ _('Monthly') }}</th>
+          <th class="text-end">{{ _('Session') }}</th>
+          <th class="text-end">{{ _('Event') }}</th>
+          <th class="text-end">{{ _('Category Fees') }}</th>
           <th class="text-center">{{ _('Paid') }}</th>
-          <th class="text-center">{{ _('Toggle Paid') }}</th>
-          <th class="text-center">{{ _('Receipt') }}</th>
-          <th class="text-center">{{ _('Sessions paid') }}</th>
-          <th class="text-center">{{ _('Sessions taken') }}</th>
-          <th class="text-center">{{ _('Prepaid amount') }}</th>
-          <th class="text-center">{{ _('Owed amount') }}</th>
+          <th class="text-end">{{ _('Owed') }}</th>
         </tr>
       </thead>
       <tbody>
         {% for p in payments %}
-        <tr>
+        <tr class="details-toggle"
+            data-player-id="{{ p.player_id }}"
+            data-monthly-amount="{{ p.monthly_amount or '' }}"
+            data-monthly-paid="{{ '1' if p.monthly_paid else '0' }}"
+            data-monthly-id="{{ p.monthly_id or '' }}"
+            data-session-prepaid="{{ p.prepaid_amount or '' }}"
+            data-session-owed="{{ p.owed_amount or '' }}"
+            data-year="{{ p.year }}"
+            data-month="{{ '%02d'|format(p.month) }}"
+            data-events='{{ (p.event_details | default([], true) | tojson) | safe }}'>
           <td>{{ p.player_id }}</td>
           <td>
-            <a href="{{ url_for('player_detail', player_id=p.player_id) }}">{{ p.player.full_name() }}</a>
+            {{ p.player.full_name() }}
           </td>
-          <td><span style="{{ belt_chip_style(p.player.belt_rank) }}">{{ p.player.belt_rank }}</span></td>
+          <td class="text-end">{% if p.monthly_amount %}{{ p.monthly_amount }}{% else %}—{% endif %}</td>
+          <td class="text-end">{% if p.prepaid_amount %}{{ p.prepaid_amount }}{% else %}—{% endif %}</td>
+          <td class="text-end">{% if p.event_total %}{{ p.event_total }}{% else %}—{% endif %}</td>
+          <td class="text-end">{% if p.category_fees %}{{ p.category_fees }}{% else %}—{% endif %}</td>
+          <td class="text-center">
+            {% if p.monthly_paid or p.event_total %}
+              <span class="badge text-bg-success">{{ _('Yes') }}</span>
+            {% else %}
+              <span class="badge text-bg-secondary">{{ _('No') }}</span>
+            {% endif %}
+          </td>
           <td class="text-end">
-            {% if p.is_monthly %}
-              {{ p.amount if p.amount is not none else "—" }}
+            {% if p.owed_amount is not none and p.owed_amount|float >= 0 %}
+              <span class="badge {{ 'bg-danger' if p.owed_amount > 0 else 'bg-success' }}">{{ p.owed_amount }}</span>
             {% else %}
               —
             {% endif %}
-          </td>
-          <td class="text-center">
-            {% if p.is_monthly %}
-              {% if p.paid %}<span class="badge text-bg-success">{{ _('Yes') }}</span>{% else %}<span class="badge text-bg-secondary">{{ _('No') }}</span>{% endif %}
-            {% else %}
-              —
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if p.is_monthly %}
-              <form method="post" action="{{ url_for('toggle_payment', payment_id=p.id) }}">
-                <button class="btn btn-sm {% if p.paid %}btn-outline-warning{% else %}btn-outline-success{% endif %}">{{ _('Toggle') }}</button>
-              </form>
-            {% else %}
-              —
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if p.is_monthly %}
-              <a class="btn btn-sm btn-outline-primary"
-                 href="{{ url_for('payment_new',
-                                  kind='training_month',
-                                  player_id=p.player_id,
-                                  month='%04d-%02d'|format(p.year, p.month),
-                                  amount=p.amount if p.amount is not none else None) }}">
-                {{ _('New receipt') }}
-              </a>
-            {% else %}
-              <a class="btn btn-sm btn-outline-primary"
-                 href="{{ url_for('payment_new',
-                                  kind='training_session',
-                                  player_id=p.player_id,
-                                  month='%04d-%02d'|format(p.year, p.month)) }}">
-                {{ _('New receipt') }}
-              </a>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            {% if not p.is_monthly %}{{ p.sessions_paid }}{% else %}—{% endif %}
-          </td>
-          <td class="text-center">
-            {% if not p.is_monthly %}{{ p.sessions_taken }}{% else %}—{% endif %}
-          </td>
-          <td class="text-center">
-            {% if not p.is_monthly %}{{ p.prepaid_amount }}{% else %}—{% endif %}
-          </td>
-          <td class="text-center">
-            {% if not p.is_monthly %}{{ p.owed_amount }}{% else %}—{% endif %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
       <tfoot>
-        <tr>
-          <th colspan="3" class="text-end">Total:</th>
-          <th class="text-end" id="totalAmount"></th>
-          <th colspan="3"></th>
-          <th class="text-center" id="totalSessionsPaid"></th>
-          <th class="text-center" id="totalSessionsTaken"></th>
-          <th class="text-center" id="totalPrepaid"></th>
-          <th class="text-center" id="totalOwed"></th>
+        {% set ns = namespace(total_monthly=0, total_session=0, total_event=0, total_category=0, total_owed=0) %}
+        {% for p in payments %}
+          {% if p.monthly_amount %}{% set ns.total_monthly = ns.total_monthly + p.monthly_amount %}{% endif %}
+          {% if p.prepaid_amount %}{% set ns.total_session = ns.total_session + p.prepaid_amount %}{% endif %}
+          {% if p.event_total %}{% set ns.total_event = ns.total_event + p.event_total %}{% endif %}
+          {% if p.category_fees %}{% set ns.total_category = ns.total_category + p.category_fees %}{% endif %}
+          {% if p.owed_amount is not none %}{% set ns.total_owed = ns.total_owed + p.owed_amount %}{% endif %}
+        {% endfor %}
+        <tr class="fw-bold bg-light">
+          <td colspan="2" class="text-end">{{ _('Totals') }}</td>
+          <td class="text-end" id="totalMonthly">{{ ns.total_monthly }}</td>
+          <td class="text-end" id="totalSession">{{ ns.total_session }}</td>
+          <td class="text-end" id="totalEvent">{{ ns.total_event }}</td>
+          <td class="text-end" id="totalCategory">{{ ns.total_category }}</td>
+          <td></td>
+          <td class="text-end" id="totalOwed">{{ ns.total_owed }}</td>
         </tr>
       </tfoot>
     </table>
@@ -117,57 +95,115 @@
 {% else %}
   <div class="alert alert-info">{{ _('Nothing to show.') }}</div>
 {% endif %}
+
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
 <script>
 $(function() {
-  // DataTables
+  // Compute a safe base URL for receipts. We call url_for with an integer,
+  // then strip the trailing "0" so we can append any numeric rid in JS.
+  const receiptViewBase = "{{ url_for('receipt_view', rid=0) }}".replace(/0$/, "");
+
+  // DataTables init
   var table = $('#feesTable').DataTable({
-    order: [[1, 'asc']],
     paging: false,
     info: false,
     searching: true,
-    select: true,
+    ordering: true,
+    order: [[0, 'asc']],
     columnDefs: [
-      { orderable: false, targets: [5,6] }
-    ],
-    language: {
-      search: '{{ _('Search') }}:',
-      zeroRecords: '{{ _('No players found.') }}',
+      { targets: [0], orderable: true },
+      { targets: [1,2,3,4,5,6,7], orderable: false }
+    ]
+  });
+
+  // Toggle child row
+  $('#feesTable tbody').on('click', 'tr.details-toggle', function () {
+    var row = table.row(this);
+    if (row.child.isShown()) {
+      row.child.hide();
+      $(this).removeClass('shown');
+    } else {
+      var html = buildDetailsHtml(this);
+      row.child(html).show();
+      $(this).addClass('shown');
     }
   });
 
-  // Totals calculation
-  function updateTotals() {
-    let totalAmount = 0, totalSessionsPaid = 0, totalSessionsTaken = 0, totalPrepaid = 0, totalOwed = 0;
-    table.rows({search:'applied'}).every(function() {
-      var d = this.data();
-      // Amount (EUR)
-      var amt = $(d[3]).text() || d[3];
-      if (!isNaN(parseInt(amt))) totalAmount += parseInt(amt);
-      // Sessions Paid
-      var sp = $(d[7]).text() || d[7];
-      if (!isNaN(parseInt(sp))) totalSessionsPaid += parseInt(sp);
-      // Sessions Taken
-      var st = $(d[8]).text() || d[8];
-      if (!isNaN(parseInt(st))) totalSessionsTaken += parseInt(st);
-      // Prepaid
-      var pp = $(d[9]).text() || d[9];
-      if (!isNaN(parseInt(pp))) totalPrepaid += parseInt(pp);
-      // Owed
-      var ow = $(d[10]).text() || d[10];
-      if (!isNaN(parseInt(ow))) totalOwed += parseInt(ow);
-    });
-    $('#totalAmount').text(totalAmount);
-    $('#totalSessionsPaid').text(totalSessionsPaid);
-    $('#totalSessionsTaken').text(totalSessionsTaken);
-    $('#totalPrepaid').text(totalPrepaid);
-    $('#totalOwed').text(totalOwed);
+  function buildDetailsHtml(tr) {
+    var $tr = $(tr);
+    var playerId = $tr.data('player-id');
+    var monthlyAmount = $tr.data('monthly-amount') || '—';
+    var monthlyPaid = String($tr.data('monthly-paid')) === '1';
+    var monthlyId = $tr.data('monthly-id') || '';
+    var sessionPrepaid = $tr.data('session-prepaid') || '—';
+    var sessionOwed = $tr.data('session-owed') || '—';
+    var year = $tr.data('year');
+    var month = $tr.data('month');
+    var events = [];
+    try {
+      events = JSON.parse($tr.attr('data-events') || '[]');
+    } catch(e) { events = []; }
+
+    var monthlyBadge = monthlyPaid
+      ? '<span class="badge text-bg-success">{{ _("Paid") }}</span>'
+      : '<span class="badge text-bg-secondary">{{ _("Unpaid") }}</span>';
+
+    // Build server URLs for "New receipt" actions using url_for safely
+    var monthlyReceiptBtn = monthlyId
+      ? `<a class="btn btn-sm btn-outline-primary"
+             href="{{ url_for('payment_new', kind='training_month', player_id='__PID__', month='__YYYY__-__MM__', amount='__AMNT__') }}"
+         >{{ _('New receipt') }}</a>`
+          .replace('__PID__', playerId)
+          .replace('__YYYY__', String(year).padStart(4,'0'))
+          .replace('__MM__', String(month).padStart(2,'0'))
+          .replace('__AMNT__', monthlyAmount)
+      : '';
+
+    var sessionReceiptBtn =
+      `<a class="btn btn-sm btn-outline-primary"
+            href="{{ url_for('payment_new', kind='training_session', player_id='__PID__', month='__YYYY__-__MM__') }}"
+       >{{ _('New receipt') }}</a>`
+        .replace('__PID__', playerId)
+        .replace('__YYYY__', String(year).padStart(4,'0'))
+        .replace('__MM__', String(month).padStart(2,'0'));
+
+    // Events list with safe receipt links
+    var eventsHtml = '—';
+    if (Array.isArray(events) && events.length) {
+      eventsHtml = '<ul class="mb-0">';
+      events.forEach(function(ev) {
+        var name = (ev.event_name || '—');
+        var amount = (ev.amount != null ? ev.amount : '—');
+        var rid = ev.id;
+        var viewLink = (rid != null && /^[0-9]+$/.test(String(rid)))
+          ? `<a href="${receiptViewBase}${rid}">{{ _('View receipt') }}</a>`
+          : '';
+        eventsHtml += `<li>${name}: ${amount} EUR${ viewLink ? ', ' + viewLink : ''}</li>`;
+      });
+      eventsHtml += '</ul>';
+    }
+
+    return `
+      <div class="p-2">
+        <div class="mb-1">
+          <strong>{{ _('Monthly') }}:</strong> ${monthlyAmount} ${monthlyBadge}
+          ${monthlyReceiptBtn}
+        </div>
+        <div class="mb-1">
+          <strong>{{ _('Session') }}:</strong> ${sessionPrepaid} ({{ _('Paid') }}),
+          ${sessionOwed} ({{ _('Owed') }})
+          ${sessionReceiptBtn}
+        </div>
+        <div class="mb-1">
+          <strong>{{ _('Events') }}:</strong> ${eventsHtml}
+        </div>
+      </div>
+    `;
   }
-  table.on('draw', updateTotals);
-  updateTotals();
 
   // Month picker auto-submit
   $('#month').on('change', function() {

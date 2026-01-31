@@ -2,9 +2,12 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="mb-0">{{ _('Players') }}</h1>
-  {% if session.get('is_admin') %}
-    <a class="btn btn-primary" href="{{ url_for('create_player') }}">{{ _('+ Add Player') }}</a>
-  {% endif %}
+  <div class="d-flex gap-2">
+    {% if session.get('is_admin') %}
+      <a class="btn btn-primary" href="{{ url_for('create_player') }}">{{ _('+ Add Player') }}</a>
+    {% endif %}
+    <a class="btn btn-secondary ms-2" href="{{ request.referrer or url_for('events_calendar') }}">{{ _('Back') }}</a>
+  </div>
 </div>
 
 <form class="row row-cols-lg-auto g-3 align-items-end mb-4" method="get">
@@ -13,7 +16,7 @@
     <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="{{ _('Name') }}">
   </div>
   <div class="col-12">
-    <label class="form-label">{{ _('Belt') }}</label>
+    <label class="form-label">{{ _('Grade') }}</label>
     <select class="form-select" name="belt">
       <option value="">{{ _('All') }}</option>
       {% for value in belts %}
@@ -37,124 +40,146 @@
 </form>
 
 <div class="table-responsive">
-  <table class="table table-striped align-middle">
-    <thead>
-      <tr>
-        <th>{{ _('Name') }}</th>
-        <th>{{ _('Belt Color') }}</th>
-        <th>{{ _('Discipline') }}</th>
-        <th>{{ _('Monthly Fee Type') }}</th>
-        <th>Monthly Due</th>
-        <th>{{ _('Active') }}</th>
-        <th>{{ _('Email') }}</th>
-        <th>{{ _('Sportdata') }}</th>
-        <th>Health</th>
-        {% if session.get('is_admin') %}<th style="width: 160px;"></th>{% endif %}
-      </tr>
-    </thead>
-    <tbody>
-    {% for p in players %}
-      {% set med_text, med_color = validity_badge(p.medical_expiry_date) %}
-      {% set ins_text, ins_color = validity_badge(p.insurance_expiry_date) %}
-      <tr>
-        <td><a href="{{ url_for('player_detail', player_id=p.id) }}">{{ p.full_name() }}</a></td>
-        <td><span class="belt-chip" style="{{ belt_chip_style(p.belt_rank) }}">{{ p.grade_level or _(p.belt_rank) }}</span></td>
-        <td>{{ _(p.discipline) }}</td>
-        <td>
-          {% if p.monthly_fee_amount is not none %}
-            {{ p.monthly_fee_amount }} EUR ({{ _('monthly') if p.monthly_fee_is_monthly else _('per session') }})
-            {% if not p.monthly_fee_is_monthly %}
-              <div class="small text-muted">Paid: {{ p.total_sessions_paid }} • Taken: {{ p.total_sessions_taken }} • Owed: {{ p.owed_amount if p.owed_amount is not none else '—' }} EUR</div>
-                {% if p.has_debt %}
-                  <div class="small mt-1">
-                    {% if p.debt_total_recorded and p.debt_total_recorded > 0 %}
-                      {% if p.debt_total_expected and p.debt_total_expected > 0 %}
-                        {% set remaining = (p.debt_total_expected - p.debt_total_recorded) %}
-                        {% if remaining > 0 %}
-                          <span class="badge bg-danger">Recorded debt: {{ p.debt_total_recorded }} EUR</span>
-                          <span class="small text-danger ms-2">Remaining owed: {{ remaining }} EUR</span>
-                        {% elif remaining < 0 %}
-                          <span class="badge bg-success">Recorded debt: {{ p.debt_total_recorded }} EUR</span>
-                          <span class="small text-success ms-2">Overpaid: {{ -remaining }} EUR</span>
+  {% if session.get('is_admin') %}
+    <table class="table table-striped align-middle">
+      <thead>
+        <tr>
+          <th>{{ _('Name') }}</th>
+          <th>{{ _('Grade') }}</th>
+          <th>{{ _('Discipline') }}</th>
+          <th>{{ _('Monthly Fee Type') }}</th>
+          <th>{{ _('Monthly Due') }}</th>
+          <th>{{ _('Active') }}</th>
+          <th>{{ _('Email') }}</th>
+          <th>{{ _('Sportdata') }}</th>
+          <th>{{ _('Health') }}</th>
+          <th style="width: 160px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in players %}
+        <tr>
+          <td><a href="{{ url_for('player_detail', player_id=p.id) }}">{{ p.full_name() }}</a></td>
+          <td><span class="belt-chip" style="{{ belt_chip_style(p.belt_rank) }}">{{ p.grade_level or _(p.belt_rank) }}</span></td>
+          <td>{{ _(p.discipline) }}</td>
+          <td>
+            {% if p.monthly_fee_amount is not none %}
+              {{ p.monthly_fee_amount }} EUR ({{ _('monthly') if p.monthly_fee_is_monthly else _('per session') }})
+              {% if not p.monthly_fee_is_monthly %}
+                <div class="small text-muted">Paid: {{ p.total_sessions_paid }} • Taken: {{ p.total_sessions_taken }} • Owed: {{ p.owed_amount if p.owed_amount is not none else '—' }} EUR</div>
+                  {% if p.has_debt %}
+                    <div class="small mt-1">
+                      {% if p.debt_total_recorded and p.debt_total_recorded > 0 %}
+                        {% if p.debt_total_expected and p.debt_total_expected > 0 %}
+                          {% set remaining = (p.debt_total_expected - p.debt_total_recorded) %}
+                          {% if remaining > 0 %}
+                            <span class="badge bg-danger">Recorded debt: {{ p.debt_total_recorded }} EUR</span>
+                            <span class="small text-danger ms-2">Remaining owed: {{ remaining }} EUR</span>
+                          {% elif remaining < 0 %}
+                            <span class="badge bg-success">Recorded debt: {{ p.debt_total_recorded }} EUR</span>
+                            <span class="small text-success ms-2">Overpaid: {{ -remaining }} EUR</span>
+                          {% else %}
+                            <span class="badge bg-success">Recorded debt: {{ p.debt_total_recorded }} EUR</span>
+                            <span class="small text-success ms-2">Fully recorded</span>
+                          {% endif %}
                         {% else %}
                           <span class="badge bg-success">Recorded debt: {{ p.debt_total_recorded }} EUR</span>
-                          <span class="small text-success ms-2">Fully recorded</span>
                         {% endif %}
                       {% else %}
-                        <span class="badge bg-success">Recorded debt: {{ p.debt_total_recorded }} EUR</span>
+                        {% if p.debt_total_expected and p.debt_total_expected > 0 %}
+                          <span class="badge bg-danger">Owed (not recorded): {{ p.debt_total_expected }} EUR</span>
+                        {% endif %}
                       {% endif %}
-                    {% else %}
-                      {% if p.debt_total_expected and p.debt_total_expected > 0 %}
-                        <span class="badge bg-danger">Owed (not recorded): {{ p.debt_total_expected }} EUR</span>
-                      {% endif %}
-                    {% endif %}
-                  </div>
-                {% endif %}
-            {% endif %}
-            {% if p.payment_count == 0 %}
-              <div class="small mt-1"><span class="badge text-bg-warning text-dark">No payments</span></div>
-            {% endif %}
-          {% else %}—{% endif %}
-        </td>
-        <td>
-          {% if p.monthly_due_amount is not none %}
-            {% if p.monthly_due_paid %}
-              <span class="text-success">{{ p.monthly_due_amount }} EUR</span>
+                    </div>
+                  {% endif %}
+              {% endif %}
+              {% if p.payment_count == 0 %}
+                <div class="small mt-1"><span class="badge text-bg-warning text-dark">No payments</span></div>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if p.monthly_due_amount is not none %}
+              {% if p.monthly_due_paid %}
+                <span class="text-success">{{ p.monthly_due_amount }} EUR</span>
+              {% else %}
+                <span class="text-danger">{{ p.monthly_due_amount }} EUR</span>
+              {% endif %}
             {% else %}
-              <span class="text-danger">{{ p.monthly_due_amount }} EUR</span>
+              —
             {% endif %}
-          {% else %}
-            —
-          {% endif %}
-        </td>
-        <td>
-          {% if p.active_member %}
-            <span class="badge bg-success">{{ _('Yes') }}</span>
-          {% else %}
-            <span class="badge bg-secondary">{{ _('No') }}</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if p.email %}
-            <a href="mailto:{{ p.email }}">{{ p.email }}</a>
-          {% else %}—{% endif %}
-        </td>
-        <td class="text-nowrap">
-          {% if p.sportdata_wkf_url %}<a class="btn btn-sm btn-outline-primary me-1" target="_blank" href="{{ p.sportdata_wkf_url }}">WKF</a>{% endif %}
-          {% if p.sportdata_bnfk_url %}<a class="btn btn-sm btn-outline-primary me-1" target="_blank" href="{{ p.sportdata_bnfk_url }}">BNFK</a>{% endif %}
-          {% if p.sportdata_enso_url %}<a class="btn btn-sm btn-outline-primary" target="_blank" href="{{ p.sportdata_enso_url }}">ENSO</a>{% endif %}
-        </td>
-        <td class="text-nowrap">
-          <span class="badge bg-{{ med_color }} me-1">Med: {{ med_text }}</span>
-          <span class="badge bg-{{ ins_color }}">Ins: {{ ins_text }}</span>
-        </td>
-        {% if session.get('is_admin') %}
-        <td>
-          <div class="d-flex flex-column flex-sm-row gap-2">
-            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_player', player_id=p.id) }}">{{ _('Edit') }}</a>
-
-            <form class="m-0" method="post" action="{{ url_for('delete_player', player_id=p.id) }}" onsubmit="return confirm('Delete this player?');">
-              <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
-            </form>
-
-            {% if not p.monthly_fee_is_monthly %}
-              <form class="m-0" method="post" action="{{ url_for('record_session', player_id=p.id) }}">
-                <button class="btn btn-sm btn-outline-secondary" type="submit">Record Session</button>
+          </td>
+          <td>
+            {% if p.active_member %}
+              <span class="badge bg-success">{{ _('Yes') }}</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ _('No') }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.email %}
+              <a href="mailto:{{ p.email }}">{{ p.email }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-nowrap">
+            {% if p.sportdata_wkf_url %}<a class="btn btn-sm btn-outline-primary me-1" target="_blank" href="{{ p.sportdata_wkf_url }}">WKF</a>{% endif %}
+            {% if p.sportdata_bnfk_url %}<a class="btn btn-sm btn-outline-primary me-1" target="_blank" href="{{ p.sportdata_bnfk_url }}">BNFK</a>{% endif %}
+            {% if p.sportdata_enso_url %}<a class="btn btn-sm btn-outline-primary" target="_blank" href="{{ p.sportdata_enso_url }}">ENSO</a>{% endif %}
+          </td>
+          <td class="text-nowrap">
+            <span class="badge bg-{{ med_color }} me-1">Med: {{ med_text }}</span>
+            <span class="badge bg-{{ ins_color }}">Ins: {{ ins_text }}</span>
+          </td>
+          <td>
+            <div class="d-flex flex-column flex-sm-row gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_player', player_id=p.id) }}">{{ _('Edit') }}</a>
+              <form class="m-0" method="post" action="{{ url_for('delete_player', player_id=p.id) }}" onsubmit="return confirm('Delete this player?');">
+                <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
               </form>
+              {% if not p.monthly_fee_is_monthly %}
+                <form class="m-0" method="post" action="{{ url_for('record_session', player_id=p.id) }}">
+                  <button class="btn btn-sm btn-outline-secondary" type="submit">Record Session</button>
+                </form>
+              {% endif %}
+              <form class="m-0" method="post" action="{{ url_for('player_pay_due', player_id=p.id) }}" onsubmit="return confirm('Pay all outstanding dues for this player?');">
+                <input type="hidden" name="kind" value="all">
+                <button class="btn btn-sm btn-outline-success" type="submit">Pay Due</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="10" class="text-center text-muted">{{ _('No players found.') }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <table class="table table-striped align-middle">
+      <thead>
+        <tr>
+          <th>{{ _('Name') }}</th>
+          <th>{{ _('Grade') }}</th>
+          <th>{{ _('Active') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in players %}
+        <tr>
+          <td><a href="{{ url_for('player_detail_public', player_id=p.id) }}">{{ p.full_name() }}</a></td>
+          <td><span class="belt-chip" style="{{ belt_chip_style(p.belt_rank) }}">{{ p.grade_level or _(p.belt_rank) }}</span></td>
+          <td>
+            {% if p.active_member %}
+              <span class="badge bg-success">{{ _('Yes') }}</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ _('No') }}</span>
             {% endif %}
-
-            <form class="m-0" method="post" action="{{ url_for('player_pay_due', player_id=p.id) }}" onsubmit="return confirm('Pay all outstanding dues for this player?');">
-              <input type="hidden" name="kind" value="all">
-              <button class="btn btn-sm btn-outline-success" type="submit">Pay Due</button>
-            </form>
-          </div>
-        </td>
-        {% endif %}
-      </tr>
-    {% else %}
-      <tr><td colspan="10" class="text-center text-muted">{{ _('No players found.') }}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="text-center text-muted">{{ _('No players found.') }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
 </div>
 {% endblock %}

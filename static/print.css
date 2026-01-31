@@ -1,0 +1,22 @@
+/* Hide error/info messages and buttons in print */
+@media print {
+  .no-print, .alert, .btn, .form-error, .form-messages, .form-actions, .form-footer, .form-buttons, .form-group .invalid-feedback, .form-group .is-invalid, .form-group .has-error, .form-group .help-block, .form-group .alert, .form-group .error, .form-group .form-error, .form-group .form-messages, .form-group .form-actions, .form-group .form-footer, .form-group .form-buttons {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+  button, input[type="button"], input[type="submit"], input[type="reset"], a.btn, .btn {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  .form-control:invalid, .is-invalid, .invalid-feedback {
+    display: none !important;
+  }
+  .form-error, .form-messages, .alert, .error, .invalid-feedback {
+    display: none !important;
+  }
+}

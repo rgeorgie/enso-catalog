@@ -15,7 +15,7 @@
     <input type="text" name="q" class="form-control" style="width: 220px"
            placeholder="{{ _('Search name / category') }}" value="{{ q or '' }}">
     <button class="btn btn-primary">{{ _('Apply') }}</button>
-    <a class="btn btn-outline-secondary" href="{{ url_for('event_detail', event_id=ev.id) }}">{{ _('Back to event') }}</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('event_detail', event_id=ev.id) }}">{{ _('Back') }}</a>
   </form>
 </div>
 
@@ -42,9 +42,15 @@
     </thead>
     <tbody>
       {% for r in regs %}
-      <tr>
+      <tr data-bs-toggle="collapse" data-bs-target="#reg-details-{{ r.id }}" aria-expanded="false" aria-controls="reg-details-{{ r.id }}" style="cursor:pointer;">
         <td>{{ r.id }}</td>
-        <td><a href="{{ url_for('player_detail', player_id=r.player_id) }}">{{ r.player.full_name() }}</a></td>
+        <td>
+          {% if session.get('is_admin') %}
+            <a href="{{ url_for('player_detail', player_id=r.player_id) }}">{{ r.player.full_name() }}</a>
+          {% else %}
+            {{ r.player.full_name() }}
+          {% endif %}
+        </td>
 
         <td>
           {% if r.reg_categories %}
@@ -59,7 +65,9 @@
             {% set medals = r.reg_categories | map(attribute='medal') | list %}
             {% set any_medals = (medals | select) | list %}
             {% if any_medals %}
-              {{ medals | map('default', '—') | join(', ') }}
+              {% for m in medals %}
+                {% if m == 'gold' %}<span title="Gold">🥇</span>{% elif m == 'silver' %}<span title="Silver">🥈</span>{% elif m == 'bronze' %}<span title="Bronze">🥉</span>{% else %}<span>—</span>{% endif %}
+              {% endfor %}
             {% else %}
               <em>—</em>
             {% endif %}
@@ -97,6 +105,50 @@
           </div>
         </td>
       </tr>
+      <tr class="collapse" id="reg-details-{{ r.id }}">
+        <td colspan="7">
+          {% if r.reg_categories %}
+            <form method="post" action="{{ url_for('event_reg_update_medals', reg_id=r.id) }}" class="row g-2 align-items-center">
+              <div class="table-responsive">
+                <table class="table table-bordered table-sm mb-0">
+                  <thead>
+                    <tr>
+                      <th>{{ _('Category') }}</th>
+                      <th>{{ _('Medal') }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                  {% for rc in r.reg_categories %}
+                    <tr>
+                      <td>{{ rc.category.name if rc.category else '—' }}</td>
+                      <td>
+                        <div class="form-check form-check-inline">
+                          <input class="form-check-input" type="radio" name="medal_{{ rc.category_id }}" id="medal_gold_{{ rc.category_id }}_{{ r.id }}" value="gold" {% if rc.medal=='gold' %}checked{% endif %}>
+                          <label class="form-check-label text-warning fw-bold" for="medal_gold_{{ rc.category_id }}_{{ r.id }}">&#x1F947; Gold</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                          <input class="form-check-input" type="radio" name="medal_{{ rc.category_id }}" id="medal_silver_{{ rc.category_id }}_{{ r.id }}" value="silver" {% if rc.medal=='silver' %}checked{% endif %}>
+                          <label class="form-check-label text-secondary fw-bold" for="medal_silver_{{ rc.category_id }}_{{ r.id }}">&#x1F948; Silver</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                          <input class="form-check-input" type="radio" name="medal_{{ rc.category_id }}" id="medal_bronze_{{ rc.category_id }}_{{ r.id }}" value="bronze" {% if rc.medal=='bronze' %}checked{% endif %}>
+                          <label class="form-check-label text-warning" style="color:#cd7f32!important;" for="medal_bronze_{{ rc.category_id }}_{{ r.id }}">&#x1F949; Bronze</label>
+                        </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <div class="col-12 mt-2">
+                <button class="btn btn-sm btn-success">{{ _('Save Medals') }}</button>
+              </div>
+            </form>
+          {% else %}
+            <em>{{ _('No categories for this registration.') }}</em>
+          {% endif %}
+        </td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
@@ -109,7 +161,7 @@
   {{ form.hidden_tag() }}
   <div class="col-12 col-md-6">
     <label class="form-label">{{ _('Athlete(s)') }}</label>
-    {{ form.player_ids(class_='form-select', multiple=True, size=8) }}
+    {{ form.player_ids(class_='form-select', multiple=True, size=8, id='player_ids_select') }}
   </div>
   <div class="col-12 col-md-6">
     <label class="form-label">{{ _('Select Categories') }}</label>
@@ -130,4 +182,29 @@
     <button class="btn btn-primary">{{ _('Add Registration') }}</button>
   </div>
 </form>
+
+<script>
+// Auto-submit the form on player selection change to update eligible categories
+document.addEventListener('DOMContentLoaded', function() {
+  var playerSelect = document.getElementById('player_ids_select');
+  if (playerSelect) {
+    playerSelect.addEventListener('change', function() {
+      // Only auto-submit if a single player is selected
+      if (playerSelect.selectedOptions.length === 1) {
+        // Create a GET form to preserve player selection and reload eligible categories
+        var form = document.createElement('form');
+        form.method = 'GET';
+        form.action = window.location.pathname;
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'player_id';
+        input.value = playerSelect.value;
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+      }
+    });
+  }
+});
+</script>
 {% endblock %}
