@@ -98,7 +98,7 @@ translations = {
         "Last Name": "Last Name",
         "Gender": "Gender",
         "Birthdate": "Birthdate",
-            "PN#": "PN#",
+        "PN#": "PN#",
         "Belt Rank": "Belt Rank",
         "Grade": "Grade",
         "Grade Date": "Grade Date",
@@ -302,7 +302,7 @@ translations = {
         "White": "White", "Yellow": "Yellow", "Orange": "Orange",
         "Green": "Green", "Blue": "Blue", "Purple": "Purple",
         "Brown": "Brown", "Black": "Black",
-        "Kata": "Kata", "Kumite": "Kumite", "Makiwara": "Makiwara", "All": "All",
+        "Kata": "Kata", "Kumite": "Kumite", "Makiwara": "Makiwara", "All Disciplines": "All Disciplines",
         "Mon": "Mon", "Tue": "Tue", "Wed": "Wed", "Thu": "Thu", "Fri": "Fri", "Sat": "Sat", "Sun": "Sun",
 
         # --- Forms / Admin forms ---
@@ -319,13 +319,13 @@ translations = {
         # --- Navigation / Common ---
         "Team ENSO": "Team ENSO",
         "Karate Club": "Карате клуб",
-        "Players": "Състезатели",
+        "Players": "Спортисти",
         "Calendar": "Календар",
         "Fees Report": "Отчет за такси",
         "Event List": "Списък събития",
-        "+ Add Player": "+ Добави състезател",
-        "Add Player": "Добави състезател",
-        "Edit Player": "Редакция на състезател",
+        "+ Add Player": "+ Добави Спортист",
+        "Add Player": "Добави Спортист",
+        "Edit Player": "Редакция на Спортист",
         "Back": "Назад",
         "Edit": "Редакция",
         "Run DB migration": "Стартирай миграция",
@@ -354,7 +354,7 @@ translations = {
         "No": "Не",
         "yes": "да",
         "no": "не",
-        "No players found.": "Няма намерени състезатели.",
+        "No players found.": "Няма намерени Спортисти.",
         "No photo uploaded": "Няма качена снимка",
 
         # --- Player form / Profile ---
@@ -362,7 +362,7 @@ translations = {
         "Last Name": "Фамилия",
         "Gender": "Пол",
         "Birthdate": "Дата на раждане",
-            "PN#": "ЕГН",
+        "PN#": "ЕГН",
         "Belt Rank": "Колан",
         "Grade Level": "Степен (кю/дан)",
         "Grade Date": "Дата на изпит",
@@ -438,7 +438,7 @@ translations = {
         # --- Payments / Receipts UI ---
         "Payment Receipt": "Квитанция за плащане",
         "Date": "Дата",
-        "Player": "Състезател",
+        "Player": "Спортист",
         "ID": "ID",
         "Category": "Категория",
         "Training fee": "Такса за тренировка",
@@ -500,8 +500,8 @@ translations = {
         "Category Fee": "Такса за категория",
         "Delete Category": "Изтрий категория",
         "Registrations": "Записвания",
-        "Athlete": "Състезател",
-        "Athlete(s)": "Състезател(и)",
+        "Athlete": "Спортист",
+        "Athlete(s)": "Спортист(и)",
         "Select Categories": "Избери категории",
         "Fee Override (EUR)": "Ръчна такса (EUR)",
         "Add Registration": "Добави записване",
@@ -520,7 +520,7 @@ translations = {
         "All-day": "Целодневно",
         "Events": "Събития",
         "Remove": "Премахни",
-        "Participants": "Състезатели",
+        "Participants": "Спортисти",
         "Entries": "Записи",
         "Total expected": "Общо очаквано",
         "Total paid": "Общо платено",
@@ -555,9 +555,9 @@ translations = {
         "Logged in as admin.": "Влязохте като администратор.",
         "Invalid credentials.": "Невалидни данни за вход.",
         "Logged out.": "Излязохте.",
-        "Player created.": "Състезателят е създаден.",
-        "Player updated.": "Състезателят е обновен.",
-        "Player deleted.": "Състезателят е изтрит.",
+        "Player created.": "Спортистът е създаден.",
+        "Player updated.": "Спортистът е обновен.",
+        "Player deleted.": "Спортистът е изтрит.",
         "DB migration: added columns: {cols}": "Миграция: добавени колони: {cols}",
         "DB migration: nothing to do.": "Миграция: няма какво да се прави.",
         "DB migration failed: {err}": "Миграция: грешка: {err}",
@@ -568,7 +568,7 @@ translations = {
         "White": "Бял", "Yellow": "Жълт", "Orange": "Оранжев",
         "Green": "Зелен", "Blue": "Син", "Purple": "Лилав",
         "Brown": "Кафяв", "Black": "Черен",
-        "Kata": "Ката", "Kumite": "Кумите", "Makiwara": "Макивара", "All": "Всички дисциплини",
+        "Kata": "Ката", "Kumite": "Кумите", "Makiwara": "Макивара", "All Disciplines": "Всички дисциплини",
         "Mon": "Пон", "Tue": "Вт", "Wed": "Ср", "Thu": "Чет", "Fri": "Пет", "Sat": "Съб", "Sun": "Нед",
 
         # --- Forms / Admin forms ---
@@ -576,7 +576,7 @@ translations = {
         "Training (per month)": "Тренировка (месечно)",
         "Training (per session)": "Тренировка (на тренировка)",
         "Event Registration ID": "ID на записване за събитие",
-        "Player ID": "ID на състезател",
+        "Player ID": "ID на Спортист",
         "Month (YYYY-MM)": "Месец (ГГГГ-ММ)",
         "Currency": "Валута",
         "Method": "Метод",
@@ -635,7 +635,7 @@ MEDAL_COLORS = {
     "bronze": "#a97142",  # darker bronze
 }
 
-DISCIPLINE_VALUES = ["Kata", "Kumite", "Makiwara", "All"]
+DISCIPLINE_VALUES = ["Kata", "Kumite", "Makiwara", "All Disciplines"]
 GENDER_VALUES = ["Male", "Female", "Other"]
 
 # -----------------------------
