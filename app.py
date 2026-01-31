@@ -658,7 +658,8 @@ BELT_PALETTE = {
     "Purple": "#9c36b5",
     "Brown":  "#8d5524",
     "Black":  "#111111",
-    "WhiteYellow": "linear-gradient(90deg, #f8f9fa 50%, #ffd60a 50%)",
+    # Centered yellow stripe on white background
+    "WhiteYellow": "linear-gradient(90deg, #f8f9fa 0 40%, #ffd60a 40% 60%, #f8f9fa 60% 100%)",
 }
 
 # Medal color palette for icons
