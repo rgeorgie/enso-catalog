@@ -102,41 +102,11 @@
         <hr>
 
         <!-- RECEIPT SHORTCUTS -->
-        <div class="d-grid gap-2">
-          <a class="btn btn-outline-primary"
-             href="{{ url_for('payment_new', kind='training_month', player_id=player.id) }}">
-            ➕ {{ _('New Training Receipt (per month)') }}
-          </a>
-
-          <a class="btn btn-outline-primary"
-             href="{{ url_for('payment_new', kind='training_session', player_id=player.id, sessions=5) }}">
-            ➕ {{ _('New Training Receipt (per session)') }}
-          </a>
-
-          <a class="btn btn-outline-primary"
-             href="{{ url_for('payment_new', kind='event') }}">
-            ➕ {{ _('New Event Receipt') }}
-          </a>
-        </div>
 
         <hr>
 
         <!-- PAY DUES MODAL TRIGGER -->
         <div class="d-grid gap-2">
-          <form method="post" action="{{ url_for('player_pay_due', player_id=player.id) }}">
-            <input type="hidden" name="kind" value="monthly">
-            <button class="btn btn-outline-success">{{ _('Pay Monthly Dues') }}</button>
-          </form>
-
-          <form method="post" action="{{ url_for('player_pay_due', player_id=player.id) }}">
-            <input type="hidden" name="kind" value="events">
-            <button class="btn btn-outline-success">{{ _('Pay Event Fees') }}</button>
-          </form>
-
-          <form method="post" action="{{ url_for('player_pay_due', player_id=player.id) }}">
-            <input type="hidden" name="kind" value="debts">
-            <button class="btn btn-outline-success">{{ _('Pay Session Debts') }}</button>
-          </form>
 
                 <button class="btn btn-success pay-due-modal-btn" type="button" data-player-id="{{ player.id }}">{{ _('Pay All Dues') }}</button>
                 <!-- Modal -->
@@ -398,7 +368,6 @@
                 <th>#</th>
                 <th>{{ _('Event') }}</th>
                 <th>{{ _('Dates') }}</th>
-                <th>{{ _('Categories Medals& ') }}</th>
                 <th>{{ _('Fee (EUR)') }}</th>
                 <th>{{ _('Paid') }}</th>
                 <th>{{ _('Actions') }}</th>
@@ -411,32 +380,10 @@
                 <td>{{ r.id }}</td>
                 <td>{{ r.event.title }}</td>
                 <td>{{ r.event.start_date }}</td>
-                <td>
-                  {% if r.reg_categories %}
-                    <ul class="mb-0 ps-3">
-                    {% for rc in r.reg_categories %}
-                      <li>
-                        {{ rc.category.name if rc.category else '—' }}
-                        {% if rc.medal %}
-                          {% set _ = medal_counts.__setitem__(rc.medal, medal_counts.get(rc.medal, 0) + 1) %}
-                          <span class="badge {% if rc.medal == 'gold' %}bg-warning text-dark{% elif rc.medal == 'silver' %}bg-secondary{% elif rc.medal == 'bronze' %}bg-warning" style="color:#cd7f32!important;"{% endif %}">
-                            {{ rc.medal|capitalize }}
-                          </span>
-                        {% endif %}
-                      </li>
-                    {% endfor %}
-                    </ul>
-                  {% else %}
-                    <em>—</em>
-                  {% endif %}
-                </td>
                 <td>{{ r.computed_fee() }}</td>
                 <td>{{ _('yes') if r.paid else _('no') }}</td>
                 <td>
-                  <a class="btn btn-sm btn-outline-primary"
-                     href="{{ url_for('payment_new', kind='event', reg_id=r.id) }}">
-                    {{ _('New receipt') }}
-                  </a>
+                  <!-- Removed New receipt button -->
                 </td>
               </tr>
               <tr class="collapse" id="reg-details-{{ r.id }}">

@@ -1,3 +1,7 @@
+# ...existing code...
+
+# Place this route after app and admin_required are defined
+# (Move to after admin_required function definition)
 # app.py
 import os
 import json
@@ -780,6 +784,17 @@ def admin_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
+# Preview a single training session
+@app.route('/admin/training_session/<session_id>')
+@admin_required
+def preview_training_session(session_id):
+    session = TrainingSession.query.filter_by(session_id=session_id).first()
+    if not session:
+        flash(_('Training session not found.'), 'danger')
+        return redirect(url_for('players_list'))
+    player = Player.query.get(session.player_id)
+    return render_template('training_session_preview.html', session=session, player=player)
+
 # -----------------------------
 # Models
 # -----------------------------
@@ -1189,53 +1204,28 @@ def player_detail(player_id: int):
             .order_by(Event.start_date.desc())
             .all())
 
-    sess_records_all = (PaymentRecord.query
-                        .filter_by(player_id=player.id, kind='training_session')
-                        .order_by(PaymentRecord.paid_at.desc())
-                        .all())
-
-    payment_count = db.session.query(PaymentRecord).filter_by(player_id=player.id).count()
-
-    sess_receipts = [r for r in sess_records_all if not is_auto_debt_note(r.note)]
-    explicit_sessions_paid = sum((r.sessions_paid or 0) for r in sess_receipts)
-    total_prepaid_amount = sum((r.amount or 0) for r in sess_receipts)
-
-    per_session_price = None
-    if player.monthly_fee_amount is not None and not player.monthly_fee_is_monthly:
-        per_session_price = float(player.monthly_fee_amount)
-
-    inferred_sessions_paid = 0
-    if per_session_price:
-        for r in sess_receipts:
-            if (r.sessions_paid or 0) == 0 and (r.amount or 0) > 0:
-                try:
-                    inferred_sessions_paid += int(round(float(r.amount) / float(per_session_price)))
-                except Exception:
-                    pass
-    total_sessions_paid = explicit_sessions_paid + inferred_sessions_paid
-
-    total_sessions_taken = sum((r.sessions_taken or 0) for r in sess_records_all)
-
-    prepaid_credit = float(total_prepaid_amount)
-    expected_cost = owed_amount = None
-    if per_session_price is not None:
-        expected_cost = total_sessions_taken * per_session_price
-        owed_amount = expected_cost - prepaid_credit
-
+    # Use TrainingSession for session logic (unified with player list)
+    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    paid_sessions = [s for s in all_sessions if s.paid]
+    unpaid_sessions = [s for s in all_sessions if not s.paid]
+    total_sessions_taken = len(all_sessions)
+    total_sessions_paid = len(paid_sessions)
+    total_sessions_unpaid = len(unpaid_sessions)
+    per_session_price = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
+    owed_amount = int(round(total_sessions_unpaid * per_session_price)) if per_session_price else 0
+    sess_records = PaymentRecord.query.filter_by(player_id=player.id).order_by(PaymentRecord.paid_at.desc()).all()
     return render_template(
         "player_detail.html",
         player=player,
         current_payment=current_payment,
         regs=regs,
-        sess_records=sess_records_all,
         total_sessions_paid=total_sessions_paid,
         total_sessions_taken=total_sessions_taken,
-        total_prepaid_amount=total_prepaid_amount,
-        prepaid_credit=int(round(prepaid_credit)) if prepaid_credit is not None else None,
+        total_sessions_unpaid=total_sessions_unpaid,
         per_session_amount=per_session_price,
-        expected_cost=expected_cost,
-        owed_amount=int(round(owed_amount)) if owed_amount is not None else None,
-        payment_count=payment_count,
+        owed_amount=owed_amount,
+        payment_count=db.session.query(PaymentRecord).filter_by(player_id=player.id).count(),
+        sess_records=sess_records,
     )
 
 @app.route("/uploads/<path:filename>")
