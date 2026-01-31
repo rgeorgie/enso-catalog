@@ -48,7 +48,7 @@
             data-events='{{ (p.event_details | default([], true) | tojson) | safe }}'>
           <td>{{ p.player_id }}</td>
           <td>
-            <a href="{{ url_for('player_detail', player_id=p.player_id) }}">{{ p.player.full_name() }}</a>
+            {{ p.player.full_name() }}
           </td>
           <td class="text-end">{% if p.monthly_amount %}{{ p.monthly_amount }}{% else %}—{% endif %}</td>
           <td class="text-end">{% if p.prepaid_amount %}{{ p.prepaid_amount }}{% else %}—{% endif %}</td>
