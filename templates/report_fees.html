@@ -62,7 +62,7 @@
             {% if p.monthly_paid or p.event_total %}
               <span class="badge text-bg-success">{{ _('Yes') }}</span>
             {% else %}
-              <span class="badge text-bg-secondary">{{ _('No') }}</span>
+              <span class="badge bg-danger">{{ _('No') }}</span>
             {% endif %}
           </td>
           <td class="text-end">
@@ -156,9 +156,10 @@ $(function() {
         events = JSON.parse($tr.attr('data-events') || '[]');
       } catch(e) { events = []; }
 
+      var monthlyFeeIsMonthly = $tr.data('monthly-amount') && parseFloat($tr.data('monthly-amount')) > 0;
       var monthlyBadge = monthlyPaid
         ? '<span class="badge text-bg-success">{{ _("Paid") }}</span>'
-        : '<span class="badge text-bg-secondary">{{ _("Unpaid") }}</span>';
+        : (monthlyFeeIsMonthly ? '<span class="badge bg-danger">{{ _("Unpaid") }}</span>' : '<span class="badge bg-secondary">none</span>');
 
       // Monthly receipt link
       var monthlyReceiptHtml = '';
@@ -199,9 +200,7 @@ $(function() {
             ${monthlyReceiptHtml ? ' | ' + monthlyReceiptHtml : ''}
           </div>
           <div class="mb-1">
-            <strong>{{ _('Session') }}:</strong> ${sessionPrepaid} ({{ _('Paid') }})
-            ${sessionReceiptHtml ? ' | ' + sessionReceiptHtml : ''},
-            ${sessionOwed} ({{ _('Owed') }})
+            <strong>{{ _('Session') }}:</strong> ${sessionPrepaid} ({{ _('Paid') }})${sessionReceiptHtml ? ' | ' + sessionReceiptHtml : ''}${sessionOwed !== '—' ? ', — ({{ _('Owed') }})' : ''}
           </div>
           <div class="mb-1">
             <strong>{{ _('Events') }}:</strong> ${eventsHtml}

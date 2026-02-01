@@ -13,8 +13,6 @@
       <h3 class="mb-1">Payment Receipt</h3>
       <div class="text-muted"># {{ rec.receipt_no or '—' }}</div>
       <div class="text-muted">Date: {{ (rec.paid_at or rec.created_at).strftime('%Y-%m-%d %H:%M') }}</div>
-    </div>
-    <div class="text-end">
       <div><strong>Player:</strong> {{ player.full_name() }}</div>
       <div><strong>ID:</strong> {{ player.id }}</div>
     </div>
@@ -80,7 +78,7 @@
   </div>
 
   <div class="mt-3 no-print d-flex gap-2">
-    <a class="btn btn-outline-secondary" href="{{ request.referrer or url_for('list_players') }}">Back</a>
+    <button class="btn btn-outline-danger" type="button" onclick="window.close()">Close</button>
     <a class="btn btn-success" href="{{ url_for('receipt_print_view', rid=rec.id) }}" target="_blank">Print (clean)</a>
   </div>
 
