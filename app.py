@@ -852,7 +852,7 @@ class Player(db.Model):
     last_name = db.Column(db.String(80), nullable=False)
     gender = db.Column(db.String(10), nullable=True)
     birthdate = db.Column(db.Date, nullable=True)
-    pn = db.Column(db.String(20), nullable=True)  # Personal Number / ЕГН
+    pn = db.Column(db.String(20), nullable=False)  # Personal Number / ЕГН (mandatory)
 
     belt_rank = db.Column(db.String(20), nullable=False, default="White")
     grade_level = db.Column(db.String(20), nullable=True)
@@ -1030,7 +1030,7 @@ class PlayerForm(FlaskForm):
     last_name = StringField("Last Name", validators=[DataRequired(), Length(max=80)])
     gender = SelectField("Gender", validators=[VOptional()], render_kw={"style": "max-width: 99px; display: inline-block;"})
     birthdate = DateField("Birthdate", validators=[VOptional()], render_kw={"style": "max-width: 132px; display: inline-block;"})
-    pn = StringField("PN#", validators=[VOptional(), Length(max=20)], render_kw={"style": "max-width: 120px; display: inline-block;"})
+    pn = StringField("PN#", validators=[DataRequired(), Length(max=20)], render_kw={"style": "max-width: 120px; display: inline-block;"})
     grade_level = SelectField("Grade Level", validators=[VOptional()])
     grade_date = DateField("Grade Date", validators=[VOptional()])
 
@@ -3007,13 +3007,23 @@ def import_players_zip():
                                 continue
 
                             # Always create a new Player; do NOT overwrite existing records.
+                            # PN is required — skip rows without PN to avoid creating invalid records.
+                            pn_val = norm.get('pn') or None
+                            if not pn_val:
+                                skipped += 1
+                                continue
+                            # Skip if PN already exists in DB
+                            if Player.query.filter_by(pn=pn_val).first():
+                                app.logger.info(f"Skipping import: PN already exists {pn_val}")
+                                skipped += 1
+                                continue
                             # Assign the first available numeric id (fill gaps) to the new player.
                             p = Player(
                                 first_name=fn,
                                 last_name=ln,
                                 gender=norm.get('gender') or None,
                                 birthdate=parse_date(norm.get('birthdate')),
-                                pn=norm.get('pn') or None,
+                                pn=pn_val,
                                 belt_rank=norm.get('belt_rank') or 'White',
                                 grade_level=norm.get('grade_level') or None,
                                 grade_date=parse_date(norm.get('grade_date')),
