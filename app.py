@@ -20,12 +20,7 @@ from wtforms.validators import DataRequired, Email, Optional as VOptional, Lengt
 from sqlalchemy import or_, and_, text
 from werkzeug.routing import BuildError
 
-# ...existing code...
-
 app = Flask(__name__)
-# ...existing code...
-
-# ...existing code...
 
 # Place public player detail route after app is defined
 @app.route("/players/public/<int:player_id>")
@@ -181,12 +176,6 @@ translations = {
         "Name": "Name",
         "Email": "Email",
         "Phone": "Phone",
-        "Yes": "Yes",
-        "No": "No",
-        "yes": "yes",
-        "no": "no",
-        "No players found.": "No players found.",
-        "No photo uploaded": "No photo uploaded",
 
         # --- Player form / Profile ---
         "First Name": "First Name",
@@ -395,6 +384,7 @@ translations = {
         "—": "—",
         "Male": "Male", "Female": "Female", "Other": "Other",
         "White": "White", "Yellow": "Yellow", "Orange": "Orange",
+        "WhiteYellow": "WhiteYellow",
         "Green": "Green", "Blue": "Blue", "Purple": "Purple",
         "Brown": "Brown", "Black": "Black",
         "Kata": "Kata", "Kumite": "Kumite", "Makiwara": "Makiwara", "All Disciplines": "All Disciplines",
@@ -461,12 +451,6 @@ translations = {
         "Name": "Име",
         "Email": "Имейл",
         "Phone": "Телефон",
-        "Yes": "Да",
-        "No": "Не",
-        "yes": "да",
-        "no": "не",
-        "No players found.": "Няма намерени Спортисти.",
-        "No photo uploaded": "Няма качена снимка",
 
         # --- Player form / Profile ---
         "First Name": "Име",
@@ -675,6 +659,7 @@ translations = {
         "—": "—",
         "Male": "Мъж", "Female": "Жена", "Other": "Друго",
         "White": "Бял", "Yellow": "Жълт", "Orange": "Оранжев",
+        "WhiteYellow": "Бял с жълта лента",
         "Green": "Зелен", "Blue": "Син", "Purple": "Лилав",
         "Brown": "Кафяв", "Black": "Черен",
         "Kata": "Ката", "Kumite": "Кумите", "Makiwara": "Макивара", "All Disciplines": "Всички дисциплини",
