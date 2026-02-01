@@ -2341,7 +2341,10 @@ def event_category_edit(event_id: int, cat_id: int):
         age_from_val = gf_int('age_from')
         age_to_val = gf_int('age_to')
         if age_from_val is not None and age_to_val is not None and age_to_val < age_from_val:
-            flash(_('Age "to" must be greater than or equal to Age "from".'), 'danger')
+            msg = _('Age "to" must be greater than or equal to Age "from".')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return {'success': False, 'error': msg}, 400
+            flash(msg, 'danger')
             return render_template('event_category_form.html', ev=ev, form=form, cat=cat)
 
         # update fields
