@@ -1,31 +1,40 @@
 # enso-catalog
 
-enso-catalog is a cross-platform (Linux/macOS/Windows) web app for managing a karate club's players, payments, events, and receipts. It provides a modern admin UI, search/filtering, CSV export, and photo uploads—all running locally with no external dependencies beyond Python.
+enso-catalog is a small single-file Flask application for managing a karate club: players, training sessions, monthly/per-session payments, events, registrations and receipts. It's designed to run locally with SQLite and a lightweight admin UI.
 
 ## Tech Stack
 - Python 3
 - Flask (single-file app)
 - SQLite (local DB, no server required)
 - WTForms (forms & validation)
+ - JavaScript (small client-side helpers + DataTables for some reports)
 
 ## Features
 
 - **Players**: List, search, filter, add, edit, delete. Each player can have a photo, contact info, medical/insurance data, and parent contacts.
+ - **Players**: List, search, filter, add, edit, delete. `pn` (personal number / ЕГН) is mandatory and used as the stable UID for historical relations. Photos, contact info, medical/insurance data, and parent contacts are supported.
 - **Payments & Receipts**:
     - Track monthly and per-session training fees.
     - Mark payments as paid/unpaid; print or export receipts.
     - Per-session logic: pay for a number of sessions, track sessions taken, and show remaining/prepaid balance.
     - Admin can record payments for monthly dues, events, or session debts directly from the player profile.
+ - **Payments & Receipts**:
+     - Track monthly bookkeeping rows (`Payment`) and receipt records (`PaymentRecord`).
+     - Export all payments/receipts as CSV (`/admin/reports/payments/export_all`).
+     - Per-session support via `TrainingSession` rows (mark paid/unpaid and create receipts).
 - **Events & Registrations**:
     - Create/edit/delete events with categories and fees.
     - Register players for events and mark event payments.
     - Track medals per event/category.
 - **Reports & Exports**:
-    - Export player list, event registrations, and payment reports as CSV.
-    - Medals and fee reports for club bookkeeping.
+ - **Reports & Exports**:
+    - Admin export/import pages: `/admin/exports` and `/admin/imports` provide CSV/ZIP import-export endpoints.
+    - Export players (ZIP/CSV), events (ZIP without photos), registrations and full payment backups as CSV.
 - **Photo Uploads**: Store player photos in `uploads/` (max 2MB, jpg/png/gif/webp).
 - **Localization**: Simple i18n (BG/EN) with in-app language switch.
 - **Admin UI**: All CRUD and sensitive actions require admin login (credentials via env vars).
+ - **Localization**: Simple i18n (BG/EN) with in-app language switch.
+ - **Admin UI**: All CRUD and sensitive actions require admin login (`ADMIN_USER`/`ADMIN_PASS` environment variables).
 
 ## Security
 - Admin login (username/password from environment variables)
@@ -70,6 +79,10 @@ export ADMIN_PASS="change_me"
 
 python app.py
 # Open http://127.0.0.1:5000
+
+Notes:
+- For development set `ADMIN_USER`/`ADMIN_PASS` to known values (e.g. `admin`/`admin123`).
+- The app auto-creates the DB and runs safe, idempotent ad-hoc migrations on startup (non-destructive column additions).
 ```
 
 ### B) Windows (PowerShell)
@@ -90,6 +103,13 @@ python app.py
 - All data is stored locally in `karate_club.db`.
 - To reset, delete the DB and uploads folder.
 - For more, see comments in `app.py` and the `.github/copilot-instructions.md` file.
+
+Important operational notes
+- PN is mandatory: when creating players via the UI or CSV import, `pn` must be exactly 10 digits. The CSV importer validates and rejects invalid/duplicate PN rows.
+- UID migration: the app maintains `player_pn` on related rows to preserve historical relations. A non-destructive backfill runs on startup for missing fields; if you plan a destructive purge or DB-level FK changes, back up `karate_club.db` and `uploads/` first.
+- Import/Export endpoints: use `/admin/imports` and `/admin/exports` (admin-only) for bulk operations. Event exports are ZIPs (photos excluded) and players export/import supports ZIP/CSV.
+- Purge: there is an admin `purge` endpoint that permanently deletes a player after backfilling related rows with the PN — this is irreversible; use the confirmation token to trigger.
+- Watermark: templates include a centered faint watermark of the site logo (in `static/img/enso-logo.webp`). If you print pages, consider hiding the watermark via CSS @media print rules.
 
 7) Optional: Docker
 Create Dockerfile:
