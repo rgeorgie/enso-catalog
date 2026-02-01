@@ -13,6 +13,9 @@
        href="{{ url_for('fees_export_csv', month='%04d-%02d'|format(year, month)) }}">
       {{ _('Export CSV') }}
     </a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('payments_export_all_csv') }}">
+      {{ _('Export All Payments (CSV)') }}
+    </a>
   </form>
   <a class="btn btn-secondary ms-2" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
 </div>

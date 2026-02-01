@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 
 from flask import (
     Flask, render_template, request, redirect, url_for, flash, abort,
-    send_from_directory, session, Response
+    send_from_directory, session, Response, stream_with_context
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
@@ -2071,6 +2071,69 @@ def fees_export_csv():
 
     headers = {"Content-Disposition": f'attachment; filename="fees_{year:04d}-{month:02d}.csv"'}
     return Response(generate(), mimetype="text/csv", headers=headers)
+
+
+@app.route("/admin/reports/payments/export_all")
+@admin_required
+def payments_export_all_csv():
+    """Export all payment-related rows (Payment and PaymentRecord) as a single CSV for backup."""
+    def generate():
+        # Header: source,payment_id,record_id,player_id,player_pn,kind,year,month,amount,currency,paid,paid_on,paid_at,receipt_no,payment_id_ref,event_registration_id,sessions_paid,sessions_taken,note,method,created_at
+        yield ("source,payment_id,record_id,player_id,player_pn,kind,year,month,amount,currency,paid,paid_on,paid_at,receipt_no,payment_id_ref,event_registration_id,sessions_paid,sessions_taken,note,method,created_at\n")
+        # Payments (monthly bookkeeping)
+        for p in Payment.query.order_by(Payment.id.asc()).all():
+            src = 'payment'
+            payment_id = p.id
+            record_id = ''
+            player_id = p.player_id
+            player_pn = p.player_pn or ''
+            kind = ''
+            year = p.year
+            month = p.month
+            amount = p.amount if p.amount is not None else ''
+            currency = ''
+            paid = '1' if p.paid else '0'
+            paid_on = p.paid_on.isoformat() if p.paid_on else ''
+            paid_at = ''
+            receipt_no = ''
+            payment_id_ref = ''
+            event_registration_id = ''
+            sessions_paid = ''
+            sessions_taken = ''
+            note = ''
+            method = ''
+            created_at = ''
+            row = [str(v) for v in [src, payment_id, record_id, player_id, player_pn, kind, year, month, amount, currency, paid, paid_on, paid_at, receipt_no, payment_id_ref, event_registration_id, sessions_paid, sessions_taken, note, method, created_at]]
+            yield ",".join(row) + "\n"
+
+        # PaymentRecords (receipts)
+        for r in PaymentRecord.query.order_by(PaymentRecord.id.asc()).all():
+            src = 'payment_record'
+            payment_id = ''
+            record_id = r.id
+            player_id = r.player_id
+            player_pn = r.player_pn or ''
+            kind = r.kind
+            year = r.year if r.year is not None else ''
+            month = r.month if r.month is not None else ''
+            amount = r.amount if r.amount is not None else ''
+            currency = r.currency or ''
+            paid = '1' if getattr(r, 'paid', None) else ''
+            paid_on = ''
+            paid_at = r.paid_at.isoformat() if r.paid_at else ''
+            receipt_no = r.receipt_no or ''
+            payment_id_ref = r.payment_id or ''
+            event_registration_id = r.event_registration_id or ''
+            sessions_paid = r.sessions_paid or ''
+            sessions_taken = r.sessions_taken or ''
+            note = (r.note or '').replace('\n', ' ').replace(',', ' ')
+            method = r.method or ''
+            created_at = r.created_at.isoformat() if r.created_at else ''
+            row = [str(v) for v in [src, payment_id, record_id, player_id, player_pn, kind, year, month, amount, currency, paid, paid_on, paid_at, receipt_no, payment_id_ref, event_registration_id, sessions_paid, sessions_taken, note, method, created_at]]
+            yield ",".join(row) + "\n"
+
+    headers = {"Content-Disposition": 'attachment; filename="payments_all.csv"'}
+    return Response(stream_with_context(generate()), mimetype='text/csv', headers=headers)
 
 # -------- Players CSV ----------
 @app.route("/export/csv")
