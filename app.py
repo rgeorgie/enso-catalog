@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import calendar
 from datetime import date, datetime
@@ -7,7 +8,7 @@ from typing import Optional, Tuple
 
 from flask import (
     Flask, render_template, request, redirect, url_for, flash, abort,
-    send_from_directory, session, Response
+    send_from_directory, session, Response, stream_with_context
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
@@ -16,29 +17,25 @@ from wtforms import (
     StringField, SelectField, DateField, IntegerField,
     TextAreaField, SubmitField, BooleanField, SelectMultipleField
 )
-from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL
+from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL, Regexp
 from sqlalchemy import or_, and_, text
+from sqlalchemy.orm import foreign
 from werkzeug.routing import BuildError
 
-# ...existing code...
-
 app = Flask(__name__)
-# ...existing code...
-
-# ...existing code...
 
 # Place public player detail route after app is defined
 @app.route("/players/public/<int:player_id>")
 def player_detail_public(player_id: int):
     player = Player.query.get_or_404(player_id)
     regs = (EventRegistration.query
-            .filter_by(player_id=player.id)
+            .filter_by(player_pn=player.pn)
             .join(Event)
             .order_by(Event.start_date.desc())
             .all())
 
     # Use TrainingSession for session logic (unified with admin view)
-    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    all_sessions = TrainingSession.query.filter_by(player_pn=player.pn).all()
     paid_sessions = [s for s in all_sessions if s.paid]
     unpaid_sessions = [s for s in all_sessions if not s.paid]
     total_sessions_taken = len(all_sessions)
@@ -47,7 +44,7 @@ def player_detail_public(player_id: int):
     per_session_price = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
     owed_amount = int(round(total_sessions_unpaid * per_session_price)) if per_session_price else 0
     # Only show session receipts for sessions counted as paid
-    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    all_receipts = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
     sess_records = all_receipts[:total_sessions_paid]
 
     return render_template(
@@ -61,7 +58,6 @@ def player_detail_public(player_id: int):
         owed_amount=owed_amount,
         sess_records=sess_records,
     )
-# ...existing code...
 
 # Place this route after app and admin_required are defined
 # (Move to after admin_required function definition)
@@ -120,7 +116,8 @@ class TrainingSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(64), nullable=False)
     __table_args__ = (db.UniqueConstraint('player_id', 'date', name='uq_player_session_date'),)
-    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    player_id = db.Column(db.Integer, nullable=False, index=True)
+    player_pn = db.Column(db.String(20), nullable=True, index=True)
     date = db.Column(db.Date, nullable=True)
     paid = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
@@ -181,12 +178,6 @@ translations = {
         "Name": "Name",
         "Email": "Email",
         "Phone": "Phone",
-        "Yes": "Yes",
-        "No": "No",
-        "yes": "yes",
-        "no": "no",
-        "No players found.": "No players found.",
-        "No photo uploaded": "No photo uploaded",
 
         # --- Player form / Profile ---
         "First Name": "First Name",
@@ -395,6 +386,7 @@ translations = {
         "—": "—",
         "Male": "Male", "Female": "Female", "Other": "Other",
         "White": "White", "Yellow": "Yellow", "Orange": "Orange",
+        "WhiteYellow": "WhiteYellow",
         "Green": "Green", "Blue": "Blue", "Purple": "Purple",
         "Brown": "Brown", "Black": "Black",
         "Kata": "Kata", "Kumite": "Kumite", "Makiwara": "Makiwara", "All Disciplines": "All Disciplines",
@@ -461,12 +453,6 @@ translations = {
         "Name": "Име",
         "Email": "Имейл",
         "Phone": "Телефон",
-        "Yes": "Да",
-        "No": "Не",
-        "yes": "да",
-        "no": "не",
-        "No players found.": "Няма намерени Спортисти.",
-        "No photo uploaded": "Няма качена снимка",
 
         # --- Player form / Profile ---
         "First Name": "Име",
@@ -675,6 +661,7 @@ translations = {
         "—": "—",
         "Male": "Мъж", "Female": "Жена", "Other": "Друго",
         "White": "Бял", "Yellow": "Жълт", "Orange": "Оранжев",
+        "WhiteYellow": "Бял с жълта лента",
         "Green": "Зелен", "Blue": "Син", "Purple": "Лилав",
         "Brown": "Кафяв", "Black": "Черен",
         "Kata": "Ката", "Kumite": "Кумите", "Makiwara": "Макивара", "All Disciplines": "Всички дисциплини",
@@ -822,10 +809,11 @@ def ensure_payments_for_month(year: int, month: int) -> int:
             continue
         if p.monthly_fee_amount is None:
             continue
-        exists = Payment.query.filter_by(player_id=p.id, year=year, month=month).first()
+        exists = Payment.query.filter_by(player_pn=p.pn, year=year, month=month).first()
         if not exists:
             db.session.add(Payment(
                 player_id=p.id,
+                player_pn=p.pn,
                 year=year,
                 month=month,
                 amount=p.monthly_fee_amount,
@@ -868,7 +856,7 @@ class Player(db.Model):
     last_name = db.Column(db.String(80), nullable=False)
     gender = db.Column(db.String(10), nullable=True)
     birthdate = db.Column(db.Date, nullable=True)
-    pn = db.Column(db.String(20), nullable=True)  # Personal Number / ЕГН
+    pn = db.Column(db.String(10), nullable=False)  # Personal Number / ЕГН (mandatory, 10 digits)
 
     belt_rank = db.Column(db.String(20), nullable=False, default="White")
     grade_level = db.Column(db.String(20), nullable=True)
@@ -911,14 +899,15 @@ class Player(db.Model):
 
 class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    player_id = db.Column(db.Integer, nullable=False, index=True)
+    player_pn = db.Column(db.String(20), nullable=True, index=True)
     year = db.Column(db.Integer, nullable=False)
     month = db.Column(db.Integer, nullable=False)  # 1..12
     amount = db.Column(db.Integer, nullable=True)  # EUR
     paid = db.Column(db.Boolean, default=False)
     paid_on = db.Column(db.Date, nullable=True)
 
-    player = db.relationship("Player", backref=db.backref("payments", lazy="dynamic"))
+    player = db.relationship("Player", primaryjoin="Player.id==foreign(Payment.player_id)", foreign_keys=[player_id], backref=db.backref("payments", lazy="dynamic"))
 
     __table_args__ = (db.UniqueConstraint("player_id", "year", "month", name="uq_payment_player_month"),)
 
@@ -958,13 +947,14 @@ class EventCategory(db.Model):
 class EventRegistration(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=False, index=True)
-    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    player_id = db.Column(db.Integer, nullable=False, index=True)
+    player_pn = db.Column(db.String(20), nullable=True, index=True)
 
     fee_override = db.Column(db.Integer, nullable=True)  # EUR
     paid = db.Column(db.Boolean, default=False)
     paid_on = db.Column(db.Date, nullable=True)
 
-    player = db.relationship("Player", backref=db.backref("event_registrations", cascade="all, delete-orphan", lazy="dynamic"))
+    player = db.relationship("Player", primaryjoin="Player.id==foreign(EventRegistration.player_id)", foreign_keys=[player_id], backref=db.backref("event_registrations", cascade="all, delete-orphan", lazy="dynamic"))
 
     # association objects (holds medal per category)
     reg_categories = db.relationship("EventRegCategory", backref="registration", cascade="all, delete-orphan", lazy="joined")
@@ -999,7 +989,8 @@ class PaymentRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     kind = db.Column(db.String(20), nullable=False)
 
-    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    player_id = db.Column(db.Integer, nullable=False, index=True)
+    player_pn = db.Column(db.String(20), nullable=True, index=True)
     payment_id = db.Column(db.Integer, db.ForeignKey("payment.id"), nullable=True, index=True)
     event_registration_id = db.Column(db.Integer, db.ForeignKey("event_registration.id"), nullable=True, index=True)
 
@@ -1023,7 +1014,7 @@ class PaymentRecord(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
-    player = db.relationship("Player")
+    player = db.relationship("Player", primaryjoin="Player.id==foreign(PaymentRecord.player_id)", foreign_keys=[player_id])
     payment = db.relationship("Payment")
     event_registration = db.relationship("EventRegistration")
     related_receipt_id = db.Column(db.Integer, db.ForeignKey("payment_record.id"), nullable=True, index=True)
@@ -1046,7 +1037,7 @@ class PlayerForm(FlaskForm):
     last_name = StringField("Last Name", validators=[DataRequired(), Length(max=80)])
     gender = SelectField("Gender", validators=[VOptional()], render_kw={"style": "max-width: 99px; display: inline-block;"})
     birthdate = DateField("Birthdate", validators=[VOptional()], render_kw={"style": "max-width: 132px; display: inline-block;"})
-    pn = StringField("PN#", validators=[VOptional(), Length(max=20)], render_kw={"style": "max-width: 120px; display: inline-block;"})
+    pn = StringField("PN#", validators=[DataRequired(), Length(min=10, max=10), Regexp(r'^\d{10}$', message="PN must be exactly 10 digits")], render_kw={"style": "max-width: 120px; display: inline-block;"})
     grade_level = SelectField("Grade Level", validators=[VOptional()])
     grade_date = DateField("Grade Date", validators=[VOptional()])
 
@@ -1183,7 +1174,7 @@ def list_players():
         p.ins_text, p.ins_color = validity_badge(p.insurance_expiry_date)
 
         sess_records = (PaymentRecord.query
-                        .filter_by(player_id=p.id, kind='training_session')
+                        .filter_by(player_pn=p.pn, kind='training_session')
                         .order_by(PaymentRecord.paid_at.desc())
                         .all())
 
@@ -1198,42 +1189,22 @@ def list_players():
         if p.monthly_fee_amount is not None and not p.monthly_fee_is_monthly:
             per_session_price = float(p.monthly_fee_amount)
 
-        # infer sessions_paid from amounts only when price is known
+        # Use TrainingSession for per-session logic
+        all_sessions = TrainingSession.query.filter_by(player_pn=p.pn).all()
+        paid_sessions = [s for s in all_sessions if s.paid]
+        unpaid_sessions = [s for s in all_sessions if not s.paid]
+        p.total_sessions_taken = len(all_sessions)
+        p.total_sessions_paid = len(paid_sessions)
+        p.total_sessions_unpaid = len(unpaid_sessions)
+        per_session_price = float(p.monthly_fee_amount) if p.monthly_fee_amount and not p.monthly_fee_is_monthly else None
+        p.per_session_price = per_session_price
+        p.owed_amount = int(round(p.total_sessions_unpaid * per_session_price)) if per_session_price else 0
 
-        for p in players:
-            # Health/insurance badges via helper for consistent UX
-            p.med_text, p.med_color = validity_badge(p.medical_expiry_date)
-            p.ins_text, p.ins_color = validity_badge(p.insurance_expiry_date)
-
-            # Use TrainingSession for per-session logic
-            all_sessions = TrainingSession.query.filter_by(player_id=p.id).all()
-            paid_sessions = [s for s in all_sessions if s.paid]
-            unpaid_sessions = [s for s in all_sessions if not s.paid]
-            p.total_sessions_taken = len(all_sessions)
-            p.total_sessions_paid = len(paid_sessions)
-            p.total_sessions_unpaid = len(unpaid_sessions)
-            per_session_price = float(p.monthly_fee_amount) if p.monthly_fee_amount and not p.monthly_fee_is_monthly else None
-            p.per_session_price = per_session_price
-            p.owed_amount = int(round(p.total_sessions_unpaid * per_session_price)) if per_session_price else 0
-
-            # Ensure monthly_due_amount and monthly_due_paid are always set
-            if not hasattr(p, 'monthly_due_amount'):
-                p.monthly_due_amount = None
-            if not hasattr(p, 'monthly_due_paid'):
-                p.monthly_due_paid = None
-            # Mark as having debt if session, monthly, or event debt exists
-            p.has_debt = False
-            if p.owed_amount > 0:
-                p.has_debt = True
-            if p.monthly_due_amount is not None and not p.monthly_due_paid and p.monthly_due_amount > 0:
-                p.has_debt = True
-            # Check for unpaid event registrations with a fee
-            unpaid_regs = EventRegistration.query.filter_by(player_id=p.id, paid=False).all()
-            for reg in unpaid_regs:
-                fee = reg.fee_override if reg.fee_override is not None else reg.computed_fee()
-                if fee and fee > 0:
-                    p.has_debt = True
-                    break
+        # Ensure monthly_due_amount and monthly_due_paid are always set
+        if not hasattr(p, 'monthly_due_amount'):
+            p.monthly_due_amount = None
+        if not hasattr(p, 'monthly_due_paid'):
+            p.monthly_due_paid = None
 
         # monthly dues (optional, skip if month_year not set)
         p.monthly_due_amount = None
@@ -1241,12 +1212,26 @@ def list_players():
         if 'month_year' in locals() and month_year:
             try:
                 yy, mm = month_year
-                pay_row = Payment.query.filter_by(player_id=p.id, year=yy, month=mm).first()
+                pay_row = Payment.query.filter_by(player_pn=p.pn, year=yy, month=mm).first()
                 if pay_row:
                     p.monthly_due_amount = pay_row.amount or 0
                     p.monthly_due_paid = bool(pay_row.paid)
             except Exception:
                 pass
+
+        # Mark as having debt if session, monthly, or event debt exists
+        p.has_debt = False
+        if p.owed_amount > 0:
+            p.has_debt = True
+        if p.monthly_due_amount is not None and not p.monthly_due_paid and p.monthly_due_amount > 0:
+            p.has_debt = True
+        # Check for unpaid event registrations with a fee
+        unpaid_regs = EventRegistration.query.filter_by(player_pn=p.pn, paid=False).all()
+        for reg in unpaid_regs:
+            fee = reg.fee_override if reg.fee_override is not None else reg.computed_fee()
+            if fee and fee > 0:
+                p.has_debt = True
+                break
 
     return render_template(
         "players_list.html",
@@ -1254,7 +1239,7 @@ def list_players():
         belts=GRADING_SCHEME["belt_colors"]
     )
     regs = (EventRegistration.query
-            .filter_by(player_id=player.id)
+            .filter_by(player_pn=player.pn)
             .join(Event)
             .order_by(Event.start_date.desc())
             .all())
@@ -1275,15 +1260,19 @@ def player_detail(player_id: int):
     except Exception:
         pass
 
-    current_payment = Payment.query.filter_by(player_id=player.id, year=today.year, month=today.month).first()
+    # Use player PN when available, otherwise fall back to player_id for legacy rows
+    pay_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    current_payment = Payment.query.filter_by(**pay_filter, year=today.year, month=today.month).first()
+    reg_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
     regs = (EventRegistration.query
-            .filter_by(player_id=player.id)
-            .join(Event)
-            .order_by(Event.start_date.desc())
-            .all())
+        .filter_by(**reg_filter)
+        .join(Event)
+        .order_by(Event.start_date.desc())
+        .all())
 
     # Use TrainingSession for session logic (unified with player list)
-    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    all_sessions = TrainingSession.query.filter_by(**sess_filter).all()
     paid_sessions = [s for s in all_sessions if s.paid]
     unpaid_sessions = [s for s in all_sessions if not s.paid]
     total_sessions_taken = len(all_sessions)
@@ -1293,7 +1282,8 @@ def player_detail(player_id: int):
     owed_amount = int(round(total_sessions_unpaid * per_session_price)) if per_session_price else 0
     # Only show session receipts for sessions counted as paid
     # Filter PaymentRecords for kind='training_session' and limit to total_sessions_paid
-    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    rec_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    all_receipts = PaymentRecord.query.filter_by(**rec_filter, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
     sess_records = all_receipts[:total_sessions_paid]
     return render_template(
         "player_detail.html",
@@ -1305,13 +1295,99 @@ def player_detail(player_id: int):
         total_sessions_unpaid=total_sessions_unpaid,
         per_session_amount=per_session_price,
         owed_amount=owed_amount,
-        payment_count=db.session.query(PaymentRecord).filter_by(player_id=player.id).count(),
+        payment_count=db.session.query(PaymentRecord).filter_by(**({'player_pn': player.pn} if player.pn else {'player_id': player.id})).count(),
         sess_records=sess_records,
     )
 
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
+
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=False)
+
+# -------- Player CSV Export (Single) ----------
+@app.route("/players/<int:player_id>/export_csv")
+def export_player_csv(player_id):
+    if not session.get('is_admin'):
+        abort(403)
+    import csv
+    from io import StringIO
+    player = Player.query.get_or_404(player_id)
+    # Collect all Player fields for CSV
+    fieldnames = [
+        'id', 'first_name', 'last_name', 'gender', 'birthdate', 'pn',
+        'belt_rank', 'grade_level', 'grade_date', 'discipline', 'weight_kg', 'height_cm',
+        'email', 'phone', 'join_date', 'active_member', 'notes', 'photo_filename',
+        'sportdata_wkf_url', 'sportdata_bnfk_url', 'sportdata_enso_url',
+        'medical_exam_date', 'medical_expiry_date', 'insurance_expiry_date',
+        'monthly_fee_amount', 'monthly_fee_is_monthly',
+        'mother_name', 'mother_phone', 'father_name', 'father_phone'
+    ]
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    row = {k: getattr(player, k, '') for k in fieldnames}
+    # Convert dates and booleans to string
+    for k, v in row.items():
+        if hasattr(v, 'isoformat'):
+            row[k] = v.isoformat()
+        elif isinstance(v, bool):
+            row[k] = str(v)
+    writer.writerow(row)
+    output.seek(0)
+    # Use ASCII-only fallback for filename, but provide UTF-8 version for browsers that support it
+    ascii_filename = f"player_{player.id}.csv"
+    utf8_filename = f"player_{player.id}_{player.last_name}.csv"
+    headers = {
+        'Content-Disposition': f'attachment; filename="{ascii_filename}"; filename*=UTF-8''{utf8_filename}'
+    }
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv; charset=utf-8',
+        headers=headers
+    )
+
+# -------- Bulk Player CSV Export (ZIP) ----------
+@app.route("/players/export_zip", endpoint="export_players_zip")
+def export_players_zip():
+    if not session.get('is_admin'):
+        abort(403)
+    import csv
+    from io import StringIO, BytesIO
+    import zipfile
+    players = Player.query.order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+    fieldnames = [
+        'id', 'first_name', 'last_name', 'gender', 'birthdate', 'pn',
+        'belt_rank', 'grade_level', 'grade_date', 'discipline', 'weight_kg', 'height_cm',
+        'email', 'phone', 'join_date', 'active_member', 'notes', 'photo_filename',
+        'sportdata_wkf_url', 'sportdata_bnfk_url', 'sportdata_enso_url',
+        'medical_exam_date', 'medical_expiry_date', 'insurance_expiry_date',
+        'monthly_fee_amount', 'monthly_fee_is_monthly',
+        'mother_name', 'mother_phone', 'father_name', 'father_phone'
+    ]
+    mem_zip = BytesIO()
+    with zipfile.ZipFile(mem_zip, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for player in players:
+            output = StringIO()
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            row = {k: getattr(player, k, '') for k in fieldnames}
+            for k, v in row.items():
+                if hasattr(v, 'isoformat'):
+                    row[k] = v.isoformat()
+                elif isinstance(v, bool):
+                    row[k] = str(v)
+            writer.writerow(row)
+            output.seek(0)
+            filename = f"player_{player.id}_{player.last_name}.csv"
+            zf.writestr(filename, output.getvalue())
+    mem_zip.seek(0)
+    return Response(
+        mem_zip.getvalue(),
+        mimetype='application/zip',
+        headers={
+            'Content-Disposition': 'attachment; filename=players_profiles.zip'
+        }
+    )
 
 # -------- Auth ----------
 @app.route("/login", methods=["GET", "POST"])
@@ -1336,6 +1412,144 @@ def logout():
     return redirect(url_for("list_players"))
 
 # -------- CRUD Players ----------
+@app.route("/admin/players/import_csv", methods=["POST"], endpoint='admin_players_import_csv')
+@admin_required
+def admin_players_import_csv():
+    """Admin: import players from uploaded CSV file.
+
+    Expected headers: first_name,last_name,gender,birthdate,pn,grade_level,join_date,
+    email,phone,monthly_fee_amount,monthly_fee_is_monthly
+    """
+    if 'csv_file' not in request.files:
+        flash(_('No file uploaded.'), 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+
+    file = request.files.get('csv_file')
+    if not file or not file.filename:
+        flash(_('No file uploaded.'), 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+
+    if not file.filename.lower().endswith('.csv'):
+        flash(_('Please upload a .csv file.'), 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+
+    import csv
+    import io
+    import datetime
+
+    text_stream = io.TextIOWrapper(file.stream, encoding='utf-8-sig', errors='replace')
+    reader = csv.DictReader(text_stream)
+    created = 0
+    errors = []
+    for idx, row in enumerate(reader, start=1):
+        try:
+            first_name = (row.get('first_name') or '').strip()
+            last_name = (row.get('last_name') or '').strip()
+            if not first_name or not last_name:
+                errors.append(f"Row {idx}: missing first_name/last_name")
+                continue
+
+            def get(k):
+                return (row.get(k) or '').strip() or None
+
+            player = Player(first_name=first_name, last_name=last_name)
+            player.gender = get('gender')
+            player.pn = (get('pn') or '')
+            # Validate PN: must be exactly 10 digits
+            if not re.match(r'^\d{10}$', player.pn):
+                errors.append(f"Row {idx}: invalid or missing PN (must be exactly 10 digits): '{player.pn}'")
+                continue
+            player.email = get('email')
+            player.phone = get('phone')
+            player.grade_level = get('grade_level')
+
+            def parse_date(s):
+                if not s:
+                    return None
+                s = s.strip()
+                try:
+                    return datetime.date.fromisoformat(s)
+                except Exception:
+                    for fmt in ('%d.%m.%Y', '%d/%m/%Y', '%Y-%m-%d'):
+                        try:
+                            return datetime.datetime.strptime(s, fmt).date()
+                        except Exception:
+                            pass
+                return None
+
+            player.birthdate = parse_date(get('birthdate'))
+            player.join_date = parse_date(get('join_date'))
+
+            # Medical / insurance dates
+            player.medical_exam_date = parse_date(get('medical_exam_date'))
+            player.medical_expiry_date = parse_date(get('medical_expiry_date'))
+            player.insurance_expiry_date = parse_date(get('insurance_expiry_date'))
+
+            # Active member flag
+            am = get('active_member')
+            if am is not None:
+                player.active_member = str(am).lower() in ('1', 'true', 'yes', 'y')
+
+            # Misc fields
+            player.notes = get('notes')
+            player.photo_filename = get('photo_filename')
+            player.sportdata_wkf_url = get('sportdata_wkf_url')
+            player.sportdata_bnfk_url = get('sportdata_bnfk_url')
+            player.sportdata_enso_url = get('sportdata_enso_url')
+            try:
+                player.weight_kg = int(get('weight_kg')) if get('weight_kg') else None
+            except Exception:
+                player.weight_kg = None
+            try:
+                player.height_cm = int(get('height_cm')) if get('height_cm') else None
+            except Exception:
+                player.height_cm = None
+
+            player.discipline = get('discipline') or player.discipline
+
+            # Parent contacts
+            player.mother_name = get('mother_name')
+            player.mother_phone = get('mother_phone')
+            player.father_name = get('father_name')
+            player.father_phone = get('father_phone')
+
+            mfee = get('monthly_fee_amount')
+            if mfee:
+                try:
+                    player.monthly_fee_amount = int(float(mfee))
+                except Exception:
+                    pass
+
+            mflag = get('monthly_fee_is_monthly')
+            if mflag is not None:
+                player.monthly_fee_is_monthly = str(mflag).lower() in ('1', 'true', 'yes', 'y')
+
+            # Prefer explicit belt_rank in CSV if provided, otherwise infer from grade
+            csv_belt = get('belt_rank')
+            if csv_belt:
+                player.belt_rank = csv_belt
+            elif player.grade_level and player.grade_level in GRADING_SCHEME.get('grade_to_color', {}):
+                player.belt_rank = GRADING_SCHEME['grade_to_color'][player.grade_level]
+
+            db.session.add(player)
+            created += 1
+        except Exception as e:
+            errors.append(f"Row {idx}: {e}")
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(_('Import failed: ') + str(e), 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+
+    msg = (_('%(count)s players imported.') % {'count': created}) if created else _('No players imported.')
+    if errors:
+        flash(msg + ' ' + _('Some rows had issues:') + ' ' + '; '.join(errors[:5]), 'warning')
+    else:
+        flash(msg, 'success')
+    return redirect(url_for('list_players'))
+
 @app.route("/admin/players/new", methods=["GET", "POST"])
 @admin_required
 def create_player():
@@ -1345,6 +1559,7 @@ def create_player():
         player = Player(
             first_name=form.first_name.data,
             last_name=form.last_name.data,
+            pn=form.pn.data,
             gender=form.gender.data or None,
             birthdate=form.birthdate.data,
             grade_level=form.grade_level.data or None,
@@ -1448,20 +1663,73 @@ def delete_player(player_id: int):
         except FileNotFoundError:
             pass
     try:
-        PaymentRecord.query.filter_by(player_id=player.id).delete(synchronize_session=False)
-        Payment.query.filter_by(player_id=player.id).delete(synchronize_session=False)
-        TrainingSession.query.filter_by(player_id=player.id).delete(synchronize_session=False)
-        regs = EventRegistration.query.filter_by(player_id=player.id).all()
-        for r in regs:
-            db.session.delete(r)
-        db.session.delete(player)
+        # Preserve related records. Ensure their `player_pn` is set to this player's PN
+        pn_val = player.pn
+        if pn_val:
+            PaymentRecord.query.filter_by(player_id=player.id).update({"player_pn": pn_val}, synchronize_session=False)
+            Payment.query.filter_by(player_id=player.id).update({"player_pn": pn_val}, synchronize_session=False)
+            TrainingSession.query.filter_by(player_id=player.id).update({"player_pn": pn_val}, synchronize_session=False)
+            EventRegistration.query.filter_by(player_id=player.id).update({"player_pn": pn_val}, synchronize_session=False)
+        # Soft-delete: keep the player row to preserve foreign key integrity, but mark inactive and anonymize contact info
+        player.active_member = False
+        # Optionally anonymize personal data while preserving PN as UID
+        player.first_name = (player.first_name or '')
+        player.last_name = (player.last_name or '')
+        player.email = None
+        player.phone = None
+        player.photo_filename = None
+        player.notes = (player.notes or '') + f"\n[DELETED on {date.today().isoformat()}]"
+        db.session.add(player)
         db.session.commit()
     except Exception:
         db.session.rollback()
         flash("Failed to fully delete player and related records.", "danger")
         return redirect(url_for("player_detail", player_id=player.id))
-    flash(_("Player deleted."), "info")
+    flash(_("Player deleted (soft). Related registrations and payments preserved and linked by PN#."), "info")
     return redirect(url_for("list_players"))
+
+
+@app.route('/admin/players/<int:player_id>/purge', methods=['POST'])
+@admin_required
+def purge_player(player_id: int):
+    """Permanently remove a player row after migrating related rows to use PN.
+
+    This is destructive and irreversible. The form must include `confirm` field
+    with the literal value 'PURGE' to proceed. Make a DB backup before running.
+    """
+    player = Player.query.get_or_404(player_id)
+    confirm = (request.form.get('confirm') or '').strip()
+    if confirm != 'PURGE':
+        flash('Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE', 'danger')
+        return redirect(url_for('player_detail', player_id=player.id))
+
+    pn_val = player.pn
+    try:
+        # Backfill player_pn on related rows so history remains tied to PN
+        if pn_val:
+            PaymentRecord.query.filter_by(player_id=player.id).update({'player_pn': pn_val}, synchronize_session=False)
+            Payment.query.filter_by(player_id=player.id).update({'player_pn': pn_val}, synchronize_session=False)
+            TrainingSession.query.filter_by(player_id=player.id).update({'player_pn': pn_val}, synchronize_session=False)
+            EventRegistration.query.filter_by(player_id=player.id).update({'player_pn': pn_val}, synchronize_session=False)
+
+        # Remove photo file if present
+        if player.photo_filename:
+            try:
+                os.remove(os.path.join(UPLOAD_FOLDER, player.photo_filename))
+            except Exception:
+                pass
+
+        # Finally delete the player row
+        db.session.delete(player)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.exception('Failed to purge player')
+        flash(f'Purge failed: {e}', 'danger')
+        return redirect(url_for('player_detail', player_id=player.id))
+
+    flash('Player permanently deleted and related rows backfilled with PN.', 'success')
+    return redirect(url_for('list_players'))
 
 # --- Modal Dues Payment Backend ---
 @app.route("/admin/players/<int:player_id>/pay_due_receipt", methods=["POST"])
@@ -1478,15 +1746,15 @@ def player_pay_due_receipt(player_id: int):
     # Helper: get due type and object by ID
     def get_due_obj(due_id):
         # Try Payment (monthly)
-        p = Payment.query.filter_by(id=due_id, player_id=player.id, paid=False).first()
+        p = Payment.query.filter_by(id=due_id, player_pn=player.pn, paid=False).first()
         if p:
             return ("monthly", p)
         # Try EventRegistration (event)
-        r = EventRegistration.query.filter_by(id=due_id, player_id=player.id, paid=False).first()
+        r = EventRegistration.query.filter_by(id=due_id, player_pn=player.pn, paid=False).first()
         if r:
             return ("event", r)
         # Try PaymentRecord (debt)
-        d = PaymentRecord.query.filter_by(id=due_id, player_id=player.id).first()
+        d = PaymentRecord.query.filter_by(id=due_id, player_pn=player.pn).first()
         if d and is_auto_debt_note(d.note) and "AUTO_DEBT_PAID" not in (d.note or ""):
             return ("debt", d)
         return (None, None)
@@ -1497,7 +1765,7 @@ def player_pay_due_receipt(player_id: int):
         if isinstance(due_id, dict) and due_id.get('type') == 'owed_sessions' and due_id.get('session_ids'):
             session_ids = due_id['session_ids']
             # Fetch the TrainingSession records
-            sessions = TrainingSession.query.filter(TrainingSession.session_id.in_(session_ids), TrainingSession.player_id == player.id, TrainingSession.paid == False).all()
+            sessions = TrainingSession.query.filter(TrainingSession.session_id.in_(session_ids), TrainingSession.player_pn == player.pn, TrainingSession.paid == False).all()
             if not sessions:
                 continue
             per_session_amount = player.monthly_fee_amount
@@ -1513,7 +1781,7 @@ def player_pay_due_receipt(player_id: int):
             else:
                 note = f"Session IDs: {', '.join(session_ids)}"
             rec = PaymentRecord(
-                kind='training_session', player_id=player.id,
+                kind='training_session', player_id=player.id, player_pn=player.pn,
                 amount=amt, year=today.year, month=today.month,
                 sessions_paid=0, sessions_taken=0,
                 currency='EUR', note=note
@@ -1536,7 +1804,7 @@ def player_pay_due_receipt(player_id: int):
         if kind == "monthly":
             # Create PaymentRecord for monthly fee
             amt = obj.amount or 0
-            rec = PaymentRecord(kind='training_month', player_id=player.id,
+            rec = PaymentRecord(kind='training_month', player_id=player.id, player_pn=player.pn,
                                 amount=amt, year=obj.year, month=obj.month,
                                 payment_id=obj.id, currency='EUR', note='PAY_FROM_MODAL')
             db.session.add(rec)
@@ -1548,13 +1816,14 @@ def player_pay_due_receipt(player_id: int):
             obj.paid = True
             obj.paid_on = today
             db.session.add(obj)
+            db.session.commit()
             total_amount += amt
             created.append(rec)
         elif kind == "event":
             amt = obj.computed_fee() or 0
             event_name = obj.event.title if obj.event and hasattr(obj.event, 'title') else 'Event'
             note = f"PAY_FROM_MODAL | Event: {event_name}"
-            rec = PaymentRecord(kind='event', player_id=player.id,
+            rec = PaymentRecord(kind='event', player_id=player.id, player_pn=player.pn,
                                 amount=amt, event_registration_id=obj.id,
                                 currency='EUR', note=note)
             db.session.add(rec)
@@ -1574,7 +1843,7 @@ def player_pay_due_receipt(player_id: int):
             if d_amt <= 0:
                 continue
             pay_rec = PaymentRecord(
-                kind=obj.kind, player_id=player.id,
+                kind=obj.kind, player_id=player.id, player_pn=player.pn,
                 amount=d_amt, currency=obj.currency or 'EUR',
                 method=None,
                 note=f'Payment for debt receipt {obj.id}',
@@ -1608,7 +1877,8 @@ def player_dues_json(player_id: int):
     today = date.today()
     dues = []
     # Monthly due (unpaid Payment row for this month)
-    pay = Payment.query.filter_by(player_id=player.id, year=today.year, month=today.month, paid=False).first()
+    pay_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    pay = Payment.query.filter_by(**pay_filter, year=today.year, month=today.month, paid=False).first()
     if pay:
         dues.append({
             "id": pay.id,
@@ -1620,7 +1890,8 @@ def player_dues_json(player_id: int):
     # Owed session payments (per-session plan, sessions taken > sessions paid)
     if player.monthly_fee_is_monthly is False and player.monthly_fee_amount:
         # Get all unpaid TrainingSession records for this player (all time)
-        unpaid_sessions = TrainingSession.query.filter_by(player_id=player.id, paid=False).order_by(TrainingSession.date.asc()).all()
+        sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+        unpaid_sessions = TrainingSession.query.filter_by(**sess_filter, paid=False).order_by(TrainingSession.date.asc()).all()
         per_session_amount = player.monthly_fee_amount
         owed_sessions = len(unpaid_sessions)
         if owed_sessions > 0:
@@ -1640,7 +1911,8 @@ def player_dues_json(player_id: int):
                 "session_list": session_list
             })
     # Unpaid event registrations
-    regs = EventRegistration.query.filter_by(player_id=player.id, paid=False).all()
+    reg_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    regs = EventRegistration.query.filter_by(**reg_filter, paid=False).all()
     for r in regs:
         dues.append({
             "id": r.id,
@@ -1665,17 +1937,17 @@ def backfill_training_sessions():
         if player.monthly_fee_is_monthly or not player.monthly_fee_amount:
             continue  # Only per-session payers
         # Count sessions_taken from PaymentRecord
-        total_taken = db.session.query(db.func.sum(PaymentRecord.sessions_taken)).filter_by(player_id=player.id, kind='training_session').scalar() or 0
+        total_taken = db.session.query(db.func.sum(PaymentRecord.sessions_taken)).filter_by(player_pn=player.pn, kind='training_session').scalar() or 0
         # Count existing TrainingSession rows
-        existing_sessions = TrainingSession.query.filter_by(player_id=player.id).count()
+        existing_sessions = TrainingSession.query.filter_by(player_pn=player.pn).count()
         missing = total_taken - existing_sessions
         if missing > 0:
             # Find the latest session date, or use today
-            last_date = db.session.query(db.func.max(TrainingSession.date)).filter_by(player_id=player.id).scalar() or date.today()
+            last_date = db.session.query(db.func.max(TrainingSession.date)).filter_by(player_pn=player.pn).scalar() or date.today()
             for i in range(missing):
                 sess_date = last_date  # Could randomize or increment if needed
                 session_id = TrainingSession.generate_session_id(player.id, sess_date)
-                ts = TrainingSession(player_id=player.id, date=sess_date, session_id=session_id, paid=False)
+                ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=sess_date, session_id=session_id, paid=False)
                 db.session.add(ts)
                 created_total += 1
     db.session.commit()
@@ -1703,30 +1975,45 @@ def fees_report():
         monthly_paid = payment.paid if payment else False
         monthly_id = payment.id if payment else None
         # Per-session
-        # Include session receipts by session date (from TrainingSession)
-        session_receipts = []
-        all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').all()
-        for rec in all_receipts:
-            # Find related TrainingSession(s) for this receipt
-            # If note contains session IDs, parse them
-            session_ids = []
-            if rec.note and 'Session ID:' in rec.note:
-                session_ids = [rec.note.split('Session ID:')[1].strip()]
-            elif rec.note and 'Session IDs:' in rec.note:
-                session_ids = [x.strip() for x in rec.note.split('Session IDs:')[1].split(',')]
-            # For each session, check if its date matches the report month
-            for sid in session_ids:
-                ts = TrainingSession.query.filter_by(session_id=sid).first()
-                if ts and ts.date and ts.date.year == year and ts.date.month == month:
-                    session_receipts.append(rec)
-                    break
-        sessions_paid = sum(r.sessions_paid or 0 for r in session_receipts)
-        sessions_taken = sum(r.sessions_taken or 0 for r in session_receipts)
-        prepaid_amount = sum(r.amount or 0 for r in session_receipts)
+        # Count TrainingSession rows in the report month and use their paid flag to compute owed amount.
         per_session_amount = player.monthly_fee_amount if player.monthly_fee_is_monthly is False else None
-        owed_amount = max(0, (sessions_taken - sessions_paid) * per_session_amount) if per_session_amount else 0
+        sessions_taken = 0
+        sessions_paid = 0
+        prepaid_amount = 0
+        sessions_in_month = []
+        sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+        if per_session_amount is not None:
+            # Date range for month
+            from calendar import monthrange
+            month_start = date(year, month, 1)
+            month_end = date(year, month, monthrange(year, month)[1])
+            # Training sessions in the month (prefer player_pn for lookup)
+            sessions_in_month = TrainingSession.query.filter_by(**sess_filter).filter(TrainingSession.date >= month_start, TrainingSession.date <= month_end).all()
+            sessions_taken = len(sessions_in_month)
+            sessions_paid = sum(1 for s in sessions_in_month if getattr(s, 'paid', False))
+            # Fallback/prepaid amount: sum PaymentRecord amounts for training_session kind in the month
+            session_pay_recs = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').filter(
+                db.func.strftime('%Y', PaymentRecord.paid_at) == str(year),
+                db.func.strftime('%m', PaymentRecord.paid_at) == f"{month:02d}"
+            ).all()
+            prepaid_amount = sum(r.amount or 0 for r in session_pay_recs)
+            # For compatibility with previous logic, expose these as session_receipts
+            session_receipts = session_pay_recs
+            owed_amount = max(0, (sessions_taken - sessions_paid) * per_session_amount)
+        else:
+            owed_amount = 0
+        # Build a lightweight session list for the UI (session_id, date, paid)
+        session_list = [
+            {
+                'session_id': s.session_id,
+                'date': s.date.isoformat() if s.date else None,
+                'paid': bool(getattr(s, 'paid', False)),
+                'amount': per_session_amount if per_session_amount is not None else None
+            }
+            for s in (locals().get('sessions_in_month') or [])
+        ]
         # Events
-        event_payments = PaymentRecord.query.filter_by(player_id=player.id, kind='event').filter(
+        event_payments = PaymentRecord.query.filter_by(player_pn=player.pn, kind='event').filter(
             extract('year', PaymentRecord.paid_at) == year,
             extract('month', PaymentRecord.paid_at) == month
         ).all()
@@ -1738,7 +2025,7 @@ def fees_report():
         month_start = date(year, month, 1)
         month_end = date(year, month, monthrange(year, month)[1])
         # All event registrations for this player in this month
-        regs_in_month = [reg for reg in EventRegistration.query.filter_by(player_id=player.id).join(Event).filter(Event.start_date >= month_start, Event.start_date <= month_end).all()]
+        regs_in_month = [reg for reg in EventRegistration.query.filter_by(player_pn=player.pn).join(Event).filter(Event.start_date >= month_start, Event.start_date <= month_end).all()]
         for reg in regs_in_month:
             # Sum all category fees for this registration
             for rc in reg.reg_categories:
@@ -1766,12 +2053,12 @@ def fees_report():
         # Find monthly receipt (PaymentRecord)
         monthly_receipt = None
         if payment:
-            monthly_receipt = PaymentRecord.query.filter_by(player_id=player.id, kind='training_month', year=year, month=month).first()
+            monthly_receipt = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_month', year=year, month=month).first()
         monthly_receipt_no = monthly_receipt.receipt_no if monthly_receipt else None
         monthly_receipt_id = monthly_receipt.id if monthly_receipt else None
         # Collect all session receipts for the month
-        session_receipt_nos = [r.receipt_no for r in session_receipts if r.receipt_no]
-        session_receipt_ids = [r.id for r in session_receipts if r.receipt_no]
+        session_receipt_nos = [r.receipt_no for r in (locals().get('session_receipts') or []) if r.receipt_no]
+        session_receipt_ids = [r.id for r in (locals().get('session_receipts') or []) if r.receipt_no]
         report_rows.append({
             'player': player,
             'player_id': player.id,
@@ -1786,6 +2073,7 @@ def fees_report():
             'per_session_amount': per_session_amount,
             'session_receipt_nos': session_receipt_nos,
             'session_receipt_ids': session_receipt_ids,
+            'session_list': session_list,
             'owed_amount': (owed_amount or 0) + (event_owed or 0),
             'event_total': event_total,
             'event_owed': event_owed,
@@ -1829,7 +2117,7 @@ def fees_export_csv():
     due = first_working_day(year, month)
     payments = (Payment.query
                 .filter_by(year=year, month=month)
-                .join(Player)
+                .join(Player, Player.id == Payment.player_id)
                 .order_by(Player.last_name.asc(), Player.first_name.asc())
                 .all())
 
@@ -1845,6 +2133,262 @@ def fees_export_csv():
 
     headers = {"Content-Disposition": f'attachment; filename="fees_{year:04d}-{month:02d}.csv"'}
     return Response(generate(), mimetype="text/csv", headers=headers)
+
+
+@app.route("/admin/reports/payments/export_all")
+@admin_required
+def payments_export_all_csv():
+    """Export all payment-related rows (Payment and PaymentRecord) as a single CSV for backup."""
+    def generate():
+        # Header: source,payment_id,record_id,player_id,player_pn,kind,year,month,amount,currency,paid,paid_on,paid_at,receipt_no,payment_id_ref,event_registration_id,sessions_paid,sessions_taken,note,method,created_at
+        yield ("source,payment_id,record_id,player_id,player_pn,kind,year,month,amount,currency,paid,paid_on,paid_at,receipt_no,payment_id_ref,event_registration_id,sessions_paid,sessions_taken,note,method,created_at\n")
+        # Payments (monthly bookkeeping)
+        for p in Payment.query.order_by(Payment.id.asc()).all():
+            src = 'payment'
+            payment_id = p.id
+            record_id = ''
+            player_id = p.player_id
+            player_pn = p.player_pn or ''
+            kind = ''
+            year = p.year
+            month = p.month
+            amount = p.amount if p.amount is not None else ''
+            currency = ''
+            paid = '1' if p.paid else '0'
+            paid_on = p.paid_on.isoformat() if p.paid_on else ''
+            paid_at = ''
+            receipt_no = ''
+            payment_id_ref = ''
+            event_registration_id = ''
+            sessions_paid = ''
+            sessions_taken = ''
+            note = ''
+            method = ''
+            created_at = ''
+            row = [str(v) for v in [src, payment_id, record_id, player_id, player_pn, kind, year, month, amount, currency, paid, paid_on, paid_at, receipt_no, payment_id_ref, event_registration_id, sessions_paid, sessions_taken, note, method, created_at]]
+            yield ",".join(row) + "\n"
+
+        # PaymentRecords (receipts)
+        for r in PaymentRecord.query.order_by(PaymentRecord.id.asc()).all():
+            src = 'payment_record'
+            payment_id = ''
+            record_id = r.id
+            player_id = r.player_id
+            player_pn = r.player_pn or ''
+            kind = r.kind
+            year = r.year if r.year is not None else ''
+            month = r.month if r.month is not None else ''
+            amount = r.amount if r.amount is not None else ''
+            currency = r.currency or ''
+            paid = '1' if getattr(r, 'paid', None) else ''
+            paid_on = ''
+            paid_at = r.paid_at.isoformat() if r.paid_at else ''
+            receipt_no = r.receipt_no or ''
+            payment_id_ref = r.payment_id or ''
+            event_registration_id = r.event_registration_id or ''
+            sessions_paid = r.sessions_paid or ''
+            sessions_taken = r.sessions_taken or ''
+            note = (r.note or '').replace('\n', ' ').replace(',', ' ')
+            method = r.method or ''
+            created_at = r.created_at.isoformat() if r.created_at else ''
+            row = [str(v) for v in [src, payment_id, record_id, player_id, player_pn, kind, year, month, amount, currency, paid, paid_on, paid_at, receipt_no, payment_id_ref, event_registration_id, sessions_paid, sessions_taken, note, method, created_at]]
+            yield ",".join(row) + "\n"
+
+    headers = {"Content-Disposition": 'attachment; filename="payments_all.csv"'}
+    return Response(stream_with_context(generate()), mimetype='text/csv', headers=headers)
+
+
+@app.route('/admin/exports')
+@admin_required
+def admin_exports():
+    """Admin page listing all export/backup endpoints."""
+    return render_template('admin_exports.html', _=_ , current_lang=get_lang())
+
+
+@app.route('/admin/imports')
+@admin_required
+def admin_imports():
+    """Admin page listing import/upload entry points."""
+    return render_template('admin_imports.html', _=_ , current_lang=get_lang())
+
+
+@app.route('/admin/events/export_zip_all')
+@admin_required
+def export_events_zip_all():
+    """Export all events as a single ZIP containing per-event exports (no photos)."""
+    events = Event.query.order_by(Event.start_date.asc()).all()
+    import json
+    import csv
+    from io import StringIO, BytesIO
+    import zipfile
+
+    mem_zip = BytesIO()
+    with zipfile.ZipFile(mem_zip, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for ev in events:
+            prefix = f'event_{ev.id}'
+            # event JSON
+            ev_dict = {
+                'id': ev.id,
+                'title': ev.title,
+                'start_date': ev.start_date.isoformat() if ev.start_date else None,
+                'end_date': ev.end_date.isoformat() if ev.end_date else None,
+                'location': ev.location,
+                'sportdata_url': ev.sportdata_url,
+                'notes': ev.notes,
+            }
+            zf.writestr(f'{prefix}/{prefix}_detail.json', json.dumps(ev_dict, ensure_ascii=False, indent=2))
+
+            # categories
+            cats = EventCategory.query.filter_by(event_id=ev.id).order_by(EventCategory.name.asc()).all()
+            cat_out = StringIO()
+            cat_writer = csv.writer(cat_out)
+            cat_writer.writerow(['id', 'name', 'age_from', 'age_to', 'sex', 'fee', 'team_size', 'kyu', 'dan', 'other_cutoff_date', 'limit_team', 'limit'])
+            for c in cats:
+                cat_writer.writerow([c.id, c.name, c.age_from, c.age_to, c.sex, c.fee, c.team_size, c.kyu, c.dan, c.other_cutoff_date, c.limit_team, c.limit])
+            zf.writestr(f'{prefix}/{prefix}_categories.csv', cat_out.getvalue())
+
+            # registrations
+            regs = (EventRegistration.query
+                    .filter_by(event_id=ev.id)
+                    .join(Player, Player.id == EventRegistration.player_id)
+                    .order_by(Player.last_name.asc(), Player.first_name.asc())
+                    .all())
+            reg_out = StringIO()
+            reg_writer = csv.writer(reg_out)
+            reg_writer.writerow(['id', 'player_id', 'player_name', 'fee_override', 'computed_fee', 'paid', 'paid_on', 'note', 'categories', 'medals'])
+            for r in regs:
+                cats_list = []
+                medals_list = []
+                for rc in r.reg_categories or []:
+                    cats_list.append(rc.category.name if rc.category else '')
+                    medals_list.append(rc.medal or '')
+                computed = r.fee_override if r.fee_override is not None else (sum((rc.category.fee or 0) for rc in r.reg_categories) if r.reg_categories else '')
+                reg_writer.writerow([r.id, r.player_id, r.player.full_name() if r.player else '', r.fee_override, computed, r.paid, (r.paid_on.isoformat() if r.paid_on else ''), '', '; '.join(cats_list), '; '.join(medals_list)])
+            zf.writestr(f'{prefix}/{prefix}_registrations.csv', reg_out.getvalue())
+
+            # per-player CSVs
+            player_ids = {r.player_id for r in regs if r.player_id}
+            players = Player.query.filter(Player.id.in_(player_ids)).all() if player_ids else []
+            fieldnames = [
+                'id', 'first_name', 'last_name', 'gender', 'birthdate', 'pn',
+                'belt_rank', 'grade_level', 'grade_date', 'discipline', 'weight_kg', 'height_cm',
+                'email', 'phone', 'join_date', 'active_member', 'notes', 'photo_filename',
+                'sportdata_wkf_url', 'sportdata_bnfk_url', 'sportdata_enso_url',
+                'medical_exam_date', 'medical_expiry_date', 'insurance_expiry_date',
+                'monthly_fee_amount', 'monthly_fee_is_monthly',
+                'mother_name', 'mother_phone', 'father_name', 'father_phone'
+            ]
+            for p in players:
+                out = StringIO()
+                dw = csv.DictWriter(out, fieldnames=fieldnames)
+                dw.writeheader()
+                row = {k: getattr(p, k, '') for k in fieldnames}
+                for k, v in row.items():
+                    if hasattr(v, 'isoformat'):
+                        row[k] = v.isoformat()
+                    elif isinstance(v, bool):
+                        row[k] = str(v)
+                zf.writestr(f'{prefix}/players/player_{p.id}_{(p.last_name or "").replace(" ","_")}.csv', out.getvalue())
+
+    mem_zip.seek(0)
+    headers = {'Content-Disposition': 'attachment; filename="events_all_full_export.zip"'}
+    return Response(mem_zip.getvalue(), mimetype='application/zip', headers=headers)
+
+
+@app.route('/admin/payments/import_csv', methods=['POST'])
+@admin_required
+def admin_payments_import_csv():
+    """Import payment/receipt rows from CSV into PaymentRecord."""
+    if 'csv_file' not in request.files:
+        flash('No file uploaded', 'danger')
+        return redirect(request.referrer or url_for('admin_imports'))
+    file = request.files.get('csv_file')
+    if not file or not file.filename:
+        flash('No file uploaded', 'danger')
+        return redirect(request.referrer or url_for('admin_imports'))
+    import io
+    import csv
+    import datetime
+
+    text_stream = io.TextIOWrapper(file.stream, encoding='utf-8-sig', errors='replace')
+    reader = csv.DictReader(text_stream)
+    created = 0
+    skipped = 0
+    errors = []
+    for idx, row in enumerate(reader, start=1):
+        try:
+            def g(k):
+                return (row.get(k) or '').strip() or None
+
+            player_pn = g('player_pn')
+            player_id = g('player_id')
+            player_obj = None
+            if player_pn:
+                player_obj = Player.query.filter_by(pn=player_pn).first()
+            elif player_id:
+                try:
+                    player_obj = Player.query.get(int(player_id))
+                except Exception:
+                    player_obj = None
+
+            if not player_obj:
+                skipped += 1
+                continue
+
+            kind = g('kind') or 'training_session'
+            amount_raw = g('amount') or '0'
+            try:
+                amount = int(float(amount_raw))
+            except Exception:
+                amount = 0
+
+            paid_flag = g('paid')
+            paid = True if str(paid_flag).strip() in ('1', 'true', 'yes', 'y') else False
+
+            paid_at = None
+            if g('paid_at'):
+                try:
+                    paid_at = datetime.datetime.fromisoformat(g('paid_at'))
+                except Exception:
+                    paid_at = None
+
+            pr = PaymentRecord(
+                kind=kind,
+                player_id=player_obj.id,
+                player_pn=player_obj.pn,
+                year=int(g('year')) if g('year') else None,
+                month=int(g('month')) if g('month') else None,
+                sessions_paid=int(g('sessions_paid')) if g('sessions_paid') else 0,
+                sessions_taken=int(g('sessions_taken')) if g('sessions_taken') else 0,
+                amount=amount,
+                currency=g('currency') or 'EUR',
+                method=g('method'),
+                note=g('note'),
+                receipt_no=g('receipt_no') or None,
+                paid_at=paid_at or datetime.datetime.utcnow(),
+            )
+            # Avoid duplicate receipt_no
+            if pr.receipt_no:
+                existing = PaymentRecord.query.filter_by(receipt_no=pr.receipt_no).first()
+                if existing:
+                    skipped += 1
+                    continue
+
+            db.session.add(pr)
+            db.session.flush()
+            # Assign generated receipt if none
+            if not pr.receipt_no:
+                pr.assign_receipt_no(do_commit=False)
+            created += 1
+        except Exception as e:
+            app.logger.exception('Payments import row failed')
+            errors.append(f'Row {idx}: {e}')
+
+    db.session.commit()
+    flash(f'Payments imported: {created}. Skipped: {skipped}. Errors: {len(errors)}', 'success' if not errors else 'warning')
+    if errors:
+        app.logger.warning('\n'.join(errors))
+    return redirect(request.referrer or url_for('admin_imports'))
 
 # -------- Players CSV ----------
 @app.route("/export/csv")
@@ -1870,7 +2414,7 @@ def export_csv():
 
         for p in players:
             sess_records = (PaymentRecord.query
-                            .filter_by(player_id=p.id, kind='training_session')
+                            .filter_by(player_pn=p.pn, kind='training_session')
                             .all())
             explicit_sessions_paid = sum((r.sessions_paid or 0) for r in sess_records)
             sessions_taken = sum((r.sessions_taken or 0) for r in sess_records)
@@ -1918,7 +2462,7 @@ def export_csv():
     return Response(generate(), mimetype="text/csv", headers=headers)
 
 # -------- Sports Calendar ----------
-@app.route("/events")
+@app.route("/events", endpoint="events_calendar")
 def events_calendar():
     month_str = request.args.get("month")
     y, m = parse_month_str(month_str)
@@ -1972,7 +2516,7 @@ def event_detail(event_id: int):
     ev = Event.query.get_or_404(event_id)
     regs = (EventRegistration.query
             .filter_by(event_id=ev.id)
-            .join(Player)
+            .join(Player, Player.id == EventRegistration.player_id)
             .order_by(Player.last_name.asc(), Player.first_name.asc())
             .all())
 
@@ -2064,14 +2608,44 @@ def event_delete(event_id: int):
 def event_categories(event_id: int):
     ev = Event.query.get_or_404(event_id)
     form = EventCategoryForm()
+    # load existing categories early so we can re-render on validation errors
+    cats = ev.categories.order_by(EventCategory.name.asc()).all()
+
     if form.validate_on_submit():
-        cat = EventCategory(event_id=ev.id, name=form.name.data, fee=form.fee.data)
+        # helper to parse integers from raw form
+        def gf_int(key):
+            v = request.form.get(key)
+            try:
+                return int(v) if v not in (None, '') else None
+            except Exception:
+                return None
+
+        age_from_val = gf_int('age_from')
+        age_to_val = gf_int('age_to')
+        # Validate age range when both provided
+        if age_from_val is not None and age_to_val is not None and age_to_val < age_from_val:
+            flash(_('Age "to" must be greater than or equal to Age "from".'), 'danger')
+            return render_template("event_categories.html", ev=ev, cats=cats, form=form)
+
+        cat = EventCategory(
+            event_id=ev.id,
+            name=form.name.data,
+            age_from=age_from_val,
+            age_to=age_to_val,
+            sex=request.form.get('sex') or None,
+            fee=form.fee.data,
+            team_size=request.form.get('team_size') or None,
+            kyu=request.form.get('kyu') or None,
+            dan=request.form.get('dan') or None,
+            other_cutoff_date=request.form.get('other_cutoff_date') or None,
+            limit=request.form.get('limit') or None,
+            limit_team=request.form.get('limit_team') or None,
+        )
         db.session.add(cat)
         db.session.commit()
-        flash(_("Category added."), "success")
-        return redirect(url_for("event_categories", event_id=ev.id))
-    cats = ev.categories.order_by(EventCategory.name.asc()).all()
-    return render_template("event_categories.html", ev=ev, cats=cats, form=form)
+        flash(_('Category added.'), 'success')
+        return redirect(url_for('event_categories', event_id=ev.id))
+    return render_template('event_categories.html', ev=ev, cats=cats, form=form)
 
 @app.route("/admin/events/<int:event_id>/categories/<int:cat_id>/delete", methods=["POST"])
 @admin_required
@@ -2082,6 +2656,57 @@ def event_category_delete(event_id: int, cat_id: int):
     db.session.commit()
     flash(_("Category deleted."), "info")
     return redirect(url_for("event_categories", event_id=ev.id))
+
+
+@app.route("/admin/events/<int:event_id>/categories/<int:cat_id>/edit", methods=["GET", "POST"])
+@admin_required
+def event_category_edit(event_id: int, cat_id: int):
+    ev = Event.query.get_or_404(event_id)
+    cat = EventCategory.query.filter_by(id=cat_id, event_id=ev.id).first_or_404()
+    form = EventCategoryForm(obj=cat)
+    # If this is an AJAX GET (modal load), return a fragment without base layout
+    if request.method == 'GET' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render_template('_event_category_modal_fragment.html', ev=ev, form=form, cat=cat)
+
+    if request.method == 'POST':
+        # parse integer fields
+        def gf_int(key):
+            v = request.form.get(key)
+            try:
+                return int(v) if v not in (None, '') else None
+            except Exception:
+                return None
+
+        age_from_val = gf_int('age_from')
+        age_to_val = gf_int('age_to')
+        if age_from_val is not None and age_to_val is not None and age_to_val < age_from_val:
+            msg = _('Age "to" must be greater than or equal to Age "from".')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return {'success': False, 'error': msg}, 400
+            flash(msg, 'danger')
+            return render_template('event_category_form.html', ev=ev, form=form, cat=cat)
+
+        # update fields
+        cat.name = request.form.get('name') or cat.name
+        cat.age_from = age_from_val
+        cat.age_to = age_to_val
+        cat.sex = request.form.get('sex') or None
+        cat.fee = gf_int('fee')
+        cat.team_size = request.form.get('team_size') or None
+        cat.kyu = request.form.get('kyu') or None
+        cat.dan = request.form.get('dan') or None
+        cat.other_cutoff_date = request.form.get('other_cutoff_date') or None
+        cat.limit = request.form.get('limit') or None
+        cat.limit_team = request.form.get('limit_team') or None
+        db.session.add(cat)
+        db.session.commit()
+        flash(_('Category updated.'), 'success')
+        # If AJAX request, return JSON so modal can close without redirect
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return {'success': True}
+        return redirect(url_for('event_categories', event_id=ev.id))
+
+    return render_template('event_category_form.html', ev=ev, form=form, cat=cat)
 
 #-----------------------------
 # Manually added
@@ -2224,9 +2849,12 @@ def event_registrations(event_id: int):
                     existing_reg.paid_on = date.today()
                 db.session.add(existing_reg)
             else:
+                # set player_pn for new registration
+                player_obj = Player.query.get(pid)
                 reg = EventRegistration(
                     event_id=ev.id,
                     player_id=pid,
+                    player_pn=(player_obj.pn if player_obj else None),
                     fee_override=form.fee_override.data,
                     paid=bool(form.paid.data),
                     paid_on=(date.today() if form.paid.data else None),
@@ -2246,7 +2874,7 @@ def event_registrations(event_id: int):
 
     regs_query = (EventRegistration.query
                   .filter_by(event_id=ev.id)
-                  .join(Player))
+                  .join(Player, Player.id == EventRegistration.player_id))
 
     if paid_filter == "paid":
         regs_query = regs_query.filter(EventRegistration.paid.is_(True))
@@ -2346,25 +2974,447 @@ def event_export_csv(event_id: int):
     ev = Event.query.get_or_404(event_id)
     regs = (EventRegistration.query
             .filter_by(event_id=ev.id)
-            .join(Player)
+            .join(Player, Player.id == EventRegistration.player_id)
             .order_by(Player.last_name.asc(), Player.first_name.asc())
             .all())
+    # Precompute CSV rows while the DB session is active to avoid detached-instance lazy loads
+    csv_rows = []
+    for r in regs:
+        cats = "; ".join([rc.category.name for rc in r.reg_categories]) if r.reg_categories else ""
+        medals = "; ".join([rc.medal or "" for rc in r.reg_categories]) if r.reg_categories else ""
+        expected = r.fee_override if r.fee_override is not None else (
+            sum((rc.category.fee or 0) for rc in r.reg_categories) if r.reg_categories else ""
+        )
+        paid = "yes" if r.paid else "no"
+        paid_on = r.paid_on.isoformat() if r.paid_on else ""
+        endd = (ev.end_date or ev.start_date).isoformat()
+        full_name = r.player.full_name() if r.player else ''
+        csv_rows.append((r.player_id, full_name, cats, medals, expected, paid, paid_on, ev.title, ev.start_date.isoformat(), endd, ev.location or ''))
 
     def generate():
         yield "player_id,full_name,categories,medals,fee_eur,paid,paid_on,event_title,start_date,end_date,location\n"
-        for r in regs:
-            cats = "; ".join([rc.category.name for rc in r.reg_categories]) if r.reg_categories else ""
-            medals = "; ".join([rc.medal or "" for rc in r.reg_categories]) if r.reg_categories else ""
-            expected = r.fee_override if r.fee_override is not None else (
-                sum((rc.category.fee or 0) for rc in r.reg_categories) if r.reg_categories else ""
-            )
-            paid = "yes" if r.paid else "no"
-            paid_on = r.paid_on.isoformat() if r.paid_on else ""
-            endd = (ev.end_date or ev.start_date).isoformat()
-            yield f"{r.player_id},{r.player.full_name()},{cats},{medals},{expected},{paid},{paid_on},{ev.title},{ev.start_date.isoformat()},{endd},{ev.location or ''}\n"
+        for row in csv_rows:
+            # Ensure values are CSV-safe (simple approach)
+            vals = [str(v) for v in row]
+            yield ",".join(vals) + "\n"
 
     headers = {"Content-Disposition": f'attachment; filename="event_{ev.id}_registrations.csv"'}
     return Response(generate(), mimetype="text/csv", headers=headers)
+
+
+@app.route("/admin/events/<int:event_id>/export_full", endpoint='event_export_full')
+@admin_required
+def event_export_full(event_id: int):
+    """Export full event data as a ZIP: event.json, categories.csv, registrations.csv,
+    per-player CSVs and photos."""
+    ev = Event.query.get_or_404(event_id)
+    cats = EventCategory.query.filter_by(event_id=ev.id).order_by(EventCategory.name.asc()).all()
+    regs = (EventRegistration.query
+            .filter_by(event_id=ev.id)
+            .join(Player, Player.id == EventRegistration.player_id)
+            .order_by(Player.last_name.asc(), Player.first_name.asc())
+            .all())
+
+    import json
+    import csv
+    from io import StringIO, BytesIO
+    import zipfile
+
+    # Prepare per-player list
+    player_ids = {r.player_id for r in regs if r.player_id}
+    players = Player.query.filter(Player.id.in_(player_ids)).all() if player_ids else []
+
+    mem_zip = BytesIO()
+    with zipfile.ZipFile(mem_zip, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        # event JSON
+        ev_dict = {
+            'id': ev.id,
+            'title': ev.title,
+            'start_date': ev.start_date.isoformat() if ev.start_date else None,
+            'end_date': ev.end_date.isoformat() if ev.end_date else None,
+            'location': ev.location,
+            'sportdata_url': ev.sportdata_url,
+            'notes': ev.notes,
+        }
+        zf.writestr(f'event_{ev.id}_detail.json', json.dumps(ev_dict, ensure_ascii=False, indent=2))
+
+        # categories CSV
+        cat_out = StringIO()
+        cat_writer = csv.writer(cat_out)
+        cat_writer.writerow(['id', 'name', 'age_from', 'age_to', 'sex', 'fee', 'team_size', 'kyu', 'dan', 'other_cutoff_date', 'limit_team', 'limit'])
+        for c in cats:
+            cat_writer.writerow([c.id, c.name, c.age_from, c.age_to, c.sex, c.fee, c.team_size, c.kyu, c.dan, c.other_cutoff_date, c.limit_team, c.limit])
+        zf.writestr(f'event_{ev.id}_categories.csv', cat_out.getvalue())
+
+        # registrations CSV
+        reg_out = StringIO()
+        reg_writer = csv.writer(reg_out)
+        reg_writer.writerow(['id', 'player_id', 'player_name', 'fee_override', 'computed_fee', 'paid', 'paid_on', 'note', 'categories', 'medals'])
+        for r in regs:
+            cats_list = []
+            medals_list = []
+            for rc in r.reg_categories or []:
+                # rc.category may be loaded; protect against None
+                cats_list.append(rc.category.name if rc.category else '')
+                medals_list.append(rc.medal or '')
+            computed = r.fee_override if r.fee_override is not None else (sum((rc.category.fee or 0) for rc in r.reg_categories) if r.reg_categories else '')
+            reg_writer.writerow([r.id, r.player_id, r.player.full_name() if r.player else '', r.fee_override, computed, r.paid, (r.paid_on.isoformat() if r.paid_on else ''), '', '; '.join(cats_list), '; '.join(medals_list)])
+        zf.writestr(f'event_{ev.id}_registrations.csv', reg_out.getvalue())
+
+        # per-player CSVs
+        fieldnames = [
+            'id', 'first_name', 'last_name', 'gender', 'birthdate', 'pn',
+            'belt_rank', 'grade_level', 'grade_date', 'discipline', 'weight_kg', 'height_cm',
+            'email', 'phone', 'join_date', 'active_member', 'notes', 'photo_filename',
+            'sportdata_wkf_url', 'sportdata_bnfk_url', 'sportdata_enso_url',
+            'medical_exam_date', 'medical_expiry_date', 'insurance_expiry_date',
+            'monthly_fee_amount', 'monthly_fee_is_monthly',
+            'mother_name', 'mother_phone', 'father_name', 'father_phone'
+        ]
+        for p in players:
+            out = StringIO()
+            dw = csv.DictWriter(out, fieldnames=fieldnames)
+            dw.writeheader()
+            row = {k: getattr(p, k, '') for k in fieldnames}
+            for k, v in row.items():
+                if hasattr(v, 'isoformat'):
+                    row[k] = v.isoformat()
+                elif isinstance(v, bool):
+                    row[k] = str(v)
+            dw.writerow(row)
+            zf.writestr(f'players/player_{p.id}_{(p.last_name or "").replace(" ","_")}.csv', out.getvalue())
+
+            # photos are intentionally omitted from full export
+
+    mem_zip.seek(0)
+    headers = {'Content-Disposition': f'attachment; filename="event_{ev.id}_full_export.zip"'}
+    return Response(mem_zip.getvalue(), mimetype='application/zip', headers=headers)
+
+
+@app.route('/admin/events/import_zip', methods=['POST'])
+@admin_required
+def import_event_zip():
+    # Handle uploaded ZIP exported by the full-event export
+    if 'zipfile' not in request.files:
+        flash('No file uploaded', 'danger')
+        return redirect(request.referrer or url_for('events_calendar'))
+    f = request.files['zipfile']
+    if f.filename == '':
+        flash('No file selected', 'danger')
+        return redirect(request.referrer or url_for('events_calendar'))
+    try:
+        import io
+        import zipfile
+        import re
+        import csv
+        import json as _json
+
+        data = f.read()
+        bio = io.BytesIO(data)
+        with zipfile.ZipFile(bio) as z:
+            app.logger.info(f"ZIP contents: {z.namelist()}")
+            # Find event detail JSON matching export pattern: event_<id>_detail.json
+            ev_json = None
+            ev_prefix = None
+            for name in z.namelist():
+                m = re.match(r'^event_(\d+)_detail\.json$', os.path.basename(name))
+                if m:
+                    ev_prefix = f'event_{m.group(1)}'
+                    with z.open(name) as ef:
+                        ev_json = _json.load(io.TextIOWrapper(ef, encoding='utf-8'))
+                    break
+
+            # Determine categories filename (prefer event_{id}_categories.csv)
+            cat_filename = None
+            if ev_prefix:
+                want = f'{ev_prefix}_categories.csv'
+                if want in z.namelist():
+                    cat_filename = want
+            if not cat_filename:
+                # fallback to any file that ends with categories.csv
+                for name in z.namelist():
+                    if name.endswith('categories.csv'):
+                        cat_filename = name
+                        break
+
+            # Create or find Event record from the exported JSON
+            ev = None
+            if ev_json:
+                try:
+                    sd = ev_json
+                    sd_start = None
+                    sd_end = None
+                    if sd.get('start_date'):
+                        try:
+                            sd_start = date.fromisoformat(sd.get('start_date'))
+                        except Exception:
+                            sd_start = None
+                    if sd.get('end_date'):
+                        try:
+                            sd_end = date.fromisoformat(sd.get('end_date'))
+                        except Exception:
+                            sd_end = None
+                    # Try to find an existing event by title+start_date
+                    if sd.get('title') and sd_start:
+                        ev = Event.query.filter_by(title=sd.get('title'), start_date=sd_start).first()
+                    if not ev:
+                        ev = Event(title=sd.get('title') or 'Imported event', start_date=sd_start, end_date=sd_end, location=sd.get('location'), sportdata_url=sd.get('sportdata_url'), notes=sd.get('notes'))
+                        db.session.add(ev)
+                        db.session.flush()
+                except Exception:
+                    ev = None
+
+            created_cats = []
+            if cat_filename:
+                with z.open(cat_filename) as cf:
+                    txt = io.TextIOWrapper(cf, encoding='utf-8')
+                    reader = csv.DictReader(txt)
+                    app.logger.info(f"Categories CSV headers: {reader.fieldnames}")
+                    if reader.fieldnames:
+                        for i, row in enumerate(reader):
+                            if i < 5:
+                                app.logger.info(f"Categories CSV row {i}: {row}")
+                            try:
+                                # Normalize keys and values
+                                norm_row = { (k.strip().lower() if k else k): (v.strip() if isinstance(v, str) else v) for k, v in row.items() }
+                                name = (norm_row.get('name') or '').strip()
+                                if not name:
+                                    continue
+                                def parse_int_field(val):
+                                    if val in (None, ''):
+                                        return None
+                                    try:
+                                        return int(float(val))
+                                    except Exception:
+                                        return None
+                                age_from = parse_int_field(norm_row.get('age_from'))
+                                age_to = parse_int_field(norm_row.get('age_to'))
+                                sex = norm_row.get('sex') or None
+                                fee = None
+                                if norm_row.get('fee'):
+                                    try:
+                                        fee = int(float(norm_row.get('fee')))
+                                    except Exception:
+                                        fee = None
+                                team_size = norm_row.get('team_size') or None
+                                kyu = norm_row.get('kyu') or None
+                                dan = norm_row.get('dan') or None
+                                other_cutoff_date = norm_row.get('other_cutoff_date') or None
+                                limit_team = norm_row.get('limit_team') or None
+                                limit = norm_row.get('limit') or None
+                                if not EventCategory.query.filter_by(event_id=ev.id, name=name).first():
+                                    cat = EventCategory(event_id=ev.id, name=name, age_from=age_from, age_to=age_to, sex=sex, fee=fee, team_size=team_size, kyu=kyu, dan=dan, other_cutoff_date=other_cutoff_date, limit=limit, limit_team=limit_team)
+                                    db.session.add(cat)
+                                    created_cats.append(cat)
+                            except Exception:
+                                app.logger.exception('Error parsing category row')
+                                continue
+            db.session.commit()
+
+            # Build category lookup by name for registrations
+            db.session.flush()
+            cat_by_name = {c.name: c for c in EventCategory.query.filter_by(event_id=ev.id).all()}
+            cats_created_count = len(created_cats)
+
+            # Registrations
+            regs_imported = 0
+            regs_skipped = 0
+            regs_duplicated = 0
+            reg_name = f'{ev_prefix}_registrations.csv' if ev_prefix else 'registrations.csv'
+            if reg_name in z.namelist():
+                with z.open(reg_name) as rf:
+                    txt = io.TextIOWrapper(rf, encoding='utf-8')
+                    reader = csv.DictReader(txt)
+                    for row in reader:
+                        try:
+                            orig_player_id = int(row.get('player_id') or 0)
+                        except Exception:
+                            orig_player_id = None
+                        player = None
+                        if orig_player_id:
+                            player = Player.query.get(orig_player_id)
+                        if not player:
+                            regs_skipped += 1
+                            continue
+                        if EventRegistration.query.filter_by(event_id=ev.id, player_pn=player.pn).first():
+                            regs_duplicated += 1
+                            continue
+                        fee_override = None
+                        try:
+                            fee_override = int(row.get('fee_override')) if row.get('fee_override') else None
+                        except Exception:
+                            fee_override = None
+                        paid = (str(row.get('paid') or '').lower() in ('1','true','yes'))
+                        reg = EventRegistration(event_id=ev.id, player_id=player.id, player_pn=player.pn, fee_override=fee_override, paid=paid, paid_on=(date.fromisoformat(row.get('paid_on')) if row.get('paid_on') else None))
+                        db.session.add(reg)
+                        db.session.flush()
+                        regs_imported += 1
+                        cats_field = row.get('categories') or ''
+                        medals_field = row.get('medals') or ''
+                        cats_list = [c.strip() for c in cats_field.split(';') if c.strip()]
+                        medals_list = [m.strip() for m in medals_field.split(';') if m.strip()]
+                        for idx, cname in enumerate(cats_list):
+                            cat_obj = cat_by_name.get(cname)
+                            if cat_obj:
+                                if not EventRegCategory.query.filter_by(registration_id=reg.id, category_id=cat_obj.id).first():
+                                    rc = EventRegCategory(registration_id=reg.id, category_id=cat_obj.id)
+                                    if idx < len(medals_list) and medals_list[idx]:
+                                        rc.medal = medals_list[idx]
+                                    db.session.add(rc)
+            db.session.commit()
+            flash(f'Event imported. Categories created: {cats_created_count}. Registrations imported: {regs_imported}. Registrations skipped (no matching player): {regs_skipped}. Registrations skipped (duplicate): {regs_duplicated}.', 'success')
+            return redirect(url_for('event_detail', event_id=ev.id))
+    except zipfile.BadZipFile:
+        flash('Uploaded file is not a valid ZIP archive', 'danger')
+    except Exception as e:
+        app.logger.exception('Import failed')
+        flash(f'Import failed: {e}', 'danger')
+    return redirect(request.referrer or url_for('events_calendar'))
+
+
+# -------- Players ZIP import --------
+@app.route('/admin/players/import_zip', methods=['POST'])
+@admin_required
+def import_players_zip():
+    if 'zipfile' not in request.files:
+        flash('No file uploaded', 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+    f = request.files['zipfile']
+    if f.filename == '':
+        flash('No file selected', 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+    try:
+        import io
+        import zipfile
+        import csv
+
+        data = f.read()
+        bio = io.BytesIO(data)
+        created = 0
+        updated = 0
+        skipped = 0
+        errors = 0
+        with zipfile.ZipFile(bio) as z:
+            app.logger.info(f"Players ZIP contents: {z.namelist()}")
+            # compute used ids to allocate first-available ids (include ones we create during this run)
+            existing_ids = {r[0] for r in db.session.query(Player.id).all()}
+            used_ids = set(existing_ids)
+
+            def first_available_id():
+                i = 1
+                while i in used_ids:
+                    i += 1
+                used_ids.add(i)
+                return i
+
+            # Process files under players/ or any CSV files that look like player exports
+            for name in z.namelist():
+                base = os.path.basename(name)
+                if not base.lower().endswith('.csv'):
+                    continue
+                # prefer files in players/ folder but accept any csv
+                if ('players/' not in name) and (not base.startswith('player_')):
+                    continue
+                with z.open(name) as pf:
+                    txt = io.TextIOWrapper(pf, encoding='utf-8')
+                    reader = csv.DictReader(txt)
+                    app.logger.info(f"Player CSV headers for {name}: {reader.fieldnames}")
+                    if not reader.fieldnames:
+                        continue
+                    for i, row in enumerate(reader):
+                        try:
+                            # normalize keys
+                            norm = { (k.strip().lower() if k else k): (v.strip() if isinstance(v, str) else v) for k, v in row.items() }
+
+                            def parse_date(v):
+                                if not v:
+                                    return None
+                                try:
+                                    return date.fromisoformat(v)
+                                except Exception:
+                                    return None
+
+                            def parse_int(v):
+                                if not v:
+                                    return None
+                                try:
+                                    return int(float(v))
+                                except Exception:
+                                    return None
+
+                            fn = norm.get('first_name') or ''
+                            ln = norm.get('last_name') or ''
+                            if not (fn and ln):
+                                skipped += 1
+                                continue
+
+                            # Always create a new Player; do NOT overwrite existing records.
+                            # PN is required — skip rows without PN to avoid creating invalid records.
+                            pn_val = norm.get('pn') or None
+                            if not pn_val:
+                                skipped += 1
+                                continue
+                            # Skip if PN already exists in DB
+                            if Player.query.filter_by(pn=pn_val).first():
+                                app.logger.info(f"Skipping import: PN already exists {pn_val}")
+                                skipped += 1
+                                continue
+                            # Assign the first available numeric id (fill gaps) to the new player.
+                            p = Player(
+                                first_name=fn,
+                                last_name=ln,
+                                gender=norm.get('gender') or None,
+                                birthdate=parse_date(norm.get('birthdate')),
+                                pn=pn_val,
+                                belt_rank=norm.get('belt_rank') or 'White',
+                                grade_level=norm.get('grade_level') or None,
+                                grade_date=parse_date(norm.get('grade_date')),
+                                discipline=norm.get('discipline') or 'All',
+                                weight_kg=parse_int(norm.get('weight_kg')),
+                                height_cm=parse_int(norm.get('height_cm')),
+                                email=norm.get('email') or None,
+                                phone=norm.get('phone') or None,
+                                join_date=parse_date(norm.get('join_date')),
+                                active_member=(str(norm.get('active_member')).lower() in ('1','true','yes')) if norm.get('active_member') is not None else True,
+                                notes=norm.get('notes') or None,
+                                sportdata_wkf_url=norm.get('sportdata_wkf_url') or None,
+                                sportdata_bnfk_url=norm.get('sportdata_bnfk_url') or None,
+                                sportdata_enso_url=norm.get('sportdata_enso_url') or None,
+                                medical_exam_date=parse_date(norm.get('medical_exam_date')),
+                                medical_expiry_date=parse_date(norm.get('medical_expiry_date')),
+                                insurance_expiry_date=parse_date(norm.get('insurance_expiry_date')),
+                                monthly_fee_amount=parse_int(norm.get('monthly_fee_amount')),
+                                monthly_fee_is_monthly=(str(norm.get('monthly_fee_is_monthly')).lower() in ('1','true','yes')) if norm.get('monthly_fee_is_monthly') is not None else True,
+                                mother_name=norm.get('mother_name') or None,
+                                mother_phone=norm.get('mother_phone') or None,
+                                father_name=norm.get('father_name') or None,
+                                father_phone=norm.get('father_phone') or None,
+                            )
+                            # allocate id
+                            try:
+                                p.id = first_available_id()
+                            except Exception:
+                                pass
+                            db.session.add(p)
+                            created += 1
+                        except Exception:
+                            app.logger.exception('Error importing player row')
+                            errors += 1
+            db.session.commit()
+            # Ensure monthly payments exist for newly imported players so dues show up
+            try:
+                from datetime import date as _date
+                ensure_payments_for_month(_date.today().year, _date.today().month)
+            except Exception:
+                app.logger.exception('Failed to ensure monthly payments after import')
+        flash(f'Players import finished. Created: {created}. Updated: {updated}. Skipped: {skipped}. Errors: {errors}.', 'success')
+        return redirect(url_for('list_players'))
+    except zipfile.BadZipFile:
+        flash('Uploaded file is not a valid ZIP archive', 'danger')
+    except Exception as e:
+        app.logger.exception('Players import failed')
+        flash(f'Import failed: {e}', 'danger')
+    return redirect(request.referrer or url_for('list_players'))
 
 # -------- Medals Year Report --------
 @app.route("/reports/medals")
@@ -2561,6 +3611,28 @@ def auto_migrate_on_startup():
         if "related_receipt_id" not in existing2:
             conn.execute(text("ALTER TABLE payment_record ADD COLUMN related_receipt_id INTEGER"))
 
+        # Add player_pn columns to related tables to support PN-based relations
+        for tbl in ("training_session", "payment", "event_registration", "payment_record"):
+            info = conn.execute(text(f"PRAGMA table_info({tbl})"))
+            cols = {row[1] for row in info}
+            if "player_pn" not in cols:
+                conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN player_pn VARCHAR(20)"))
+
+        # Ensure Player.pn is unique (create unique index)
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_player_pn ON player (pn)"))
+        except Exception:
+            pass
+
+        # Backfill player_pn from existing player_id values
+        try:
+            conn.execute(text("UPDATE training_session SET player_pn = (SELECT pn FROM player WHERE player.id = training_session.player_id) WHERE player_pn IS NULL"))
+            conn.execute(text("UPDATE payment SET player_pn = (SELECT pn FROM player WHERE player.id = payment.player_id) WHERE player_pn IS NULL"))
+            conn.execute(text("UPDATE event_registration SET player_pn = (SELECT pn FROM player WHERE player.id = event_registration.player_id) WHERE player_pn IS NULL"))
+            conn.execute(text("UPDATE payment_record SET player_pn = (SELECT pn FROM player WHERE player.id = payment_record.player_id) WHERE player_pn IS NULL"))
+        except Exception:
+            app.logger.exception('Backfill player_pn failed')
+
         # Add unique constraint on (player_id, date) for TrainingSession
         try:
             conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_player_session_date ON training_session (player_id, date)"))
@@ -2624,12 +3696,12 @@ def payment_new():
         month_str = request.form.get("month")
         y, m = parse_month_str(month_str)
         # Check for duplicate monthly payment
-        exists = PaymentRecord.query.filter_by(kind="training_month", player_id=player.id, year=y, month=m).first()
+        exists = PaymentRecord.query.filter_by(kind="training_month", player_pn=player.pn, year=y, month=m).first()
         if exists:
             flash("Duplicate monthly payment for this player and month is not allowed.", "danger")
             return redirect(url_for("payment_new", player_id=player.id))
-        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=player.id, year=y, month=m)
-        pay = Payment.query.filter_by(player_id=player.id, year=y, month=m).first()
+        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=player.id, player_pn=player.pn, year=y, month=m)
+        pay = Payment.query.filter_by(player_pn=player.pn, year=y, month=m).first()
         record.payment_id = pay.id if pay else None
     elif kind == "event":
         rid = request.form.get("reg_id", type=int)
@@ -2638,11 +3710,12 @@ def payment_new():
             flash("Event registration is required for event payments.", "danger")
             return redirect(url_for("payment_new", reg_id=reg_id))
         # Check for duplicate event payment for this registration
-        exists = PaymentRecord.query.filter_by(kind="event", player_id=reg.player_id, event_registration_id=reg.id).first()
+        reg_pn = (reg.player_pn or (reg.player.pn if getattr(reg, 'player', None) else None))
+        exists = PaymentRecord.query.filter_by(kind="event", player_pn=reg_pn, event_registration_id=reg.id).first()
         if exists:
             flash("Duplicate event/category payment for this player and event registration is not allowed.", "danger")
             return redirect(url_for("payment_new", player_id=reg.player_id, reg_id=reg.id))
-        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=reg.player_id, event_registration_id=reg.id)
+        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=reg.player_id, player_pn=(reg.player_pn or (reg.player.pn if getattr(reg, 'player', None) else None)), event_registration_id=reg.id)
     elif kind == "training_session":
         pid = request.form.get("player_id", type=int)
         player = Player.query.get(pid)
@@ -2650,7 +3723,7 @@ def payment_new():
             flash("Player is required for training payments.", "danger")
             return redirect(url_for("payment_new", player_id=player_id))
         sessions_paid = request.form.get("sessions_paid", type=int) or 0
-        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=player.id, sessions_paid=max(0, sessions_paid), sessions_taken=0)
+        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=player.id, player_pn=player.pn, sessions_paid=max(0, sessions_paid), sessions_taken=0)
         if player.monthly_fee_amount is not None and not player.monthly_fee_is_monthly:
             try:
                 per_price = float(player.monthly_fee_amount)
@@ -2695,13 +3768,15 @@ def player_due_print(player_id: int):
     ensure_payments_for_month(year, month)
 
     player = Player.query.get_or_404(player_id)
-    pay = Payment.query.filter_by(player_id=player.id, year=year, month=month).first()
+    pay = Payment.query.filter_by(player_pn=player.pn, year=year, month=month).first()
 
     first = date(year, month, 1)
-    last = date(year, month, calendar.monthrange(year, month)[1])
+    last_day = calendar.monthrange(year, month)[1]
+    last = date(year, month, last_day)
+
     regs_unpaid = (EventRegistration.query
                    .join(Event)
-                   .filter(EventRegistration.player_id == player.id)
+                   .filter(EventRegistration.player_pn == player.pn)
                    .filter(EventRegistration.paid.is_(False))
                    .filter(Event.start_date >= first, Event.start_date <= last)
                    .all())
@@ -2711,7 +3786,7 @@ def player_due_print(player_id: int):
     due_date = first_working_day(year, month)
 
     # Use TrainingSession for session logic (unified with player_detail)
-    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    all_sessions = TrainingSession.query.filter_by(player_pn=player.pn).all()
     paid_sessions = [s for s in all_sessions if s.paid]
     unpaid_sessions = [s for s in all_sessions if not s.paid]
     total_sessions_taken = len(all_sessions)
@@ -2720,7 +3795,7 @@ def player_due_print(player_id: int):
     per_session_amount = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
     owed_amount = int(round(total_sessions_unpaid * per_session_amount)) if per_session_amount else 0
     # Only show session receipts for sessions counted as paid
-    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    all_receipts = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
     sess_records = all_receipts[:total_sessions_paid]
     total_due = owed_amount + events_due
     return render_template(
@@ -2833,11 +3908,21 @@ def record_session(player_id: int):
 
     # Always create a new TrainingSession row for this player
     today = date.today()
+    # Avoid duplicate session for same player and date (unique constraint)
+    existing = TrainingSession.query.filter_by(player_pn=player.pn, date=today).first()
+    if existing:
+        flash('Session for today already recorded.', 'info')
+        return redirect(request.referrer or url_for('player_detail', player_id=player.id))
     session_id = f"{player.id}_{today.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S%f')}"
-    ts = TrainingSession(player_id=player.id, date=today, session_id=session_id, paid=False, created_at=datetime.now())
+    ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=today, session_id=session_id, paid=False, created_at=datetime.now())
     db.session.add(ts)
-    db.session.commit()
-    flash('Session recorded. New TrainingSession created.', 'success')
+    try:
+        db.session.commit()
+        flash('Session recorded. New TrainingSession created.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to record TrainingSession (possible race or duplicate)')
+        flash('Session recording failed (possibly already exists).', 'warning')
 
     return redirect(request.referrer or url_for('player_detail', player_id=player.id))
 
@@ -2906,15 +3991,15 @@ def player_pay_due(player_id: int):
             y, m = today.year, today.month
 
         # Find unpaid Payment for that month
-        p = Payment.query.filter_by(player_id=player.id, year=y, month=m, paid=False).first()
+        p = Payment.query.filter_by(player_pn=player.pn, year=y, month=m, paid=False).first()
         if p:
             # Prevent duplicate PaymentRecord for this player/month
-            exists = PaymentRecord.query.filter_by(kind='training_month', player_id=player.id, year=y, month=m).first()
+            exists = PaymentRecord.query.filter_by(kind='training_month', player_pn=player.pn, year=y, month=m).first()
             if exists:
                 flash(f"Payment for {y}-{m:02d} already exists.", "warning")
             else:
                 amt = p.amount or 0
-                rec = PaymentRecord(kind='training_month', player_id=player.id,
+                rec = PaymentRecord(kind='training_month', player_id=player.id, player_pn=player.pn,
                                     amount=amt, year=p.year, month=p.month,
                                     payment_id=p.id, currency='EUR', note='PAY_FROM_LIST')
                 db.session.add(rec)
@@ -2933,10 +4018,10 @@ def player_pay_due(player_id: int):
 
     # Events
     if kind in ("events", "all"):
-        regs = EventRegistration.query.filter_by(player_id=player.id, paid=False).all()
+        regs = EventRegistration.query.filter_by(player_pn=player.pn, paid=False).all()
         for r in regs:
             amt = r.computed_fee() or 0
-            rec = PaymentRecord(kind='event', player_id=player.id,
+            rec = PaymentRecord(kind='event', player_id=player.id, player_pn=(r.player_pn or (r.player.pn if getattr(r, 'player', None) else None)),
                                 amount=amt, event_registration_id=r.id,
                                 currency='EUR', note='PAY_FROM_LIST')
             db.session.add(rec)
@@ -2956,8 +4041,8 @@ def player_pay_due(player_id: int):
     debts_to_pay = []
     if kind in ("debts", "all"):
         debts = (PaymentRecord.query
-                 .filter(PaymentRecord.player_id == player.id,
-                         PaymentRecord.note.like('%AUTO_DEBT%'))
+             .filter(PaymentRecord.player_pn == player.pn,
+                 PaymentRecord.note.like('%AUTO_DEBT%'))
                  .order_by(PaymentRecord.paid_at.asc())
                  .all())
         for d in debts:
@@ -2975,7 +4060,7 @@ def player_pay_due(player_id: int):
         if d_amt <= 0:
             continue
         pay_rec = PaymentRecord(
-            kind=d.kind, player_id=player.id,
+            kind=d.kind, player_id=player.id, player_pn=player.pn,
             amount=d_amt, currency=d.currency or 'EUR',
             method=None,
             note=f'Payment for debt receipt {d.id}',
@@ -3001,7 +4086,7 @@ def player_pay_due(player_id: int):
     # 2) ALWAYS settle any residual owed in the same click (based on fundamentals)
     if kind in ("debts", "all") and unit_price is not None and unit_price > 0:
         # Recompute fresh from DB AFTER paying explicit debts
-        sess_records_all = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').all()
+        sess_records_all = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').all()
         # Prepaid = all non-debt training receipts (MANUAL_OWED is prepaid, not debt)
         sess_receipts = [r for r in sess_records_all if not is_auto_debt_note(r.note)]
         total_sessions_taken = sum((r.sessions_taken or 0) for r in sess_records_all)
@@ -3013,7 +4098,7 @@ def player_pay_due(player_id: int):
 
         if residual_owed > 0:
             rec = PaymentRecord(
-                kind='training_session', player_id=player.id,
+                kind='training_session', player_id=player.id, player_pn=player.pn,
                 sessions_paid=0, sessions_taken=0,
                 amount=residual_owed, currency='EUR',
                 method=None, note=f'MANUAL_OWED: owed {residual_owed}'

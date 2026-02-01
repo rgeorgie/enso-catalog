@@ -36,9 +36,37 @@
     </div>
     <div class="col-12">
       <button class="btn btn-primary" type="submit">{{ _('Save') }}</button>
+      {% if session.get('is_admin') and title == _('New Event') %}
+        <button type="button" class="btn btn-outline-secondary ms-2" data-bs-toggle="modal" data-bs-target="#importEventZipModal">{{ _('Import Event (ZIP)') }}</button>
+      {% endif %}
       <a class="btn btn-outline-secondary" href="{{ url_for('events_calendar') }}">{{ _('Go to Calendar') }}</a>
       <a class="btn btn-secondary mt-2" href="{{ request.referrer or url_for('events_calendar') }}">{{ _('Back') }}</a>
     </div>
   </div>
 </form>
+{% if session.get('is_admin') and title == _('New Event') %}
+<div class="modal fade" id="importEventZipModal" tabindex="-1" aria-labelledby="importEventZipLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="importEventZipForm" method="post" action="{{ url_for('import_event_zip') }}" enctype="multipart/form-data">
+      <div class="modal-header">
+        <h5 class="modal-title" id="importEventZipLabel">{{ _('Import Event (ZIP)') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">{{ _('Upload exported event ZIP') }}</label>
+          <input type="file" name="zipfile" accept=".zip" class="form-control" required />
+        </div>
+        <div class="form-text text-muted">{{ _('This will create the event and its categories. Registrations are imported when matching players exist.') }}</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+        <button type="submit" class="btn btn-primary">{{ _('Import') }}</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

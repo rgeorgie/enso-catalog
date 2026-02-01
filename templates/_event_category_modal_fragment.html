@@ -1,0 +1,57 @@
+<div class="modal-header">
+  <h5 class="modal-title">{{ _('Edit Category') }} — {{ ev.title }}</h5>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body">
+  <form id="categoryEditForm" method="post" class="row g-3">
+    {{ form.csrf_token }}
+    <div class="col-md-4">
+      <label class="form-label">{{ _('Category Name') }}</label>
+      <input name="name" class="form-control" required value="{{ cat.name }}">
+    </div>
+    <div class="col-md-1">
+      <label class="form-label">{{ _('Age from') }}</label>
+      <input name="age_from" type="number" class="form-control" value="{{ cat.age_from }}">
+    </div>
+    <div class="col-md-1">
+      <label class="form-label">{{ _('Age to') }}</label>
+      <input name="age_to" type="number" class="form-control" value="{{ cat.age_to }}">
+    </div>
+    <div class="col-md-1">
+      <label class="form-label">{{ _('Sex') }}</label>
+      <input name="sex" class="form-control" value="{{ cat.sex }}" placeholder="M/F">
+    </div>
+    <div class="col-md-1">
+      <label class="form-label">{{ _('Category Fee') }}</label>
+      <input name="fee" type="number" class="form-control" placeholder="EUR" value="{{ cat.fee }}">
+    </div>
+    <div class="col-md-1">
+      <label class="form-label">{{ _('Team size') }}</label>
+      <input name="team_size" class="form-control" value="{{ cat.team_size }}">
+    </div>
+    <div class="col-md-1">
+      <label class="form-label">{{ _('KYU') }}</label>
+      <input name="kyu" class="form-control" value="{{ cat.kyu }}">
+    </div>
+    <div class="col-md-1">
+      <label class="form-label">{{ _('DAN') }}</label>
+      <input name="dan" class="form-control" value="{{ cat.dan }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">{{ _('Other cut-off date') }}</label>
+      <input name="other_cutoff_date" class="form-control" placeholder="YYYY-MM-DD" value="{{ cat.other_cutoff_date }}">
+    </div>
+    <div class="col-md-1">
+      <label class="form-label">{{ _('Limit') }}</label>
+      <input name="limit" class="form-control" value="{{ cat.limit }}">
+    </div>
+    <div class="col-md-1">
+      <label class="form-label">{{ _('Team Limit') }}</label>
+      <input name="limit_team" class="form-control" value="{{ cat.limit_team }}">
+    </div>
+  </form>
+</div>
+<div class="modal-footer">
+  <button type="button" id="categorySaveBtn" class="btn btn-primary">{{ _('Save') }}</button>
+  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+</div>

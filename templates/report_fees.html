@@ -13,6 +13,9 @@
        href="{{ url_for('fees_export_csv', month='%04d-%02d'|format(year, month)) }}">
       {{ _('Export CSV') }}
     </a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('payments_export_all_csv') }}">
+      {{ _('Export All Payments (CSV)') }}
+    </a>
   </form>
   <a class="btn btn-secondary ms-2" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
 </div>
@@ -47,6 +50,7 @@
           data-session-owed="{{ p.owed_amount or '' }}"
           data-session-receipt-nos="{{ p.session_receipt_nos | join(',') }}"
           data-session-receipt-ids="{{ p.session_receipt_ids | join(',') }}"
+          data-session-list='{{ (p.session_list | default([], true) | tojson) | safe }}'
           data-year="{{ p.year }}"
           data-month="{{ '%02d'|format(p.month) }}"
           data-events='{{ (p.event_details | default([], true) | tojson) | safe }}'>
@@ -127,12 +131,19 @@ $(function() {
   // Toggle child row
   $('#feesTable tbody').on('click', 'tr.details-toggle', function () {
     var row = table.row(this);
-    if (row.child.isShown()) {
-      row.child.hide();
-      $(this).removeClass('shown');
-    } else {
-      var html = buildDetailsHtml(this);
-      row.child(html).show();
+    try {
+      if (row.child.isShown()) {
+        row.child.hide();
+        $(this).removeClass('shown');
+      } else {
+        var html = buildDetailsHtml(this);
+        row.child(html).show();
+        $(this).addClass('shown');
+      }
+    } catch (err) {
+      console.error('Failed to build details for row', err);
+      // Show a simple error message in the child row instead of throwing
+      row.child('<div class="p-2 text-danger">Error showing details. See console for details.</div>').show();
       $(this).addClass('shown');
     }
   });
@@ -147,8 +158,12 @@ $(function() {
       var monthlyReceiptId = $tr.data('monthly-receipt-id') || '';
       var sessionPrepaid = $tr.data('session-prepaid') || '—';
       var sessionOwed = $tr.data('session-owed') || '—';
-      var sessionReceiptNos = ($tr.data('session-receipt-nos') || '').split(',').filter(Boolean);
-      var sessionReceiptIds = ($tr.data('session-receipt-ids') || '').split(',').filter(Boolean);
+      var sessionReceiptNos = ($tr.data('session-receipt-nos') || '').toString().split(',').filter(Boolean);
+      var sessionReceiptIds = ($tr.data('session-receipt-ids') || '').toString().split(',').filter(Boolean);
+      var sessionList = [];
+      try {
+        sessionList = JSON.parse($tr.attr('data-session-list') || '[]');
+      } catch (e) { sessionList = []; }
       var year = $tr.data('year');
       var month = $tr.data('month');
       var events = [];
@@ -169,11 +184,33 @@ $(function() {
 
       // Session receipt links (all for the month)
       var sessionReceiptHtml = '';
-      if (sessionReceiptNos.length && sessionReceiptIds.length) {
-        sessionReceiptHtml = sessionReceiptNos.map(function(no, idx) {
-          var id = sessionReceiptIds[idx] || '';
-          return id ? `<a href="${receiptViewBase}${id}" target="_blank">${no}</a>` : no;
-        }).join(', ');
+      if (sessionReceiptNos.length || sessionReceiptIds.length) {
+        // Map receipts defensively by index; if lengths mismatch, show available values
+        var len = Math.max(sessionReceiptNos.length, sessionReceiptIds.length);
+        var pieces = [];
+        for (var i = 0; i < len; i++) {
+          var no = sessionReceiptNos[i] || '';
+          var id = sessionReceiptIds[i] || '';
+          if (id) {
+            pieces.push(id ? `<a href="${receiptViewBase}${id}" target="_blank">${no || id}</a>` : (no || id));
+          } else if (no) {
+            pieces.push(no);
+          }
+        }
+        sessionReceiptHtml = pieces.join(', ');
+      }
+
+      // Sessions list (show unpaid sessions as owed)
+      var sessionsHtml = '—';
+      if (Array.isArray(sessionList) && sessionList.length) {
+        sessionsHtml = '<ul class="mb-0 small">';
+        sessionList.forEach(function(s) {
+          var d = s.date || '?';
+          var paid = s.paid ? '{{ _('Paid') }}' : '{{ _('Unpaid') }}';
+          var amt = (s.amount != null && s.amount !== '') ? (s.amount + ' EUR') : '';
+          sessionsHtml += `<li>${d} — ${paid}${ amt ? ' — ' + amt : '' }</li>`;
+        });
+        sessionsHtml += '</ul>';
       }
 
       // Events list with safe receipt links
@@ -201,6 +238,7 @@ $(function() {
           </div>
           <div class="mb-1">
             <strong>{{ _('Session') }}:</strong> ${sessionPrepaid} ({{ _('Paid') }})${sessionReceiptHtml ? ' | ' + sessionReceiptHtml : ''}${sessionOwed !== '—' ? ', — ({{ _('Owed') }})' : ''}
+            ${sessionsHtml}
           </div>
           <div class="mb-1">
             <strong>{{ _('Events') }}:</strong> ${eventsHtml}
