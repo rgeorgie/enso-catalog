@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-8 offset-md-2 mt-3">
+    <h1>{{ _('Admin imports') }}</h1>
+    <p class="text-muted">{{ _('Quick links to import data into the system.') }}</p>
+
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <div class="card p-3">
+          <h5>{{ _('Import Players (ZIP)') }}</h5>
+          <form method="post" action="{{ url_for('import_players_zip') }}" enctype="multipart/form-data">
+            <div class="mb-2">
+              <input type="file" name="zipfile" accept=".zip" required class="form-control">
+            </div>
+            <button class="btn btn-primary" type="submit">{{ _('Import Players (ZIP)') }}</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <div class="card p-3">
+          <h5>{{ _('Import Players (CSV)') }}</h5>
+          <form method="post" action="{{ url_for('admin_players_import_csv') }}" enctype="multipart/form-data">
+            <div class="mb-2">
+              <input type="file" name="csv_file" accept=".csv" required class="form-control">
+            </div>
+            <button class="btn btn-primary" type="submit">{{ _('Import Players (CSV)') }}</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <div class="card p-3">
+          <h5>{{ _('Import Event (ZIP)') }}</h5>
+          <form method="post" action="{{ url_for('import_event_zip') }}" enctype="multipart/form-data">
+            <div class="mb-2">
+              <input type="file" name="zipfile" accept=".zip" required class="form-control">
+            </div>
+            <button class="btn btn-primary" type="submit">{{ _('Import Event (ZIP)') }}</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <div class="card p-3">
+          <h5>{{ _('Import Payments (CSV)') }}</h5>
+          <form method="post" action="{{ url_for('admin_payments_import_csv') }}" enctype="multipart/form-data">
+            <div class="mb-2">
+              <input type="file" name="csv_file" accept=".csv" required class="form-control">
+            </div>
+            <div class="form-text small text-muted mb-2">{{ _('Expected headers: player_pn OR player_id, kind, year, month, amount, currency, paid, paid_at, receipt_no, payment_id, event_registration_id, sessions_paid, sessions_taken, note, method') }}</div>
+            <button class="btn btn-primary" type="submit">{{ _('Import Payments (CSV)') }}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <hr />
+    <p class="small text-muted mt-3">{{ _('CSV uploads require admin privileges. ZIP import dialogs are available on the players and events pages.') }}</p>
+  </div>
+</div>
+{% endblock %}

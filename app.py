@@ -2135,6 +2135,199 @@ def payments_export_all_csv():
     headers = {"Content-Disposition": 'attachment; filename="payments_all.csv"'}
     return Response(stream_with_context(generate()), mimetype='text/csv', headers=headers)
 
+
+@app.route('/admin/exports')
+@admin_required
+def admin_exports():
+    """Admin page listing all export/backup endpoints."""
+    return render_template('admin_exports.html', _=_ , current_lang=get_lang())
+
+
+@app.route('/admin/imports')
+@admin_required
+def admin_imports():
+    """Admin page listing import/upload entry points."""
+    return render_template('admin_imports.html', _=_ , current_lang=get_lang())
+
+
+@app.route('/admin/events/export_zip_all')
+@admin_required
+def export_events_zip_all():
+    """Export all events as a single ZIP containing per-event exports (no photos)."""
+    events = Event.query.order_by(Event.start_date.asc()).all()
+    import json
+    import csv
+    from io import StringIO, BytesIO
+    import zipfile
+
+    mem_zip = BytesIO()
+    with zipfile.ZipFile(mem_zip, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for ev in events:
+            prefix = f'event_{ev.id}'
+            # event JSON
+            ev_dict = {
+                'id': ev.id,
+                'title': ev.title,
+                'start_date': ev.start_date.isoformat() if ev.start_date else None,
+                'end_date': ev.end_date.isoformat() if ev.end_date else None,
+                'location': ev.location,
+                'sportdata_url': ev.sportdata_url,
+                'notes': ev.notes,
+            }
+            zf.writestr(f'{prefix}/{prefix}_detail.json', json.dumps(ev_dict, ensure_ascii=False, indent=2))
+
+            # categories
+            cats = EventCategory.query.filter_by(event_id=ev.id).order_by(EventCategory.name.asc()).all()
+            cat_out = StringIO()
+            cat_writer = csv.writer(cat_out)
+            cat_writer.writerow(['id', 'name', 'age_from', 'age_to', 'sex', 'fee', 'team_size', 'kyu', 'dan', 'other_cutoff_date', 'limit_team', 'limit'])
+            for c in cats:
+                cat_writer.writerow([c.id, c.name, c.age_from, c.age_to, c.sex, c.fee, c.team_size, c.kyu, c.dan, c.other_cutoff_date, c.limit_team, c.limit])
+            zf.writestr(f'{prefix}/{prefix}_categories.csv', cat_out.getvalue())
+
+            # registrations
+            regs = (EventRegistration.query
+                    .filter_by(event_id=ev.id)
+                    .join(Player, Player.id == EventRegistration.player_id)
+                    .order_by(Player.last_name.asc(), Player.first_name.asc())
+                    .all())
+            reg_out = StringIO()
+            reg_writer = csv.writer(reg_out)
+            reg_writer.writerow(['id', 'player_id', 'player_name', 'fee_override', 'computed_fee', 'paid', 'paid_on', 'note', 'categories', 'medals'])
+            for r in regs:
+                cats_list = []
+                medals_list = []
+                for rc in r.reg_categories or []:
+                    cats_list.append(rc.category.name if rc.category else '')
+                    medals_list.append(rc.medal or '')
+                computed = r.fee_override if r.fee_override is not None else (sum((rc.category.fee or 0) for rc in r.reg_categories) if r.reg_categories else '')
+                reg_writer.writerow([r.id, r.player_id, r.player.full_name() if r.player else '', r.fee_override, computed, r.paid, (r.paid_on.isoformat() if r.paid_on else ''), '', '; '.join(cats_list), '; '.join(medals_list)])
+            zf.writestr(f'{prefix}/{prefix}_registrations.csv', reg_out.getvalue())
+
+            # per-player CSVs
+            player_ids = {r.player_id for r in regs if r.player_id}
+            players = Player.query.filter(Player.id.in_(player_ids)).all() if player_ids else []
+            fieldnames = [
+                'id', 'first_name', 'last_name', 'gender', 'birthdate', 'pn',
+                'belt_rank', 'grade_level', 'grade_date', 'discipline', 'weight_kg', 'height_cm',
+                'email', 'phone', 'join_date', 'active_member', 'notes', 'photo_filename',
+                'sportdata_wkf_url', 'sportdata_bnfk_url', 'sportdata_enso_url',
+                'medical_exam_date', 'medical_expiry_date', 'insurance_expiry_date',
+                'monthly_fee_amount', 'monthly_fee_is_monthly',
+                'mother_name', 'mother_phone', 'father_name', 'father_phone'
+            ]
+            for p in players:
+                out = StringIO()
+                dw = csv.DictWriter(out, fieldnames=fieldnames)
+                dw.writeheader()
+                row = {k: getattr(p, k, '') for k in fieldnames}
+                for k, v in row.items():
+                    if hasattr(v, 'isoformat'):
+                        row[k] = v.isoformat()
+                    elif isinstance(v, bool):
+                        row[k] = str(v)
+                zf.writestr(f'{prefix}/players/player_{p.id}_{(p.last_name or "").replace(" ","_")}.csv', out.getvalue())
+
+    mem_zip.seek(0)
+    headers = {'Content-Disposition': 'attachment; filename="events_all_full_export.zip"'}
+    return Response(mem_zip.getvalue(), mimetype='application/zip', headers=headers)
+
+
+@app.route('/admin/payments/import_csv', methods=['POST'])
+@admin_required
+def admin_payments_import_csv():
+    """Import payment/receipt rows from CSV into PaymentRecord."""
+    if 'csv_file' not in request.files:
+        flash('No file uploaded', 'danger')
+        return redirect(request.referrer or url_for('admin_imports'))
+    file = request.files.get('csv_file')
+    if not file or not file.filename:
+        flash('No file uploaded', 'danger')
+        return redirect(request.referrer or url_for('admin_imports'))
+    import io
+    import csv
+    import datetime
+
+    text_stream = io.TextIOWrapper(file.stream, encoding='utf-8-sig', errors='replace')
+    reader = csv.DictReader(text_stream)
+    created = 0
+    skipped = 0
+    errors = []
+    for idx, row in enumerate(reader, start=1):
+        try:
+            def g(k):
+                return (row.get(k) or '').strip() or None
+
+            player_pn = g('player_pn')
+            player_id = g('player_id')
+            player_obj = None
+            if player_pn:
+                player_obj = Player.query.filter_by(pn=player_pn).first()
+            elif player_id:
+                try:
+                    player_obj = Player.query.get(int(player_id))
+                except Exception:
+                    player_obj = None
+
+            if not player_obj:
+                skipped += 1
+                continue
+
+            kind = g('kind') or 'training_session'
+            amount_raw = g('amount') or '0'
+            try:
+                amount = int(float(amount_raw))
+            except Exception:
+                amount = 0
+
+            paid_flag = g('paid')
+            paid = True if str(paid_flag).strip() in ('1', 'true', 'yes', 'y') else False
+
+            paid_at = None
+            if g('paid_at'):
+                try:
+                    paid_at = datetime.datetime.fromisoformat(g('paid_at'))
+                except Exception:
+                    paid_at = None
+
+            pr = PaymentRecord(
+                kind=kind,
+                player_id=player_obj.id,
+                player_pn=player_obj.pn,
+                year=int(g('year')) if g('year') else None,
+                month=int(g('month')) if g('month') else None,
+                sessions_paid=int(g('sessions_paid')) if g('sessions_paid') else 0,
+                sessions_taken=int(g('sessions_taken')) if g('sessions_taken') else 0,
+                amount=amount,
+                currency=g('currency') or 'EUR',
+                method=g('method'),
+                note=g('note'),
+                receipt_no=g('receipt_no') or None,
+                paid_at=paid_at or datetime.datetime.utcnow(),
+            )
+            # Avoid duplicate receipt_no
+            if pr.receipt_no:
+                existing = PaymentRecord.query.filter_by(receipt_no=pr.receipt_no).first()
+                if existing:
+                    skipped += 1
+                    continue
+
+            db.session.add(pr)
+            db.session.flush()
+            # Assign generated receipt if none
+            if not pr.receipt_no:
+                pr.assign_receipt_no(do_commit=False)
+            created += 1
+        except Exception as e:
+            app.logger.exception('Payments import row failed')
+            errors.append(f'Row {idx}: {e}')
+
+    db.session.commit()
+    flash(f'Payments imported: {created}. Skipped: {skipped}. Errors: {len(errors)}', 'success' if not errors else 'warning')
+    if errors:
+        app.logger.warning('\n'.join(errors))
+    return redirect(request.referrer or url_for('admin_imports'))
+
 # -------- Players CSV ----------
 @app.route("/export/csv")
 def export_csv():
