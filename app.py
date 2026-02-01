@@ -56,7 +56,6 @@ def player_detail_public(player_id: int):
         owed_amount=owed_amount,
         sess_records=sess_records,
     )
-# ...existing code...
 
 # Place this route after app and admin_required are defined
 # (Move to after admin_required function definition)
