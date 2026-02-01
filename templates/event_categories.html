@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.edit-category-btn').forEach(btn => {
     btn.addEventListener('click', async function() {
       const catId = this.dataset.catId;
-      const url = `/admin/events/${{ ev.id }}/categories/${catId}/edit`;
+      const url = '/admin/events/{{ ev.id }}/categories/' + catId + '/edit';
       // fetch the edit form fragment
       try {
         const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
