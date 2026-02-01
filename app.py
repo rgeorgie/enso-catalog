@@ -1406,6 +1406,103 @@ def logout():
     return redirect(url_for("list_players"))
 
 # -------- CRUD Players ----------
+@app.route("/admin/players/import_csv", methods=["POST"], endpoint='admin_players_import_csv')
+@admin_required
+def admin_players_import_csv():
+    """Admin: import players from uploaded CSV file.
+
+    Expected headers: first_name,last_name,gender,birthdate,pn,grade_level,join_date,
+    email,phone,monthly_fee_amount,monthly_fee_is_monthly
+    """
+    if 'csv_file' not in request.files:
+        flash(_('No file uploaded.'), 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+
+    file = request.files.get('csv_file')
+    if not file or not file.filename:
+        flash(_('No file uploaded.'), 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+
+    if not file.filename.lower().endswith('.csv'):
+        flash(_('Please upload a .csv file.'), 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+
+    import csv
+    import io
+    import datetime
+
+    text_stream = io.TextIOWrapper(file.stream, encoding='utf-8-sig', errors='replace')
+    reader = csv.DictReader(text_stream)
+    created = 0
+    errors = []
+    for idx, row in enumerate(reader, start=1):
+        try:
+            first_name = (row.get('first_name') or '').strip()
+            last_name = (row.get('last_name') or '').strip()
+            if not first_name or not last_name:
+                errors.append(f"Row {idx}: missing first_name/last_name")
+                continue
+
+            def get(k):
+                return (row.get(k) or '').strip() or None
+
+            player = Player(first_name=first_name, last_name=last_name)
+            player.gender = get('gender')
+            player.pn = get('pn')
+            player.email = get('email')
+            player.phone = get('phone')
+            player.grade_level = get('grade_level')
+
+            def parse_date(s):
+                if not s:
+                    return None
+                s = s.strip()
+                try:
+                    return datetime.date.fromisoformat(s)
+                except Exception:
+                    for fmt in ('%d.%m.%Y', '%d/%m/%Y', '%Y-%m-%d'):
+                        try:
+                            return datetime.datetime.strptime(s, fmt).date()
+                        except Exception:
+                            pass
+                return None
+
+            player.birthdate = parse_date(get('birthdate'))
+            player.join_date = parse_date(get('join_date'))
+
+            mfee = get('monthly_fee_amount')
+            if mfee:
+                try:
+                    player.monthly_fee_amount = int(float(mfee))
+                except Exception:
+                    pass
+
+            mflag = get('monthly_fee_is_monthly')
+            if mflag is not None:
+                player.monthly_fee_is_monthly = str(mflag).lower() in ('1', 'true', 'yes', 'y')
+
+            if player.grade_level and player.grade_level in GRADING_SCHEME.get('grade_to_color', {}):
+                player.belt_rank = GRADING_SCHEME['grade_to_color'][player.grade_level]
+
+            db.session.add(player)
+            created += 1
+        except Exception as e:
+            errors.append(f"Row {idx}: {e}")
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(_('Import failed: ') + str(e), 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+
+    msg = (_('%(count)s players imported.') % {'count': created}) if created else _('No players imported.')
+    if errors:
+        flash(msg + ' ' + _('Some rows had issues:') + ' ' + '; '.join(errors[:5]), 'warning')
+    else:
+        flash(msg, 'success')
+    return redirect(url_for('list_players'))
+
 @app.route("/admin/players/new", methods=["GET", "POST"])
 @admin_required
 def create_player():

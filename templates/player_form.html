@@ -158,6 +158,7 @@
       </div>
 
       <!-- Inline prepay (only when editing an existing player) -->
+      
       {% if player %}
       <div class="col-12 mt-4" id="prepay_card" style="display: {% if player.monthly_fee_is_monthly %}none{% else %}block{% endif %};">
         <div class="card p-3">
@@ -188,6 +189,21 @@
   </div>
 </form>
 
+{% if session.get('is_admin') %}
+<div class="mt-3">
+  <h5>{{ _('Import Players from CSV') }}</h5>
+  <form method="post" action="{{ url_for('admin_players_import_csv') }}" enctype="multipart/form-data" class="row g-2">
+    <input type="hidden" name="csrf_token" value="{{ form.csrf_token._value() }}">
+    <div class="col-auto">
+      <input class="form-control" type="file" name="csv_file" accept=".csv" required>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-outline-primary" type="submit">{{ _('Import CSV') }}</button>
+    </div>
+    <div class="col-12 form-text">{{ _('CSV should include headers: first_name,last_name,email,phone,gender,birthdate,join_date,pn,grade_level,monthly_fee_amount') }}</div>
+  </form>
+</div>
+{% endif %}
 {% if player and session.get('is_admin') %}
 <div class="mt-3">
   <form method="post" action="{{ url_for('delete_player', player_id=player.id) }}" onsubmit="return confirm('Delete this player and all related records?');" class="d-inline">
