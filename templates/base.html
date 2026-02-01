@@ -14,6 +14,28 @@
     .navbar-brand img { height: 34px; width: auto; }
     img.player-photo { max-width: 220px; height: auto; border-radius: 6px; }
     .belt-chip { border-radius: 999px; padding: .35rem .6rem; display:inline-block; min-width:64px; text-align:center; }
+
+    /* Watermark logo centered behind content */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 30vw;
+      height: 30vw;
+      max-width: 640px;
+      max-height: 640px;
+      background-image: url('{{ url_for('static', filename='img/enso-logo.webp') }}');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: contain;
+      opacity: 0.08;
+      pointer-events: none;
+      z-index: 0;
+    }
+    /* Ensure page chrome and content sit above watermark */
+    nav, main.container, footer { position: relative; z-index: 1; }
   </style>
 </head>
 <body>
@@ -89,8 +111,11 @@
   {% block content %}{% endblock %}
 </main>
 
-<footer class="container mt-5 mb-3 text-center text-muted small">
-  &copy; 2026 Rosen Georgiev &mdash; <a href="https://github.com/rgeorgie/enso-catalog" target="_blank" rel="noopener">enso-catalog on GitHub</a>
+<footer class="container mt-5 mb-3 text-center text-muted small d-flex flex-column align-items-center gap-2">
+  <div>&copy; 2026 Rosen Georgiev &mdash; <a href="https://github.com/rgeorgie/enso-catalog" target="_blank" rel="noopener">enso-catalog on GitHub</a></div>
+  <div>
+    <img src="{{ url_for('static', filename='img/enso-logo.webp') }}" alt="Team ENSO logo" style="height:28px; width:auto; opacity:0.95;">
+  </div>
 </footer>
 </main>
 

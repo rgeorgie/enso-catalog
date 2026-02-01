@@ -2,20 +2,25 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="mb-0">{{ _('Players') }}</h1>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 align-items-center flex-wrap">
     {% if session.get('is_admin') %}
       <a class="btn btn-primary" href="{{ url_for('create_player') }}">{{ _('+ Add Player') }}</a>
     {% endif %}
-    <a class="btn btn-secondary ms-2" href="{{ request.referrer or url_for('events_calendar') }}">{{ _('Back') }}</a>
+    <a class="btn btn-outline-success" href="{{ url_for('export_csv') }}">{{ _('Export CSV') }}</a>
+    <a class="btn btn-outline-success" href="{{ url_for('export_players_zip') }}">⬇️ {{ _('Export All Profiles (ZIP)') }}</a>
+    {% if session.get('is_admin') %}
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#playersImportModal">⬆️ {{ _('Import Players (ZIP)') }}</button>
+    {% endif %}
+    <a class="btn btn-secondary" href="{{ request.referrer or url_for('events_calendar') }}">{{ _('Back') }}</a>
   </div>
 </div>
 
-<form class="row row-cols-lg-auto g-3 align-items-end mb-4" method="get">
-  <div class="col-12">
+<form class="row g-3 mb-4" method="get">
+  <div class="col-12 col-md-6 col-lg-4">
     <label class="form-label">{{ _('Search') }}</label>
     <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="{{ _('Name') }}">
   </div>
-  <div class="col-12">
+  <div class="col-6 col-md-3 col-lg-2">
     <label class="form-label">{{ _('Grade') }}</label>
     <select class="form-select" name="belt">
       <option value="">{{ _('All') }}</option>
@@ -24,7 +29,7 @@
       {% endfor %}
     </select>
   </div>
-  <div class="col-12">
+  <div class="col-6 col-md-3 col-lg-2">
     <label class="form-label">{{ _('Active') }}</label>
     <select class="form-select" name="active">
       <option value="">{{ _('All') }}</option>
@@ -32,14 +37,9 @@
       <option value="no" {% if active=="no" %}selected{% endif %}>{{ _('Inactive') }}</option>
     </select>
   </div>
-  <div class="col-12">
+  <div class="col-12 col-md-12 col-lg-4 d-flex align-items-end gap-2">
     <button class="btn btn-primary" type="submit">{{ _('Apply') }}</button>
     <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">{{ _('Reset') }}</a>
-    <a class="btn btn-outline-success" href="{{ url_for('export_csv') }}">{{ _('Export CSV') }}</a>
-    <a class="btn btn-outline-success" href="{{ url_for('export_players_zip') }}">⬇️ {{ _('Export All Profiles (ZIP)') }}</a>
-      {% if session.get('is_admin') %}
-        <button type="button" class="btn btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#playersImportModal">⬆️ {{ _('Import Players (ZIP)') }}</button>
-      {% endif %}
   </div>
 </form>
 
