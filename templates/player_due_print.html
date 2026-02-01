@@ -42,9 +42,13 @@
   <p>
     <strong>Sessions paid:</strong> {{ total_sessions_paid }}<br>
     <strong>Sessions taken:</strong> {{ total_sessions_taken }}<br>
+    {% set rem = total_sessions_paid - total_sessions_taken %}
+    <strong>Remaining sessions:</strong>
+      {% if rem >= 0 %}{{ rem }}{% else %}Overused by {{ rem | abs }}{% endif %}<br>
     <strong>Prepaid amount:</strong> {{ total_prepaid_amount }} EUR<br>
-    <strong>Per-session price:</strong> {{ per_session_amount }} EUR<br>
-    <strong>Owed amount:</strong> {{ owed_amount }} EUR
+    <strong>Per-session price:</strong> {{ per_session_amount | float }} EUR<br>
+    <strong>Cost for sessions taken:</strong> {{ (total_sessions_taken * per_session_amount) | int }} EUR<br>
+    <strong>Owed (cost - prepaid):</strong> {{ ((total_sessions_taken * per_session_amount) - total_prepaid_amount) | int }} EUR
   </p>
   {% endif %}
 
@@ -81,9 +85,9 @@
 
   <p class="lead">
     <strong>Total due this month:</strong>
-    {{ monthly_due + events_due }} EUR
-    {% if monthly_due %}
-      (training: {{ monthly_due }}{% if events_due %}, events: {{ events_due }}{% endif %})
+    {{ total_due }} EUR
+    {% if owed_amount %}
+      (training: {{ owed_amount }}{% if events_due %}, events: {{ events_due }}{% endif %})
     {% elif events_due %}
       (events: {{ events_due }})
     {% endif %}
@@ -101,7 +105,5 @@
   </div>
 </div>
 
-<script>
-  window.addEventListener('load', () => setTimeout(() => window.print(), 250));
-</script>
+
 {% endblock %}

@@ -2610,42 +2610,35 @@ def player_due_print(player_id: int):
     events_due = sum([(r.computed_fee() or 0) for r in regs_unpaid])
     due_date = first_working_day(year, month)
 
-    sess_records = (PaymentRecord.query
-                    .filter_by(player_id=player.id, kind='training_session')
-                    .all())
-    sess_receipts = [r for r in sess_records if not is_auto_debt_note(r.note)]
-    explicit_sessions_paid = sum((r.sessions_paid or 0) for r in sess_receipts)
-    total_sessions_taken = sum((r.sessions_taken or 0) for r in sess_records)
-    total_prepaid_amount = sum((r.amount or 0) for r in sess_receipts)
-    per_session_amount = int(player.monthly_fee_amount) if (player.monthly_fee_amount is not None and not player.monthly_fee_is_monthly) else None
-
-    inferred_sessions = 0
-    if per_session_amount is not None and per_session_amount > 0:
-        for r in sess_receipts:
-            if (r.sessions_paid or 0) == 0 and (r.amount or 0) > 0:
-                try:
-                    inferred_sessions += int(round(float(r.amount) / float(per_session_amount)))
-                except Exception:
-                    pass
-    total_sessions_paid = explicit_sessions_paid + inferred_sessions
-    prepaid_credit = float(total_prepaid_amount)
-    owed_amount = None
-    if per_session_amount is not None:
-        owed_amount = (total_sessions_taken * per_session_amount) - prepaid_credit
-
+    # Use TrainingSession for session logic (unified with player_detail)
+    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    paid_sessions = [s for s in all_sessions if s.paid]
+    unpaid_sessions = [s for s in all_sessions if not s.paid]
+    total_sessions_taken = len(all_sessions)
+    total_sessions_paid = len(paid_sessions)
+    total_sessions_unpaid = len(unpaid_sessions)
+    per_session_amount = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
+    owed_amount = int(round(total_sessions_unpaid * per_session_amount)) if per_session_amount else 0
+    # Only show session receipts for sessions counted as paid
+    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    sess_records = all_receipts[:total_sessions_paid]
+    total_due = owed_amount + events_due
     return render_template(
         "player_due_print.html",
         player=player,
         year=year, month=month, due_date=due_date,
         pay=pay, regs_unpaid=regs_unpaid,
-        monthly_due=monthly_due, events_due=events_due,
+        monthly_due=owed_amount,
+        events_due=events_due,
+        total_due=total_due,
         sess_records=sess_records,
         total_sessions_paid=total_sessions_paid,
         total_sessions_taken=total_sessions_taken,
-        total_prepaid_amount=total_prepaid_amount,
-        prepaid_credit=int(round(prepaid_credit)) if prepaid_credit is not None else None,
+        total_sessions_unpaid=total_sessions_unpaid,
+        total_prepaid_amount=sum((r.amount or 0) for r in sess_records),
+        prepaid_credit=sum((r.amount or 0) for r in sess_records),
         per_session_amount=per_session_amount,
-        owed_amount=int(round(owed_amount)) if owed_amount is not None else None,
+        owed_amount=owed_amount,
     )
 
 @app.route("/admin/receipts/<int:rid>")
