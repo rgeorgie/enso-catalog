@@ -364,6 +364,11 @@
             <tbody>
               {% set medal_counts = {'gold': 0, 'silver': 0, 'bronze': 0} %}
               {% for r in regs %}
+                {% for rc in r.reg_categories %}
+                  {% if rc.medal %}
+                    {% set _ = medal_counts.__setitem__(rc.medal, medal_counts.get(rc.medal, 0) + 1) %}
+                  {% endif %}
+                {% endfor %}
               <tr data-bs-toggle="collapse" data-bs-target="#reg-details-{{ r.id }}" aria-expanded="false" aria-controls="reg-details-{{ r.id }}" style="cursor:pointer;">
                 <td>{{ r.id }}</td>
                 <td>{{ r.event.title }}</td>
