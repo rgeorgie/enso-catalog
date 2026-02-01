@@ -1470,6 +1470,39 @@ def admin_players_import_csv():
             player.birthdate = parse_date(get('birthdate'))
             player.join_date = parse_date(get('join_date'))
 
+            # Medical / insurance dates
+            player.medical_exam_date = parse_date(get('medical_exam_date'))
+            player.medical_expiry_date = parse_date(get('medical_expiry_date'))
+            player.insurance_expiry_date = parse_date(get('insurance_expiry_date'))
+
+            # Active member flag
+            am = get('active_member')
+            if am is not None:
+                player.active_member = str(am).lower() in ('1', 'true', 'yes', 'y')
+
+            # Misc fields
+            player.notes = get('notes')
+            player.photo_filename = get('photo_filename')
+            player.sportdata_wkf_url = get('sportdata_wkf_url')
+            player.sportdata_bnfk_url = get('sportdata_bnfk_url')
+            player.sportdata_enso_url = get('sportdata_enso_url')
+            try:
+                player.weight_kg = int(get('weight_kg')) if get('weight_kg') else None
+            except Exception:
+                player.weight_kg = None
+            try:
+                player.height_cm = int(get('height_cm')) if get('height_cm') else None
+            except Exception:
+                player.height_cm = None
+
+            player.discipline = get('discipline') or player.discipline
+
+            # Parent contacts
+            player.mother_name = get('mother_name')
+            player.mother_phone = get('mother_phone')
+            player.father_name = get('father_name')
+            player.father_phone = get('father_phone')
+
             mfee = get('monthly_fee_amount')
             if mfee:
                 try:
@@ -1481,7 +1514,11 @@ def admin_players_import_csv():
             if mflag is not None:
                 player.monthly_fee_is_monthly = str(mflag).lower() in ('1', 'true', 'yes', 'y')
 
-            if player.grade_level and player.grade_level in GRADING_SCHEME.get('grade_to_color', {}):
+            # Prefer explicit belt_rank in CSV if provided, otherwise infer from grade
+            csv_belt = get('belt_rank')
+            if csv_belt:
+                player.belt_rank = csv_belt
+            elif player.grade_level and player.grade_level in GRADING_SCHEME.get('grade_to_color', {}):
                 player.belt_rank = GRADING_SCHEME['grade_to_color'][player.grade_level]
 
             db.session.add(player)
@@ -1715,6 +1752,7 @@ def player_pay_due_receipt(player_id: int):
             obj.paid = True
             obj.paid_on = today
             db.session.add(obj)
+            db.session.commit()
             total_amount += amt
             created.append(rec)
         elif kind == "event":
