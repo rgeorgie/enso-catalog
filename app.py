@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import calendar
 from datetime import date, datetime
@@ -16,8 +17,9 @@ from wtforms import (
     StringField, SelectField, DateField, IntegerField,
     TextAreaField, SubmitField, BooleanField, SelectMultipleField
 )
-from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL
+from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL, Regexp
 from sqlalchemy import or_, and_, text
+from sqlalchemy.orm import foreign
 from werkzeug.routing import BuildError
 
 app = Flask(__name__)
@@ -27,13 +29,13 @@ app = Flask(__name__)
 def player_detail_public(player_id: int):
     player = Player.query.get_or_404(player_id)
     regs = (EventRegistration.query
-            .filter_by(player_id=player.id)
+            .filter_by(player_pn=player.pn)
             .join(Event)
             .order_by(Event.start_date.desc())
             .all())
 
     # Use TrainingSession for session logic (unified with admin view)
-    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    all_sessions = TrainingSession.query.filter_by(player_pn=player.pn).all()
     paid_sessions = [s for s in all_sessions if s.paid]
     unpaid_sessions = [s for s in all_sessions if not s.paid]
     total_sessions_taken = len(all_sessions)
@@ -42,7 +44,7 @@ def player_detail_public(player_id: int):
     per_session_price = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
     owed_amount = int(round(total_sessions_unpaid * per_session_price)) if per_session_price else 0
     # Only show session receipts for sessions counted as paid
-    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    all_receipts = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
     sess_records = all_receipts[:total_sessions_paid]
 
     return render_template(
@@ -114,7 +116,8 @@ class TrainingSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(64), nullable=False)
     __table_args__ = (db.UniqueConstraint('player_id', 'date', name='uq_player_session_date'),)
-    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    player_id = db.Column(db.Integer, nullable=False, index=True)
+    player_pn = db.Column(db.String(20), nullable=True, index=True)
     date = db.Column(db.Date, nullable=True)
     paid = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
@@ -806,10 +809,11 @@ def ensure_payments_for_month(year: int, month: int) -> int:
             continue
         if p.monthly_fee_amount is None:
             continue
-        exists = Payment.query.filter_by(player_id=p.id, year=year, month=month).first()
+        exists = Payment.query.filter_by(player_pn=p.pn, year=year, month=month).first()
         if not exists:
             db.session.add(Payment(
                 player_id=p.id,
+                player_pn=p.pn,
                 year=year,
                 month=month,
                 amount=p.monthly_fee_amount,
@@ -852,7 +856,7 @@ class Player(db.Model):
     last_name = db.Column(db.String(80), nullable=False)
     gender = db.Column(db.String(10), nullable=True)
     birthdate = db.Column(db.Date, nullable=True)
-    pn = db.Column(db.String(20), nullable=False)  # Personal Number / ЕГН (mandatory)
+    pn = db.Column(db.String(10), nullable=False)  # Personal Number / ЕГН (mandatory, 10 digits)
 
     belt_rank = db.Column(db.String(20), nullable=False, default="White")
     grade_level = db.Column(db.String(20), nullable=True)
@@ -895,14 +899,15 @@ class Player(db.Model):
 
 class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    player_id = db.Column(db.Integer, nullable=False, index=True)
+    player_pn = db.Column(db.String(20), nullable=True, index=True)
     year = db.Column(db.Integer, nullable=False)
     month = db.Column(db.Integer, nullable=False)  # 1..12
     amount = db.Column(db.Integer, nullable=True)  # EUR
     paid = db.Column(db.Boolean, default=False)
     paid_on = db.Column(db.Date, nullable=True)
 
-    player = db.relationship("Player", backref=db.backref("payments", lazy="dynamic"))
+    player = db.relationship("Player", primaryjoin="Player.id==foreign(Payment.player_id)", foreign_keys=[player_id], backref=db.backref("payments", lazy="dynamic"))
 
     __table_args__ = (db.UniqueConstraint("player_id", "year", "month", name="uq_payment_player_month"),)
 
@@ -942,13 +947,14 @@ class EventCategory(db.Model):
 class EventRegistration(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=False, index=True)
-    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    player_id = db.Column(db.Integer, nullable=False, index=True)
+    player_pn = db.Column(db.String(20), nullable=True, index=True)
 
     fee_override = db.Column(db.Integer, nullable=True)  # EUR
     paid = db.Column(db.Boolean, default=False)
     paid_on = db.Column(db.Date, nullable=True)
 
-    player = db.relationship("Player", backref=db.backref("event_registrations", cascade="all, delete-orphan", lazy="dynamic"))
+    player = db.relationship("Player", primaryjoin="Player.id==foreign(EventRegistration.player_id)", foreign_keys=[player_id], backref=db.backref("event_registrations", cascade="all, delete-orphan", lazy="dynamic"))
 
     # association objects (holds medal per category)
     reg_categories = db.relationship("EventRegCategory", backref="registration", cascade="all, delete-orphan", lazy="joined")
@@ -983,7 +989,8 @@ class PaymentRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     kind = db.Column(db.String(20), nullable=False)
 
-    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    player_id = db.Column(db.Integer, nullable=False, index=True)
+    player_pn = db.Column(db.String(20), nullable=True, index=True)
     payment_id = db.Column(db.Integer, db.ForeignKey("payment.id"), nullable=True, index=True)
     event_registration_id = db.Column(db.Integer, db.ForeignKey("event_registration.id"), nullable=True, index=True)
 
@@ -1007,7 +1014,7 @@ class PaymentRecord(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
-    player = db.relationship("Player")
+    player = db.relationship("Player", primaryjoin="Player.id==foreign(PaymentRecord.player_id)", foreign_keys=[player_id])
     payment = db.relationship("Payment")
     event_registration = db.relationship("EventRegistration")
     related_receipt_id = db.Column(db.Integer, db.ForeignKey("payment_record.id"), nullable=True, index=True)
@@ -1030,7 +1037,7 @@ class PlayerForm(FlaskForm):
     last_name = StringField("Last Name", validators=[DataRequired(), Length(max=80)])
     gender = SelectField("Gender", validators=[VOptional()], render_kw={"style": "max-width: 99px; display: inline-block;"})
     birthdate = DateField("Birthdate", validators=[VOptional()], render_kw={"style": "max-width: 132px; display: inline-block;"})
-    pn = StringField("PN#", validators=[DataRequired(), Length(max=20)], render_kw={"style": "max-width: 120px; display: inline-block;"})
+    pn = StringField("PN#", validators=[DataRequired(), Length(min=10, max=10), Regexp(r'^\d{10}$', message="PN must be exactly 10 digits")], render_kw={"style": "max-width: 120px; display: inline-block;"})
     grade_level = SelectField("Grade Level", validators=[VOptional()])
     grade_date = DateField("Grade Date", validators=[VOptional()])
 
@@ -1167,7 +1174,7 @@ def list_players():
         p.ins_text, p.ins_color = validity_badge(p.insurance_expiry_date)
 
         sess_records = (PaymentRecord.query
-                        .filter_by(player_id=p.id, kind='training_session')
+                        .filter_by(player_pn=p.pn, kind='training_session')
                         .order_by(PaymentRecord.paid_at.desc())
                         .all())
 
@@ -1190,7 +1197,7 @@ def list_players():
             p.ins_text, p.ins_color = validity_badge(p.insurance_expiry_date)
 
             # Use TrainingSession for per-session logic
-            all_sessions = TrainingSession.query.filter_by(player_id=p.id).all()
+            all_sessions = TrainingSession.query.filter_by(player_pn=p.pn).all()
             paid_sessions = [s for s in all_sessions if s.paid]
             unpaid_sessions = [s for s in all_sessions if not s.paid]
             p.total_sessions_taken = len(all_sessions)
@@ -1212,7 +1219,7 @@ def list_players():
             if p.monthly_due_amount is not None and not p.monthly_due_paid and p.monthly_due_amount > 0:
                 p.has_debt = True
             # Check for unpaid event registrations with a fee
-            unpaid_regs = EventRegistration.query.filter_by(player_id=p.id, paid=False).all()
+            unpaid_regs = EventRegistration.query.filter_by(player_pn=p.pn, paid=False).all()
             for reg in unpaid_regs:
                 fee = reg.fee_override if reg.fee_override is not None else reg.computed_fee()
                 if fee and fee > 0:
@@ -1225,7 +1232,7 @@ def list_players():
         if 'month_year' in locals() and month_year:
             try:
                 yy, mm = month_year
-                pay_row = Payment.query.filter_by(player_id=p.id, year=yy, month=mm).first()
+                pay_row = Payment.query.filter_by(player_pn=p.pn, year=yy, month=mm).first()
                 if pay_row:
                     p.monthly_due_amount = pay_row.amount or 0
                     p.monthly_due_paid = bool(pay_row.paid)
@@ -1238,7 +1245,7 @@ def list_players():
         belts=GRADING_SCHEME["belt_colors"]
     )
     regs = (EventRegistration.query
-            .filter_by(player_id=player.id)
+            .filter_by(player_pn=player.pn)
             .join(Event)
             .order_by(Event.start_date.desc())
             .all())
@@ -1259,15 +1266,15 @@ def player_detail(player_id: int):
     except Exception:
         pass
 
-    current_payment = Payment.query.filter_by(player_id=player.id, year=today.year, month=today.month).first()
+    current_payment = Payment.query.filter_by(player_pn=player.pn, year=today.year, month=today.month).first()
     regs = (EventRegistration.query
-            .filter_by(player_id=player.id)
+            .filter_by(player_pn=player.pn)
             .join(Event)
             .order_by(Event.start_date.desc())
             .all())
 
     # Use TrainingSession for session logic (unified with player list)
-    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    all_sessions = TrainingSession.query.filter_by(player_pn=player.pn).all()
     paid_sessions = [s for s in all_sessions if s.paid]
     unpaid_sessions = [s for s in all_sessions if not s.paid]
     total_sessions_taken = len(all_sessions)
@@ -1277,7 +1284,7 @@ def player_detail(player_id: int):
     owed_amount = int(round(total_sessions_unpaid * per_session_price)) if per_session_price else 0
     # Only show session receipts for sessions counted as paid
     # Filter PaymentRecords for kind='training_session' and limit to total_sessions_paid
-    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    all_receipts = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
     sess_records = all_receipts[:total_sessions_paid]
     return render_template(
         "player_detail.html",
@@ -1289,7 +1296,7 @@ def player_detail(player_id: int):
         total_sessions_unpaid=total_sessions_unpaid,
         per_session_amount=per_session_price,
         owed_amount=owed_amount,
-        payment_count=db.session.query(PaymentRecord).filter_by(player_id=player.id).count(),
+        payment_count=db.session.query(PaymentRecord).filter_by(player_pn=player.pn).count(),
         sess_records=sess_records,
     )
 
@@ -1448,7 +1455,11 @@ def admin_players_import_csv():
 
             player = Player(first_name=first_name, last_name=last_name)
             player.gender = get('gender')
-            player.pn = get('pn')
+            player.pn = (get('pn') or '')
+            # Validate PN: must be exactly 10 digits
+            if not re.match(r'^\d{10}$', player.pn):
+                errors.append(f"Row {idx}: invalid or missing PN (must be exactly 10 digits): '{player.pn}'")
+                continue
             player.email = get('email')
             player.phone = get('phone')
             player.grade_level = get('grade_level')
@@ -1652,19 +1663,29 @@ def delete_player(player_id: int):
         except FileNotFoundError:
             pass
     try:
-        PaymentRecord.query.filter_by(player_id=player.id).delete(synchronize_session=False)
-        Payment.query.filter_by(player_id=player.id).delete(synchronize_session=False)
-        TrainingSession.query.filter_by(player_id=player.id).delete(synchronize_session=False)
-        regs = EventRegistration.query.filter_by(player_id=player.id).all()
-        for r in regs:
-            db.session.delete(r)
-        db.session.delete(player)
+        # Preserve related records. Ensure their `player_pn` is set to this player's PN
+        pn_val = player.pn
+        if pn_val:
+            PaymentRecord.query.filter_by(player_id=player.id).update({"player_pn": pn_val}, synchronize_session=False)
+            Payment.query.filter_by(player_id=player.id).update({"player_pn": pn_val}, synchronize_session=False)
+            TrainingSession.query.filter_by(player_id=player.id).update({"player_pn": pn_val}, synchronize_session=False)
+            EventRegistration.query.filter_by(player_id=player.id).update({"player_pn": pn_val}, synchronize_session=False)
+        # Soft-delete: keep the player row to preserve foreign key integrity, but mark inactive and anonymize contact info
+        player.active_member = False
+        # Optionally anonymize personal data while preserving PN as UID
+        player.first_name = (player.first_name or '')
+        player.last_name = (player.last_name or '')
+        player.email = None
+        player.phone = None
+        player.photo_filename = None
+        player.notes = (player.notes or '') + f"\n[DELETED on {date.today().isoformat()}]"
+        db.session.add(player)
         db.session.commit()
     except Exception:
         db.session.rollback()
         flash("Failed to fully delete player and related records.", "danger")
         return redirect(url_for("player_detail", player_id=player.id))
-    flash(_("Player deleted."), "info")
+    flash(_("Player deleted (soft). Related registrations and payments preserved and linked by PN#."), "info")
     return redirect(url_for("list_players"))
 
 # --- Modal Dues Payment Backend ---
@@ -1682,15 +1703,15 @@ def player_pay_due_receipt(player_id: int):
     # Helper: get due type and object by ID
     def get_due_obj(due_id):
         # Try Payment (monthly)
-        p = Payment.query.filter_by(id=due_id, player_id=player.id, paid=False).first()
+        p = Payment.query.filter_by(id=due_id, player_pn=player.pn, paid=False).first()
         if p:
             return ("monthly", p)
         # Try EventRegistration (event)
-        r = EventRegistration.query.filter_by(id=due_id, player_id=player.id, paid=False).first()
+        r = EventRegistration.query.filter_by(id=due_id, player_pn=player.pn, paid=False).first()
         if r:
             return ("event", r)
         # Try PaymentRecord (debt)
-        d = PaymentRecord.query.filter_by(id=due_id, player_id=player.id).first()
+        d = PaymentRecord.query.filter_by(id=due_id, player_pn=player.pn).first()
         if d and is_auto_debt_note(d.note) and "AUTO_DEBT_PAID" not in (d.note or ""):
             return ("debt", d)
         return (None, None)
@@ -1701,7 +1722,7 @@ def player_pay_due_receipt(player_id: int):
         if isinstance(due_id, dict) and due_id.get('type') == 'owed_sessions' and due_id.get('session_ids'):
             session_ids = due_id['session_ids']
             # Fetch the TrainingSession records
-            sessions = TrainingSession.query.filter(TrainingSession.session_id.in_(session_ids), TrainingSession.player_id == player.id, TrainingSession.paid == False).all()
+            sessions = TrainingSession.query.filter(TrainingSession.session_id.in_(session_ids), TrainingSession.player_pn == player.pn, TrainingSession.paid == False).all()
             if not sessions:
                 continue
             per_session_amount = player.monthly_fee_amount
@@ -1717,7 +1738,7 @@ def player_pay_due_receipt(player_id: int):
             else:
                 note = f"Session IDs: {', '.join(session_ids)}"
             rec = PaymentRecord(
-                kind='training_session', player_id=player.id,
+                kind='training_session', player_id=player.id, player_pn=player.pn,
                 amount=amt, year=today.year, month=today.month,
                 sessions_paid=0, sessions_taken=0,
                 currency='EUR', note=note
@@ -1740,7 +1761,7 @@ def player_pay_due_receipt(player_id: int):
         if kind == "monthly":
             # Create PaymentRecord for monthly fee
             amt = obj.amount or 0
-            rec = PaymentRecord(kind='training_month', player_id=player.id,
+            rec = PaymentRecord(kind='training_month', player_id=player.id, player_pn=player.pn,
                                 amount=amt, year=obj.year, month=obj.month,
                                 payment_id=obj.id, currency='EUR', note='PAY_FROM_MODAL')
             db.session.add(rec)
@@ -1759,7 +1780,7 @@ def player_pay_due_receipt(player_id: int):
             amt = obj.computed_fee() or 0
             event_name = obj.event.title if obj.event and hasattr(obj.event, 'title') else 'Event'
             note = f"PAY_FROM_MODAL | Event: {event_name}"
-            rec = PaymentRecord(kind='event', player_id=player.id,
+            rec = PaymentRecord(kind='event', player_id=player.id, player_pn=player.pn,
                                 amount=amt, event_registration_id=obj.id,
                                 currency='EUR', note=note)
             db.session.add(rec)
@@ -1779,7 +1800,7 @@ def player_pay_due_receipt(player_id: int):
             if d_amt <= 0:
                 continue
             pay_rec = PaymentRecord(
-                kind=obj.kind, player_id=player.id,
+                kind=obj.kind, player_id=player.id, player_pn=player.pn,
                 amount=d_amt, currency=obj.currency or 'EUR',
                 method=None,
                 note=f'Payment for debt receipt {obj.id}',
@@ -1813,7 +1834,7 @@ def player_dues_json(player_id: int):
     today = date.today()
     dues = []
     # Monthly due (unpaid Payment row for this month)
-    pay = Payment.query.filter_by(player_id=player.id, year=today.year, month=today.month, paid=False).first()
+    pay = Payment.query.filter_by(player_pn=player.pn, year=today.year, month=today.month, paid=False).first()
     if pay:
         dues.append({
             "id": pay.id,
@@ -1825,7 +1846,7 @@ def player_dues_json(player_id: int):
     # Owed session payments (per-session plan, sessions taken > sessions paid)
     if player.monthly_fee_is_monthly is False and player.monthly_fee_amount:
         # Get all unpaid TrainingSession records for this player (all time)
-        unpaid_sessions = TrainingSession.query.filter_by(player_id=player.id, paid=False).order_by(TrainingSession.date.asc()).all()
+        unpaid_sessions = TrainingSession.query.filter_by(player_pn=player.pn, paid=False).order_by(TrainingSession.date.asc()).all()
         per_session_amount = player.monthly_fee_amount
         owed_sessions = len(unpaid_sessions)
         if owed_sessions > 0:
@@ -1845,7 +1866,7 @@ def player_dues_json(player_id: int):
                 "session_list": session_list
             })
     # Unpaid event registrations
-    regs = EventRegistration.query.filter_by(player_id=player.id, paid=False).all()
+    regs = EventRegistration.query.filter_by(player_pn=player.pn, paid=False).all()
     for r in regs:
         dues.append({
             "id": r.id,
@@ -1870,17 +1891,17 @@ def backfill_training_sessions():
         if player.monthly_fee_is_monthly or not player.monthly_fee_amount:
             continue  # Only per-session payers
         # Count sessions_taken from PaymentRecord
-        total_taken = db.session.query(db.func.sum(PaymentRecord.sessions_taken)).filter_by(player_id=player.id, kind='training_session').scalar() or 0
+        total_taken = db.session.query(db.func.sum(PaymentRecord.sessions_taken)).filter_by(player_pn=player.pn, kind='training_session').scalar() or 0
         # Count existing TrainingSession rows
-        existing_sessions = TrainingSession.query.filter_by(player_id=player.id).count()
+        existing_sessions = TrainingSession.query.filter_by(player_pn=player.pn).count()
         missing = total_taken - existing_sessions
         if missing > 0:
             # Find the latest session date, or use today
-            last_date = db.session.query(db.func.max(TrainingSession.date)).filter_by(player_id=player.id).scalar() or date.today()
+            last_date = db.session.query(db.func.max(TrainingSession.date)).filter_by(player_pn=player.pn).scalar() or date.today()
             for i in range(missing):
                 sess_date = last_date  # Could randomize or increment if needed
                 session_id = TrainingSession.generate_session_id(player.id, sess_date)
-                ts = TrainingSession(player_id=player.id, date=sess_date, session_id=session_id, paid=False)
+                ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=sess_date, session_id=session_id, paid=False)
                 db.session.add(ts)
                 created_total += 1
     db.session.commit()
@@ -1910,7 +1931,7 @@ def fees_report():
         # Per-session
         # Include session receipts by session date (from TrainingSession)
         session_receipts = []
-        all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').all()
+        all_receipts = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').all()
         for rec in all_receipts:
             # Find related TrainingSession(s) for this receipt
             # If note contains session IDs, parse them
@@ -1931,7 +1952,7 @@ def fees_report():
         per_session_amount = player.monthly_fee_amount if player.monthly_fee_is_monthly is False else None
         owed_amount = max(0, (sessions_taken - sessions_paid) * per_session_amount) if per_session_amount else 0
         # Events
-        event_payments = PaymentRecord.query.filter_by(player_id=player.id, kind='event').filter(
+        event_payments = PaymentRecord.query.filter_by(player_pn=player.pn, kind='event').filter(
             extract('year', PaymentRecord.paid_at) == year,
             extract('month', PaymentRecord.paid_at) == month
         ).all()
@@ -1943,7 +1964,7 @@ def fees_report():
         month_start = date(year, month, 1)
         month_end = date(year, month, monthrange(year, month)[1])
         # All event registrations for this player in this month
-        regs_in_month = [reg for reg in EventRegistration.query.filter_by(player_id=player.id).join(Event).filter(Event.start_date >= month_start, Event.start_date <= month_end).all()]
+        regs_in_month = [reg for reg in EventRegistration.query.filter_by(player_pn=player.pn).join(Event).filter(Event.start_date >= month_start, Event.start_date <= month_end).all()]
         for reg in regs_in_month:
             # Sum all category fees for this registration
             for rc in reg.reg_categories:
@@ -1971,7 +1992,7 @@ def fees_report():
         # Find monthly receipt (PaymentRecord)
         monthly_receipt = None
         if payment:
-            monthly_receipt = PaymentRecord.query.filter_by(player_id=player.id, kind='training_month', year=year, month=month).first()
+            monthly_receipt = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_month', year=year, month=month).first()
         monthly_receipt_no = monthly_receipt.receipt_no if monthly_receipt else None
         monthly_receipt_id = monthly_receipt.id if monthly_receipt else None
         # Collect all session receipts for the month
@@ -2034,7 +2055,7 @@ def fees_export_csv():
     due = first_working_day(year, month)
     payments = (Payment.query
                 .filter_by(year=year, month=month)
-                .join(Player)
+                .join(Player, Player.id == Payment.player_id)
                 .order_by(Player.last_name.asc(), Player.first_name.asc())
                 .all())
 
@@ -2075,7 +2096,7 @@ def export_csv():
 
         for p in players:
             sess_records = (PaymentRecord.query
-                            .filter_by(player_id=p.id, kind='training_session')
+                            .filter_by(player_pn=p.pn, kind='training_session')
                             .all())
             explicit_sessions_paid = sum((r.sessions_paid or 0) for r in sess_records)
             sessions_taken = sum((r.sessions_taken or 0) for r in sess_records)
@@ -2177,7 +2198,7 @@ def event_detail(event_id: int):
     ev = Event.query.get_or_404(event_id)
     regs = (EventRegistration.query
             .filter_by(event_id=ev.id)
-            .join(Player)
+            .join(Player, Player.id == EventRegistration.player_id)
             .order_by(Player.last_name.asc(), Player.first_name.asc())
             .all())
 
@@ -2510,9 +2531,12 @@ def event_registrations(event_id: int):
                     existing_reg.paid_on = date.today()
                 db.session.add(existing_reg)
             else:
+                # set player_pn for new registration
+                player_obj = Player.query.get(pid)
                 reg = EventRegistration(
                     event_id=ev.id,
                     player_id=pid,
+                    player_pn=(player_obj.pn if player_obj else None),
                     fee_override=form.fee_override.data,
                     paid=bool(form.paid.data),
                     paid_on=(date.today() if form.paid.data else None),
@@ -2532,7 +2556,7 @@ def event_registrations(event_id: int):
 
     regs_query = (EventRegistration.query
                   .filter_by(event_id=ev.id)
-                  .join(Player))
+                  .join(Player, Player.id == EventRegistration.player_id))
 
     if paid_filter == "paid":
         regs_query = regs_query.filter(EventRegistration.paid.is_(True))
@@ -2632,7 +2656,7 @@ def event_export_csv(event_id: int):
     ev = Event.query.get_or_404(event_id)
     regs = (EventRegistration.query
             .filter_by(event_id=ev.id)
-            .join(Player)
+            .join(Player, Player.id == EventRegistration.player_id)
             .order_by(Player.last_name.asc(), Player.first_name.asc())
             .all())
     # Precompute CSV rows while the DB session is active to avoid detached-instance lazy loads
@@ -2669,7 +2693,7 @@ def event_export_full(event_id: int):
     cats = EventCategory.query.filter_by(event_id=ev.id).order_by(EventCategory.name.asc()).all()
     regs = (EventRegistration.query
             .filter_by(event_id=ev.id)
-            .join(Player)
+            .join(Player, Player.id == EventRegistration.player_id)
             .order_by(Player.last_name.asc(), Player.first_name.asc())
             .all())
 
@@ -2894,7 +2918,7 @@ def import_event_zip():
                         if not player:
                             regs_skipped += 1
                             continue
-                        if EventRegistration.query.filter_by(event_id=ev.id, player_id=player.id).first():
+                        if EventRegistration.query.filter_by(event_id=ev.id, player_pn=player.pn).first():
                             regs_duplicated += 1
                             continue
                         fee_override = None
@@ -2903,7 +2927,7 @@ def import_event_zip():
                         except Exception:
                             fee_override = None
                         paid = (str(row.get('paid') or '').lower() in ('1','true','yes'))
-                        reg = EventRegistration(event_id=ev.id, player_id=player.id, fee_override=fee_override, paid=paid, paid_on=(date.fromisoformat(row.get('paid_on')) if row.get('paid_on') else None))
+                        reg = EventRegistration(event_id=ev.id, player_id=player.id, player_pn=player.pn, fee_override=fee_override, paid=paid, paid_on=(date.fromisoformat(row.get('paid_on')) if row.get('paid_on') else None))
                         db.session.add(reg)
                         db.session.flush()
                         regs_imported += 1
@@ -3269,6 +3293,28 @@ def auto_migrate_on_startup():
         if "related_receipt_id" not in existing2:
             conn.execute(text("ALTER TABLE payment_record ADD COLUMN related_receipt_id INTEGER"))
 
+        # Add player_pn columns to related tables to support PN-based relations
+        for tbl in ("training_session", "payment", "event_registration", "payment_record"):
+            info = conn.execute(text(f"PRAGMA table_info({tbl})"))
+            cols = {row[1] for row in info}
+            if "player_pn" not in cols:
+                conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN player_pn VARCHAR(20)"))
+
+        # Ensure Player.pn is unique (create unique index)
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_player_pn ON player (pn)"))
+        except Exception:
+            pass
+
+        # Backfill player_pn from existing player_id values
+        try:
+            conn.execute(text("UPDATE training_session SET player_pn = (SELECT pn FROM player WHERE player.id = training_session.player_id) WHERE player_pn IS NULL"))
+            conn.execute(text("UPDATE payment SET player_pn = (SELECT pn FROM player WHERE player.id = payment.player_id) WHERE player_pn IS NULL"))
+            conn.execute(text("UPDATE event_registration SET player_pn = (SELECT pn FROM player WHERE player.id = event_registration.player_id) WHERE player_pn IS NULL"))
+            conn.execute(text("UPDATE payment_record SET player_pn = (SELECT pn FROM player WHERE player.id = payment_record.player_id) WHERE player_pn IS NULL"))
+        except Exception:
+            app.logger.exception('Backfill player_pn failed')
+
         # Add unique constraint on (player_id, date) for TrainingSession
         try:
             conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_player_session_date ON training_session (player_id, date)"))
@@ -3332,12 +3378,12 @@ def payment_new():
         month_str = request.form.get("month")
         y, m = parse_month_str(month_str)
         # Check for duplicate monthly payment
-        exists = PaymentRecord.query.filter_by(kind="training_month", player_id=player.id, year=y, month=m).first()
+        exists = PaymentRecord.query.filter_by(kind="training_month", player_pn=player.pn, year=y, month=m).first()
         if exists:
             flash("Duplicate monthly payment for this player and month is not allowed.", "danger")
             return redirect(url_for("payment_new", player_id=player.id))
-        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=player.id, year=y, month=m)
-        pay = Payment.query.filter_by(player_id=player.id, year=y, month=m).first()
+        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=player.id, player_pn=player.pn, year=y, month=m)
+        pay = Payment.query.filter_by(player_pn=player.pn, year=y, month=m).first()
         record.payment_id = pay.id if pay else None
     elif kind == "event":
         rid = request.form.get("reg_id", type=int)
@@ -3346,11 +3392,12 @@ def payment_new():
             flash("Event registration is required for event payments.", "danger")
             return redirect(url_for("payment_new", reg_id=reg_id))
         # Check for duplicate event payment for this registration
-        exists = PaymentRecord.query.filter_by(kind="event", player_id=reg.player_id, event_registration_id=reg.id).first()
+        reg_pn = (reg.player_pn or (reg.player.pn if getattr(reg, 'player', None) else None))
+        exists = PaymentRecord.query.filter_by(kind="event", player_pn=reg_pn, event_registration_id=reg.id).first()
         if exists:
             flash("Duplicate event/category payment for this player and event registration is not allowed.", "danger")
             return redirect(url_for("payment_new", player_id=reg.player_id, reg_id=reg.id))
-        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=reg.player_id, event_registration_id=reg.id)
+        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=reg.player_id, player_pn=(reg.player_pn or (reg.player.pn if getattr(reg, 'player', None) else None)), event_registration_id=reg.id)
     elif kind == "training_session":
         pid = request.form.get("player_id", type=int)
         player = Player.query.get(pid)
@@ -3358,7 +3405,7 @@ def payment_new():
             flash("Player is required for training payments.", "danger")
             return redirect(url_for("payment_new", player_id=player_id))
         sessions_paid = request.form.get("sessions_paid", type=int) or 0
-        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=player.id, sessions_paid=max(0, sessions_paid), sessions_taken=0)
+        record = PaymentRecord(kind=kind, amount=amount, currency=currency, method=method, note=note, player_id=player.id, player_pn=player.pn, sessions_paid=max(0, sessions_paid), sessions_taken=0)
         if player.monthly_fee_amount is not None and not player.monthly_fee_is_monthly:
             try:
                 per_price = float(player.monthly_fee_amount)
@@ -3403,7 +3450,7 @@ def player_due_print(player_id: int):
     ensure_payments_for_month(year, month)
 
     player = Player.query.get_or_404(player_id)
-    pay = Payment.query.filter_by(player_id=player.id, year=year, month=month).first()
+    pay = Payment.query.filter_by(player_pn=player.pn, year=year, month=month).first()
 
     first = date(year, month, 1)
     last_day = calendar.monthrange(year, month)[1]
@@ -3411,7 +3458,7 @@ def player_due_print(player_id: int):
 
     regs_unpaid = (EventRegistration.query
                    .join(Event)
-                   .filter(EventRegistration.player_id == player.id)
+                   .filter(EventRegistration.player_pn == player.pn)
                    .filter(EventRegistration.paid.is_(False))
                    .filter(Event.start_date >= first, Event.start_date <= last)
                    .all())
@@ -3421,7 +3468,7 @@ def player_due_print(player_id: int):
     due_date = first_working_day(year, month)
 
     # Use TrainingSession for session logic (unified with player_detail)
-    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    all_sessions = TrainingSession.query.filter_by(player_pn=player.pn).all()
     paid_sessions = [s for s in all_sessions if s.paid]
     unpaid_sessions = [s for s in all_sessions if not s.paid]
     total_sessions_taken = len(all_sessions)
@@ -3430,7 +3477,7 @@ def player_due_print(player_id: int):
     per_session_amount = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
     owed_amount = int(round(total_sessions_unpaid * per_session_amount)) if per_session_amount else 0
     # Only show session receipts for sessions counted as paid
-    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    all_receipts = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
     sess_records = all_receipts[:total_sessions_paid]
     total_due = owed_amount + events_due
     return render_template(
@@ -3543,11 +3590,21 @@ def record_session(player_id: int):
 
     # Always create a new TrainingSession row for this player
     today = date.today()
+    # Avoid duplicate session for same player and date (unique constraint)
+    existing = TrainingSession.query.filter_by(player_pn=player.pn, date=today).first()
+    if existing:
+        flash('Session for today already recorded.', 'info')
+        return redirect(request.referrer or url_for('player_detail', player_id=player.id))
     session_id = f"{player.id}_{today.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S%f')}"
-    ts = TrainingSession(player_id=player.id, date=today, session_id=session_id, paid=False, created_at=datetime.now())
+    ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=today, session_id=session_id, paid=False, created_at=datetime.now())
     db.session.add(ts)
-    db.session.commit()
-    flash('Session recorded. New TrainingSession created.', 'success')
+    try:
+        db.session.commit()
+        flash('Session recorded. New TrainingSession created.', 'success')
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to record TrainingSession (possible race or duplicate)')
+        flash('Session recording failed (possibly already exists).', 'warning')
 
     return redirect(request.referrer or url_for('player_detail', player_id=player.id))
 
@@ -3616,15 +3673,15 @@ def player_pay_due(player_id: int):
             y, m = today.year, today.month
 
         # Find unpaid Payment for that month
-        p = Payment.query.filter_by(player_id=player.id, year=y, month=m, paid=False).first()
+        p = Payment.query.filter_by(player_pn=player.pn, year=y, month=m, paid=False).first()
         if p:
             # Prevent duplicate PaymentRecord for this player/month
-            exists = PaymentRecord.query.filter_by(kind='training_month', player_id=player.id, year=y, month=m).first()
+            exists = PaymentRecord.query.filter_by(kind='training_month', player_pn=player.pn, year=y, month=m).first()
             if exists:
                 flash(f"Payment for {y}-{m:02d} already exists.", "warning")
             else:
                 amt = p.amount or 0
-                rec = PaymentRecord(kind='training_month', player_id=player.id,
+                rec = PaymentRecord(kind='training_month', player_id=player.id, player_pn=player.pn,
                                     amount=amt, year=p.year, month=p.month,
                                     payment_id=p.id, currency='EUR', note='PAY_FROM_LIST')
                 db.session.add(rec)
@@ -3643,10 +3700,10 @@ def player_pay_due(player_id: int):
 
     # Events
     if kind in ("events", "all"):
-        regs = EventRegistration.query.filter_by(player_id=player.id, paid=False).all()
+        regs = EventRegistration.query.filter_by(player_pn=player.pn, paid=False).all()
         for r in regs:
             amt = r.computed_fee() or 0
-            rec = PaymentRecord(kind='event', player_id=player.id,
+            rec = PaymentRecord(kind='event', player_id=player.id, player_pn=(r.player_pn or (r.player.pn if getattr(r, 'player', None) else None)),
                                 amount=amt, event_registration_id=r.id,
                                 currency='EUR', note='PAY_FROM_LIST')
             db.session.add(rec)
@@ -3666,8 +3723,8 @@ def player_pay_due(player_id: int):
     debts_to_pay = []
     if kind in ("debts", "all"):
         debts = (PaymentRecord.query
-                 .filter(PaymentRecord.player_id == player.id,
-                         PaymentRecord.note.like('%AUTO_DEBT%'))
+             .filter(PaymentRecord.player_pn == player.pn,
+                 PaymentRecord.note.like('%AUTO_DEBT%'))
                  .order_by(PaymentRecord.paid_at.asc())
                  .all())
         for d in debts:
@@ -3685,7 +3742,7 @@ def player_pay_due(player_id: int):
         if d_amt <= 0:
             continue
         pay_rec = PaymentRecord(
-            kind=d.kind, player_id=player.id,
+            kind=d.kind, player_id=player.id, player_pn=player.pn,
             amount=d_amt, currency=d.currency or 'EUR',
             method=None,
             note=f'Payment for debt receipt {d.id}',
@@ -3711,7 +3768,7 @@ def player_pay_due(player_id: int):
     # 2) ALWAYS settle any residual owed in the same click (based on fundamentals)
     if kind in ("debts", "all") and unit_price is not None and unit_price > 0:
         # Recompute fresh from DB AFTER paying explicit debts
-        sess_records_all = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').all()
+        sess_records_all = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').all()
         # Prepaid = all non-debt training receipts (MANUAL_OWED is prepaid, not debt)
         sess_receipts = [r for r in sess_records_all if not is_auto_debt_note(r.note)]
         total_sessions_taken = sum((r.sessions_taken or 0) for r in sess_records_all)
@@ -3723,7 +3780,7 @@ def player_pay_due(player_id: int):
 
         if residual_owed > 0:
             rec = PaymentRecord(
-                kind='training_session', player_id=player.id,
+                kind='training_session', player_id=player.id, player_pn=player.pn,
                 sessions_paid=0, sessions_taken=0,
                 amount=residual_owed, currency='EUR',
                 method=None, note=f'MANUAL_OWED: owed {residual_owed}'

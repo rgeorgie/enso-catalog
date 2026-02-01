@@ -26,10 +26,14 @@
       <label class="form-label">{{ _('Birthdate') }}</label>
       {{ form.birthdate(class="form-control", type="date") }}
     </div>
+    {% if session.get('is_admin') %}
     <div class="col-md-4">
       <label class="form-label">{{ _('PN#') }}</label>
       {{ form.pn(class="form-control") }}
     </div>
+    {% else %}
+      {{ form.pn(type="hidden") }}
+    {% endif %}
 
     <!-- Grade (select only) -->
     <div class="col-md-4">
