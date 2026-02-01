@@ -1692,10 +1692,9 @@ def fees_report():
             monthly_receipt = PaymentRecord.query.filter_by(player_id=player.id, kind='training_month', year=year, month=month).first()
         monthly_receipt_no = monthly_receipt.receipt_no if monthly_receipt else None
         monthly_receipt_id = monthly_receipt.id if monthly_receipt else None
-        # Find session receipt (if only one for the month, show it; if multiple, show first)
-        session_receipt = session_receipts[0] if session_receipts else None
-        session_receipt_no = session_receipt.receipt_no if session_receipt else None
-        session_receipt_id = session_receipt.id if session_receipt else None
+        # Collect all session receipts for the month
+        session_receipt_nos = [r.receipt_no for r in session_receipts if r.receipt_no]
+        session_receipt_ids = [r.id for r in session_receipts if r.receipt_no]
         report_rows.append({
             'player': player,
             'player_id': player.id,
@@ -1708,8 +1707,8 @@ def fees_report():
             'sessions_taken': sessions_taken,
             'prepaid_amount': prepaid_amount,
             'per_session_amount': per_session_amount,
-            'session_receipt_no': session_receipt_no,
-            'session_receipt_id': session_receipt_id,
+            'session_receipt_nos': session_receipt_nos,
+            'session_receipt_ids': session_receipt_ids,
             'owed_amount': (owed_amount or 0) + (event_owed or 0),
             'event_total': event_total,
             'event_owed': event_owed,

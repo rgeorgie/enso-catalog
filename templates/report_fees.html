@@ -45,8 +45,8 @@
           data-monthly-receipt-id="{{ p.monthly_receipt_id or '' }}"
           data-session-prepaid="{{ p.prepaid_amount or '' }}"
           data-session-owed="{{ p.owed_amount or '' }}"
-          data-session-receipt-no="{{ p.session_receipt_no or '' }}"
-          data-session-receipt-id="{{ p.session_receipt_id or '' }}"
+          data-session-receipt-nos="{{ p.session_receipt_nos | join(',') }}"
+          data-session-receipt-ids="{{ p.session_receipt_ids | join(',') }}"
           data-year="{{ p.year }}"
           data-month="{{ '%02d'|format(p.month) }}"
           data-events='{{ (p.event_details | default([], true) | tojson) | safe }}'>
@@ -147,8 +147,8 @@ $(function() {
       var monthlyReceiptId = $tr.data('monthly-receipt-id') || '';
       var sessionPrepaid = $tr.data('session-prepaid') || '—';
       var sessionOwed = $tr.data('session-owed') || '—';
-      var sessionReceiptNo = $tr.data('session-receipt-no') || '';
-      var sessionReceiptId = $tr.data('session-receipt-id') || '';
+      var sessionReceiptNos = ($tr.data('session-receipt-nos') || '').split(',').filter(Boolean);
+      var sessionReceiptIds = ($tr.data('session-receipt-ids') || '').split(',').filter(Boolean);
       var year = $tr.data('year');
       var month = $tr.data('month');
       var events = [];
@@ -166,10 +166,13 @@ $(function() {
         monthlyReceiptHtml = `<a href="${receiptViewBase}${monthlyReceiptId}" target="_blank">${monthlyReceiptNo}</a>`;
       }
 
-      // Session receipt link
+      // Session receipt links (all for the month)
       var sessionReceiptHtml = '';
-      if (sessionReceiptNo && sessionReceiptId) {
-        sessionReceiptHtml = `<a href="${receiptViewBase}${sessionReceiptId}" target="_blank">${sessionReceiptNo}</a>`;
+      if (sessionReceiptNos.length && sessionReceiptIds.length) {
+        sessionReceiptHtml = sessionReceiptNos.map(function(no, idx) {
+          var id = sessionReceiptIds[idx] || '';
+          return id ? `<a href="${receiptViewBase}${id}" target="_blank">${no}</a>` : no;
+        }).join(', ');
       }
 
       // Events list with safe receipt links
