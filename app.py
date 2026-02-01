@@ -55,7 +55,8 @@ db = SQLAlchemy(app)
 # -----------------------------
 class TrainingSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.String(64), unique=True, nullable=False)
+    session_id = db.Column(db.String(64), nullable=False)
+    __table_args__ = (db.UniqueConstraint('player_id', 'date', name='uq_player_session_date'),)
     player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
     date = db.Column(db.Date, nullable=True)
     paid = db.Column(db.Boolean, default=False)
@@ -1372,6 +1373,7 @@ def delete_player(player_id: int):
     try:
         PaymentRecord.query.filter_by(player_id=player.id).delete(synchronize_session=False)
         Payment.query.filter_by(player_id=player.id).delete(synchronize_session=False)
+        TrainingSession.query.filter_by(player_id=player.id).delete(synchronize_session=False)
         regs = EventRegistration.query.filter_by(player_id=player.id).all()
         for r in regs:
             db.session.delete(r)
@@ -2405,6 +2407,12 @@ def migrate():
     return redirect(url_for("list_players"))
 
 def auto_migrate_on_startup():
+    # Add unique constraint on (player_id, date) for TrainingSession
+    with db.engine.begin() as conn:
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_player_session_date ON training_session (player_id, date)"))
+        except Exception:
+            pass
     with db.engine.begin() as conn:
         # --- EventCategory columns migration ---
         result3 = conn.execute(text("PRAGMA table_info(event_category)"))
@@ -2424,7 +2432,7 @@ def auto_migrate_on_startup():
             col_sql = f'"{col}"' if col in ("limit", "limit_team") else col
             if col not in existing3:
                 conn.execute(text(f"ALTER TABLE event_category ADD COLUMN {col_sql} {t}"))
-    with db.engine.begin() as conn:
+
         result = conn.execute(text("PRAGMA table_info(player)"))
         existing = {row[1] for row in result}
         to_add = []
@@ -2453,6 +2461,12 @@ def auto_migrate_on_startup():
         existing2 = {row[1] for row in result2}
         if "related_receipt_id" not in existing2:
             conn.execute(text("ALTER TABLE payment_record ADD COLUMN related_receipt_id INTEGER"))
+
+        # Add unique constraint on (player_id, date) for TrainingSession
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_player_session_date ON training_session (player_id, date)"))
+        except Exception:
+            pass
 
 with app.app_context():
     db.create_all()
