@@ -2749,6 +2749,187 @@ def event_export_full(event_id: int):
     return Response(mem_zip.getvalue(), mimetype='application/zip', headers=headers)
 
 
+@app.route('/admin/events/import_zip', methods=['POST'])
+@admin_required
+def import_event_zip():
+    # Handle uploaded ZIP exported by the full-event export
+    if 'zipfile' not in request.files:
+        flash('No file uploaded', 'danger')
+        return redirect(request.referrer or url_for('events_calendar'))
+    f = request.files['zipfile']
+    if f.filename == '':
+        flash('No file selected', 'danger')
+        return redirect(request.referrer or url_for('events_calendar'))
+    try:
+        import io
+        import zipfile
+        import re
+        import csv
+        import json as _json
+
+        data = f.read()
+        bio = io.BytesIO(data)
+        with zipfile.ZipFile(bio) as z:
+            app.logger.info(f"ZIP contents: {z.namelist()}")
+            # Find event detail JSON matching export pattern: event_<id>_detail.json
+            ev_json = None
+            ev_prefix = None
+            for name in z.namelist():
+                m = re.match(r'^event_(\d+)_detail\.json$', os.path.basename(name))
+                if m:
+                    ev_prefix = f'event_{m.group(1)}'
+                    with z.open(name) as ef:
+                        ev_json = _json.load(io.TextIOWrapper(ef, encoding='utf-8'))
+                    break
+
+            # Determine categories filename (prefer event_{id}_categories.csv)
+            cat_filename = None
+            if ev_prefix:
+                want = f'{ev_prefix}_categories.csv'
+                if want in z.namelist():
+                    cat_filename = want
+            if not cat_filename:
+                # fallback to any file that ends with categories.csv
+                for name in z.namelist():
+                    if name.endswith('categories.csv'):
+                        cat_filename = name
+                        break
+
+            # Create or find Event record from the exported JSON
+            ev = None
+            if ev_json:
+                try:
+                    sd = ev_json
+                    sd_start = None
+                    sd_end = None
+                    if sd.get('start_date'):
+                        try:
+                            sd_start = date.fromisoformat(sd.get('start_date'))
+                        except Exception:
+                            sd_start = None
+                    if sd.get('end_date'):
+                        try:
+                            sd_end = date.fromisoformat(sd.get('end_date'))
+                        except Exception:
+                            sd_end = None
+                    # Try to find an existing event by title+start_date
+                    if sd.get('title') and sd_start:
+                        ev = Event.query.filter_by(title=sd.get('title'), start_date=sd_start).first()
+                    if not ev:
+                        ev = Event(title=sd.get('title') or 'Imported event', start_date=sd_start, end_date=sd_end, location=sd.get('location'), sportdata_url=sd.get('sportdata_url'), notes=sd.get('notes'))
+                        db.session.add(ev)
+                        db.session.flush()
+                except Exception:
+                    ev = None
+
+            created_cats = []
+            if cat_filename:
+                with z.open(cat_filename) as cf:
+                    txt = io.TextIOWrapper(cf, encoding='utf-8')
+                    reader = csv.DictReader(txt)
+                    app.logger.info(f"Categories CSV headers: {reader.fieldnames}")
+                    if reader.fieldnames:
+                        for i, row in enumerate(reader):
+                            if i < 5:
+                                app.logger.info(f"Categories CSV row {i}: {row}")
+                            try:
+                                # Normalize keys and values
+                                norm_row = { (k.strip().lower() if k else k): (v.strip() if isinstance(v, str) else v) for k, v in row.items() }
+                                name = (norm_row.get('name') or '').strip()
+                                if not name:
+                                    continue
+                                def parse_int_field(val):
+                                    if val in (None, ''):
+                                        return None
+                                    try:
+                                        return int(float(val))
+                                    except Exception:
+                                        return None
+                                age_from = parse_int_field(norm_row.get('age_from'))
+                                age_to = parse_int_field(norm_row.get('age_to'))
+                                sex = norm_row.get('sex') or None
+                                fee = None
+                                if norm_row.get('fee'):
+                                    try:
+                                        fee = int(float(norm_row.get('fee')))
+                                    except Exception:
+                                        fee = None
+                                team_size = norm_row.get('team_size') or None
+                                kyu = norm_row.get('kyu') or None
+                                dan = norm_row.get('dan') or None
+                                other_cutoff_date = norm_row.get('other_cutoff_date') or None
+                                limit_team = norm_row.get('limit_team') or None
+                                limit = norm_row.get('limit') or None
+                                if not EventCategory.query.filter_by(event_id=ev.id, name=name).first():
+                                    cat = EventCategory(event_id=ev.id, name=name, age_from=age_from, age_to=age_to, sex=sex, fee=fee, team_size=team_size, kyu=kyu, dan=dan, other_cutoff_date=other_cutoff_date, limit=limit, limit_team=limit_team)
+                                    db.session.add(cat)
+                                    created_cats.append(cat)
+                            except Exception:
+                                app.logger.exception('Error parsing category row')
+                                continue
+            db.session.commit()
+
+            # Build category lookup by name for registrations
+            db.session.flush()
+            cat_by_name = {c.name: c for c in EventCategory.query.filter_by(event_id=ev.id).all()}
+            cats_created_count = len(created_cats)
+
+            # Registrations
+            regs_imported = 0
+            regs_skipped = 0
+            regs_duplicated = 0
+            reg_name = f'{ev_prefix}_registrations.csv' if ev_prefix else 'registrations.csv'
+            if reg_name in z.namelist():
+                with z.open(reg_name) as rf:
+                    txt = io.TextIOWrapper(rf, encoding='utf-8')
+                    reader = csv.DictReader(txt)
+                    for row in reader:
+                        try:
+                            orig_player_id = int(row.get('player_id') or 0)
+                        except Exception:
+                            orig_player_id = None
+                        player = None
+                        if orig_player_id:
+                            player = Player.query.get(orig_player_id)
+                        if not player:
+                            regs_skipped += 1
+                            continue
+                        if EventRegistration.query.filter_by(event_id=ev.id, player_id=player.id).first():
+                            regs_duplicated += 1
+                            continue
+                        fee_override = None
+                        try:
+                            fee_override = int(row.get('fee_override')) if row.get('fee_override') else None
+                        except Exception:
+                            fee_override = None
+                        paid = (str(row.get('paid') or '').lower() in ('1','true','yes'))
+                        reg = EventRegistration(event_id=ev.id, player_id=player.id, fee_override=fee_override, paid=paid, paid_on=(date.fromisoformat(row.get('paid_on')) if row.get('paid_on') else None))
+                        db.session.add(reg)
+                        db.session.flush()
+                        regs_imported += 1
+                        cats_field = row.get('categories') or ''
+                        medals_field = row.get('medals') or ''
+                        cats_list = [c.strip() for c in cats_field.split(';') if c.strip()]
+                        medals_list = [m.strip() for m in medals_field.split(';') if m.strip()]
+                        for idx, cname in enumerate(cats_list):
+                            cat_obj = cat_by_name.get(cname)
+                            if cat_obj:
+                                if not EventRegCategory.query.filter_by(registration_id=reg.id, category_id=cat_obj.id).first():
+                                    rc = EventRegCategory(registration_id=reg.id, category_id=cat_obj.id)
+                                    if idx < len(medals_list) and medals_list[idx]:
+                                        rc.medal = medals_list[idx]
+                                    db.session.add(rc)
+            db.session.commit()
+            flash(f'Event imported. Categories created: {cats_created_count}. Registrations imported: {regs_imported}. Registrations skipped (no matching player): {regs_skipped}. Registrations skipped (duplicate): {regs_duplicated}.', 'success')
+            return redirect(url_for('event_detail', event_id=ev.id))
+    except zipfile.BadZipFile:
+        flash('Uploaded file is not a valid ZIP archive', 'danger')
+    except Exception as e:
+        app.logger.exception('Import failed')
+        flash(f'Import failed: {e}', 'danger')
+    return redirect(request.referrer or url_for('events_calendar'))
+
+
 # -------- Medals Year Report --------
 @app.route("/reports/medals")
 @admin_required

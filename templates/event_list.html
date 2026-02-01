@@ -4,6 +4,7 @@
   <h1 class="mb-0">{{ _('Events') }}</h1>
   {% if session.get('is_admin') %}
     <a class="btn btn-primary" href="{{ url_for('event_new') }}">{{ _('New Event') }}</a>
+    <button id="importEventZipBtn" type="button" class="btn btn-outline-secondary ms-2" data-bs-toggle="modal" data-bs-target="#importEventZipModal">{{ _('Import Event (ZIP)') }}</button>
   {% endif %}
   <a class="btn btn-secondary ms-2" href="{{ request.referrer or url_for('events_calendar') }}">{{ _('Back') }}</a>
 </div>
@@ -63,3 +64,55 @@
   <div class="alert alert-info">{{ _('No events found.') }}</div>
 {% endif %}
 {% endblock %}
+
+{% if session.get('is_admin') %}
+<div class="modal fade" id="importEventZipModal" tabindex="-1" aria-labelledby="importEventZipLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="importEventZipForm" method="post" action="{{ url_for('import_event_zip') }}" enctype="multipart/form-data">
+      <div class="modal-header">
+        <h5 class="modal-title" id="importEventZipLabel">{{ _('Import Event (ZIP)') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">{{ _('Upload exported event ZIP') }}</label>
+          <input type="file" name="zipfile" accept=".zip" class="form-control" required />
+        </div>
+        <div class="form-text text-muted">{{ _('This will create the event and its categories. Registrations are imported when matching players exist.') }}</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+        <button type="submit" class="btn btn-primary">{{ _('Import') }}</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+<script>
+// Fallback: attach click handler after window load so Bootstrap is available
+window.addEventListener('load', function(){
+  try{
+    const btn = document.getElementById('importEventZipBtn');
+    const modalEl = document.getElementById('importEventZipModal');
+    if(!btn || !modalEl) return;
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      if(window.bootstrap && bootstrap.Modal){
+        try{
+          const m = new bootstrap.Modal(modalEl);
+          m.show();
+          return;
+        }catch(_){/* fallthrough to default */}
+      }
+      // fallback: toggle class (very small fallback)
+      modalEl.classList.add('show');
+      modalEl.style.display = 'block';
+      modalEl.removeAttribute('aria-hidden');
+    });
+  }catch(err){
+    console.warn('Import modal fallback failed', err);
+  }
+});
+</script>

@@ -1,22 +1,55 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="mb-0">{{ _('Sports Calendar') }} — {{ month_name }} {{ year }}</h1>
+  <h1 class="mb-0">{{ _('Sports Calendar') }} — {{ month_name }} {{ year }}</h1>
   <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary" href="{{ url_for('events_calendar', month=prev_str) }}">&laquo;</a>
     <a class="btn btn-outline-secondary" href="{{ url_for('events_calendar', month=next_str) }}">&raquo;</a>
     {% if session.get('is_admin') %}
       <a class="btn btn-primary" href="{{ url_for('event_new') }}">{{ _('New Event') }}</a>
+      <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importEventZipModal">{{ _('Import Event (ZIP)') }}</button>
     {% endif %}
     <a class="btn btn-secondary ms-2" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
   </div>
 </div>
 
+{% if session.get('is_admin') %}
+<div class="modal fade" id="importEventZipModal" tabindex="-1" aria-labelledby="importEventZipLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="importEventZipForm" method="post" action="{{ url_for('import_event_zip') }}" enctype="multipart/form-data">
+      <div class="modal-header">
+        <h5 class="modal-title" id="importEventZipLabel">{{ _('Import Event (ZIP)') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">{{ _('Upload exported event ZIP') }}</label>
+          <input type="file" name="zipfile" accept=".zip" class="form-control" required />
+        </div>
+        <div class="form-text text-muted">{{ _('This will create the event and its categories. Registrations are imported when matching players exist.') }}</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+        <button type="submit" class="btn btn-primary">{{ _('Import') }}</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="table-responsive">
   <table class="table table-bordered">
     <thead class="table-light">
       <tr>
-        <th>{{ _('Mon') }}</th><th>{{ _('Tue') }}</th><th>{{ _('Wed') }}</th><th>{{ _('Thu') }}</th><th>{{ _('Fri') }}</th><th>{{ _('Sat') }}</th><th>{{ _('Sun') }}</th>
+        <th>{{ _('Mon') }}</th>
+        <th>{{ _('Tue') }}</th>
+        <th>{{ _('Wed') }}</th>
+        <th>{{ _('Thu') }}</th>
+        <th>{{ _('Fri') }}</th>
+        <th>{{ _('Sat') }}</th>
+        <th>{{ _('Sun') }}</th>
       </tr>
     </thead>
     <tbody>

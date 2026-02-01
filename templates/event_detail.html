@@ -167,4 +167,7 @@
 {% else %}
   <div class="text-muted">{{ _('No registrations yet.') }}</div>
 {% endif %}
+{% if session.get('is_admin') %}
+  {# import modal intentionally removed from detail view; available on New Event form #}
+{% endif %}
 {% endblock %}
