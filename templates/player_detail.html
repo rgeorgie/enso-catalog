@@ -99,6 +99,13 @@
           </div>
         </form>
 
+        <!-- EXPORT PLAYER CSV -->
+        <div class="d-grid mt-2">
+          <a class="btn btn-outline-success" href="{{ url_for('export_player_csv', player_id=player.id) }}">
+            ⬇️ {{ _('Export Profile (CSV)') }}
+          </a>
+        </div>
+
         <hr>
 
         <!-- RECEIPT SHORTCUTS -->

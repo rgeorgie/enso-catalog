@@ -1295,7 +1295,93 @@ def player_detail(player_id: int):
 
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
+
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=False)
+
+# -------- Player CSV Export (Single) ----------
+@app.route("/players/<int:player_id>/export_csv")
+def export_player_csv(player_id):
+    if not session.get('is_admin'):
+        abort(403)
+    import csv
+    from io import StringIO
+    player = Player.query.get_or_404(player_id)
+    # Collect all Player fields for CSV
+    fieldnames = [
+        'id', 'first_name', 'last_name', 'gender', 'birthdate', 'pn',
+        'belt_rank', 'grade_level', 'grade_date', 'discipline', 'weight_kg', 'height_cm',
+        'email', 'phone', 'join_date', 'active_member', 'notes', 'photo_filename',
+        'sportdata_wkf_url', 'sportdata_bnfk_url', 'sportdata_enso_url',
+        'medical_exam_date', 'medical_expiry_date', 'insurance_expiry_date',
+        'monthly_fee_amount', 'monthly_fee_is_monthly',
+        'mother_name', 'mother_phone', 'father_name', 'father_phone'
+    ]
+    output = StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    row = {k: getattr(player, k, '') for k in fieldnames}
+    # Convert dates and booleans to string
+    for k, v in row.items():
+        if hasattr(v, 'isoformat'):
+            row[k] = v.isoformat()
+        elif isinstance(v, bool):
+            row[k] = str(v)
+    writer.writerow(row)
+    output.seek(0)
+    # Use ASCII-only fallback for filename, but provide UTF-8 version for browsers that support it
+    ascii_filename = f"player_{player.id}.csv"
+    utf8_filename = f"player_{player.id}_{player.last_name}.csv"
+    headers = {
+        'Content-Disposition': f'attachment; filename="{ascii_filename}"; filename*=UTF-8''{utf8_filename}'
+    }
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv; charset=utf-8',
+        headers=headers
+    )
+
+# -------- Bulk Player CSV Export (ZIP) ----------
+@app.route("/players/export_zip", endpoint="export_players_zip")
+def export_players_zip():
+    if not session.get('is_admin'):
+        abort(403)
+    import csv
+    from io import StringIO, BytesIO
+    import zipfile
+    players = Player.query.order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+    fieldnames = [
+        'id', 'first_name', 'last_name', 'gender', 'birthdate', 'pn',
+        'belt_rank', 'grade_level', 'grade_date', 'discipline', 'weight_kg', 'height_cm',
+        'email', 'phone', 'join_date', 'active_member', 'notes', 'photo_filename',
+        'sportdata_wkf_url', 'sportdata_bnfk_url', 'sportdata_enso_url',
+        'medical_exam_date', 'medical_expiry_date', 'insurance_expiry_date',
+        'monthly_fee_amount', 'monthly_fee_is_monthly',
+        'mother_name', 'mother_phone', 'father_name', 'father_phone'
+    ]
+    mem_zip = BytesIO()
+    with zipfile.ZipFile(mem_zip, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for player in players:
+            output = StringIO()
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            row = {k: getattr(player, k, '') for k in fieldnames}
+            for k, v in row.items():
+                if hasattr(v, 'isoformat'):
+                    row[k] = v.isoformat()
+                elif isinstance(v, bool):
+                    row[k] = str(v)
+            writer.writerow(row)
+            output.seek(0)
+            filename = f"player_{player.id}_{player.last_name}.csv"
+            zf.writestr(filename, output.getvalue())
+    mem_zip.seek(0)
+    return Response(
+        mem_zip.getvalue(),
+        mimetype='application/zip',
+        headers={
+            'Content-Disposition': 'attachment; filename=players_profiles.zip'
+        }
+    )
 
 # -------- Auth ----------
 @app.route("/login", methods=["GET", "POST"])
@@ -1902,7 +1988,7 @@ def export_csv():
     return Response(generate(), mimetype="text/csv", headers=headers)
 
 # -------- Sports Calendar ----------
-@app.route("/events")
+@app.route("/events", endpoint="events_calendar")
 def events_calendar():
     month_str = request.args.get("month")
     y, m = parse_month_str(month_str)
@@ -2682,7 +2768,9 @@ def player_due_print(player_id: int):
     pay = Payment.query.filter_by(player_id=player.id, year=year, month=month).first()
 
     first = date(year, month, 1)
-    last = date(year, month, calendar.monthrange(year, month)[1])
+    last_day = calendar.monthrange(year, month)[1]
+    last = date(year, month, last_day)
+
     regs_unpaid = (EventRegistration.query
                    .join(Event)
                    .filter(EventRegistration.player_id == player.id)
