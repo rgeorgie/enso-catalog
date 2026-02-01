@@ -2325,6 +2325,10 @@ def event_category_edit(event_id: int, cat_id: int):
     ev = Event.query.get_or_404(event_id)
     cat = EventCategory.query.filter_by(id=cat_id, event_id=ev.id).first_or_404()
     form = EventCategoryForm(obj=cat)
+    # If this is an AJAX GET (modal load), return a fragment without base layout
+    if request.method == 'GET' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render_template('_event_category_modal_fragment.html', ev=ev, form=form, cat=cat)
+
     if request.method == 'POST':
         # parse integer fields
         def gf_int(key):
