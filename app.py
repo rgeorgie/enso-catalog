@@ -1,3 +1,66 @@
+import os
+import json
+import calendar
+from datetime import date, datetime
+from functools import wraps
+from typing import Optional, Tuple
+
+from flask import (
+    Flask, render_template, request, redirect, url_for, flash, abort,
+    send_from_directory, session, Response
+)
+from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import FlaskForm
+from werkzeug.utils import secure_filename
+from wtforms import (
+    StringField, SelectField, DateField, IntegerField,
+    TextAreaField, SubmitField, BooleanField, SelectMultipleField
+)
+from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL
+from sqlalchemy import or_, and_, text
+from werkzeug.routing import BuildError
+
+# ...existing code...
+
+app = Flask(__name__)
+# ...existing code...
+
+# ...existing code...
+
+# Place public player detail route after app is defined
+@app.route("/players/public/<int:player_id>")
+def player_detail_public(player_id: int):
+    player = Player.query.get_or_404(player_id)
+    regs = (EventRegistration.query
+            .filter_by(player_id=player.id)
+            .join(Event)
+            .order_by(Event.start_date.desc())
+            .all())
+
+    # Use TrainingSession for session logic (unified with admin view)
+    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    paid_sessions = [s for s in all_sessions if s.paid]
+    unpaid_sessions = [s for s in all_sessions if not s.paid]
+    total_sessions_taken = len(all_sessions)
+    total_sessions_paid = len(paid_sessions)
+    total_sessions_unpaid = len(unpaid_sessions)
+    per_session_price = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
+    owed_amount = int(round(total_sessions_unpaid * per_session_price)) if per_session_price else 0
+    # Only show session receipts for sessions counted as paid
+    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    sess_records = all_receipts[:total_sessions_paid]
+
+    return render_template(
+        "player_detail_public.html",
+        player=player,
+        regs=regs,
+        total_sessions_paid=total_sessions_paid,
+        total_sessions_taken=total_sessions_taken,
+        total_sessions_unpaid=total_sessions_unpaid,
+        per_session_amount=per_session_price,
+        owed_amount=owed_amount,
+        sess_records=sess_records,
+    )
 # ...existing code...
 
 # Place this route after app and admin_required are defined
@@ -1153,10 +1216,24 @@ def list_players():
             p.per_session_price = per_session_price
             p.owed_amount = int(round(p.total_sessions_unpaid * per_session_price)) if per_session_price else 0
 
-            # Remove legacy AUTO_DEBT logic; only use TrainingSession for owed sessions
-            p.debt_total_recorded = 0
-            p.debt_total_expected = 0
+            # Ensure monthly_due_amount and monthly_due_paid are always set
+            if not hasattr(p, 'monthly_due_amount'):
+                p.monthly_due_amount = None
+            if not hasattr(p, 'monthly_due_paid'):
+                p.monthly_due_paid = None
+            # Mark as having debt if session, monthly, or event debt exists
             p.has_debt = False
+            if p.owed_amount > 0:
+                p.has_debt = True
+            if p.monthly_due_amount is not None and not p.monthly_due_paid and p.monthly_due_amount > 0:
+                p.has_debt = True
+            # Check for unpaid event registrations with a fee
+            unpaid_regs = EventRegistration.query.filter_by(player_id=p.id, paid=False).all()
+            for reg in unpaid_regs:
+                fee = reg.fee_override if reg.fee_override is not None else reg.computed_fee()
+                if fee and fee > 0:
+                    p.has_debt = True
+                    break
 
         # monthly dues (optional, skip if month_year not set)
         p.monthly_due_amount = None

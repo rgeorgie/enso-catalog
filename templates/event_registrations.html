@@ -87,17 +87,6 @@
 
         <td class="text-center">
           <div class="d-flex justify-content-center flex-wrap gap-2">
-            <form method="post" action="{{ url_for('event_reg_toggle_paid', reg_id=r.id) }}">
-              <button class="btn btn-sm {% if r.paid %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
-                {{ _('Toggle paid') }}
-              </button>
-            </form>
-
-            <!-- Prefill: event receipt -->
-            <a class="btn btn-sm btn-outline-primary"
-               href="{{ url_for('payment_new', kind='event', reg_id=r.id) }}">
-              {{ _('New receipt') }}
-            </a>
 
             <form method="post" action="{{ url_for('event_reg_delete', reg_id=r.id) }}">
               <button class="btn btn-sm btn-outline-danger">{{ _('Delete') }}</button>

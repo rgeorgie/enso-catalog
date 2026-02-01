@@ -57,6 +57,31 @@
         <div><strong>{{ _('First Name') }}:</strong> {{ player.first_name }}</div>
         <div><strong>{{ _('Last Name') }}:</strong> {{ player.last_name }}</div>
         <div><strong>{{ _('Discipline') }}:</strong> {{ _(player.discipline) if player.discipline else '—' }}</div>
+        <hr>
+        <div><strong>{{ _('Sessions Taken') }}:</strong> {{ total_sessions_taken }}</div>
+        <div><strong>{{ _('Sessions Paid') }}:</strong> {{ total_sessions_paid }}</div>
+        <div><strong>{{ _('Sessions Unpaid') }}:</strong> {{ total_sessions_unpaid }}</div>
+        {% if per_session_amount %}
+        <div><strong>{{ _('Per-Session Fee') }}:</strong> {{ per_session_amount }} EUR</div>
+        <div><strong>{{ _('Owed Amount') }}:</strong> <span class="text-danger fw-bold">{{ owed_amount }} EUR</span></div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header"><strong>{{ _('Session Receipts') }}</strong></div>
+      <div class="card-body">
+        {% if sess_records and sess_records|length > 0 %}
+          <ul class="list-group">
+            {% for r in sess_records %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ r.paid_at.date() if r.paid_at else '' }} — {{ r.amount }} EUR</span>
+                <span class="text-muted">{{ r.note }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <em>{{ _('No per-session receipts found.') }}</em>
+        {% endif %}
       </div>
     </div>
     <div class="card">
