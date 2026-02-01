@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-3">{{ _('Edit Category') }} — {{ ev.title }}</h1>
+
+<form method="post" class="row g-3">
+  {{ form.csrf_token }}
+  <div class="col-md-4">
+    <label class="form-label">{{ _('Category Name') }}</label>
+    <input name="name" class="form-control" required value="{{ cat.name }}">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Age from') }}</label>
+    <input name="age_from" type="number" class="form-control" value="{{ cat.age_from }}">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Age to') }}</label>
+    <input name="age_to" type="number" class="form-control" value="{{ cat.age_to }}">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Sex') }}</label>
+    <input name="sex" class="form-control" value="{{ cat.sex }}" placeholder="M/F">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Category Fee') }}</label>
+    <input name="fee" type="number" class="form-control" placeholder="EUR" value="{{ cat.fee }}">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Team size') }}</label>
+    <input name="team_size" class="form-control" value="{{ cat.team_size }}">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('KYU') }}</label>
+    <input name="kyu" class="form-control" value="{{ cat.kyu }}">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('DAN') }}</label>
+    <input name="dan" class="form-control" value="{{ cat.dan }}">
+  </div>
+  <div class="col-md-2">
+    <label class="form-label">{{ _('Other cut-off date') }}</label>
+    <input name="other_cutoff_date" class="form-control" placeholder="YYYY-MM-DD" value="{{ cat.other_cutoff_date }}">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Limit') }}</label>
+    <input name="limit" class="form-control" value="{{ cat.limit }}">
+  </div>
+  <div class="col-md-1">
+    <label class="form-label">{{ _('Team Limit') }}</label>
+    <input name="limit_team" class="form-control" value="{{ cat.limit_team }}">
+  </div>
+  <div class="col-12 d-flex gap-2 mt-3">
+    <button class="btn btn-primary" type="submit">{{ _('Save') }}</button>
+    <a class="btn btn-secondary" href="{{ url_for('event_categories', event_id=ev.id) }}">{{ _('Cancel') }}</a>
+  </div>
+</form>
+
+{% endblock %}

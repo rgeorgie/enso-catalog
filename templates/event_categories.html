@@ -164,9 +164,12 @@ document.addEventListener('DOMContentLoaded', function() {
           <td>{{ c.limit or '—' }}</td>
           <td>{{ c.limit_team or '—' }}</td>
           <td class="text-end">
-            <form method="post" action="{{ url_for('event_category_delete', event_id=ev.id, cat_id=c.id) }}" onsubmit="return confirm('{{ _('Delete Category') }}?');">
-              <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
-            </form>
+            <div class="d-flex gap-2 justify-content-end">
+              <button class="btn btn-sm btn-outline-secondary edit-category-btn" data-cat-id="{{ c.id }}">{{ _('Edit') }}</button>
+              <form method="post" action="{{ url_for('event_category_delete', event_id=ev.id, cat_id=c.id) }}" onsubmit="return confirm('{{ _('Delete Category') }}?');" class="m-0">
+                <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
+              </form>
+            </div>
           </td>
         </tr>
       {% endfor %}
@@ -182,6 +185,60 @@ document.addEventListener('DOMContentLoaded', function() {
   <a class="btn btn-outline-secondary" href="{{ url_for('event_registrations', event_id=ev.id) }}">{{ _('Registrations') }}</a>
   <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">{{ _('Paste/Import Categories') }}</button>
 </div>
+
+<!-- Edit Category Modal -->
+<div class="modal fade" id="editCategoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" id="editCategoryModalContent">
+      <!-- content loaded dynamically -->
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const modalEl = document.getElementById('editCategoryModal');
+  const modalContent = document.getElementById('editCategoryModalContent');
+
+  document.querySelectorAll('.edit-category-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const catId = this.dataset.catId;
+      const url = `/admin/events/${{ ev.id }}/categories/${catId}/edit`;
+      // fetch the edit form fragment
+      try {
+        const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const html = await resp.text();
+        modalContent.innerHTML = html;
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+
+        // handle save button
+        const saveBtn = modalContent.querySelector('#categorySaveBtn');
+        const form = modalContent.querySelector('#categoryEditForm');
+        saveBtn.addEventListener('click', async () => {
+          const formData = new FormData(form);
+          const postResp = await fetch(url, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+          });
+          const json = await postResp.json().catch(() => null);
+          if (json && json.success) {
+            modal.hide();
+            location.reload();
+          } else {
+            // on error, replace modal with returned HTML (validation messages)
+            const text = await postResp.text();
+            modalContent.innerHTML = text;
+          }
+        });
+      } catch (e) {
+        alert('Failed to load edit form');
+      }
+    });
+  });
+});
+</script>
 
 <!-- Import Modal (to be implemented in next step) -->
 <!-- Modal markup and JS will be added in the next step -->

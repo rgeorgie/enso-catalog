@@ -2269,14 +2269,44 @@ def event_delete(event_id: int):
 def event_categories(event_id: int):
     ev = Event.query.get_or_404(event_id)
     form = EventCategoryForm()
+    # load existing categories early so we can re-render on validation errors
+    cats = ev.categories.order_by(EventCategory.name.asc()).all()
+
     if form.validate_on_submit():
-        cat = EventCategory(event_id=ev.id, name=form.name.data, fee=form.fee.data)
+        # helper to parse integers from raw form
+        def gf_int(key):
+            v = request.form.get(key)
+            try:
+                return int(v) if v not in (None, '') else None
+            except Exception:
+                return None
+
+        age_from_val = gf_int('age_from')
+        age_to_val = gf_int('age_to')
+        # Validate age range when both provided
+        if age_from_val is not None and age_to_val is not None and age_to_val < age_from_val:
+            flash(_('Age "to" must be greater than or equal to Age "from".'), 'danger')
+            return render_template("event_categories.html", ev=ev, cats=cats, form=form)
+
+        cat = EventCategory(
+            event_id=ev.id,
+            name=form.name.data,
+            age_from=age_from_val,
+            age_to=age_to_val,
+            sex=request.form.get('sex') or None,
+            fee=form.fee.data,
+            team_size=request.form.get('team_size') or None,
+            kyu=request.form.get('kyu') or None,
+            dan=request.form.get('dan') or None,
+            other_cutoff_date=request.form.get('other_cutoff_date') or None,
+            limit=request.form.get('limit') or None,
+            limit_team=request.form.get('limit_team') or None,
+        )
         db.session.add(cat)
         db.session.commit()
-        flash(_("Category added."), "success")
-        return redirect(url_for("event_categories", event_id=ev.id))
-    cats = ev.categories.order_by(EventCategory.name.asc()).all()
-    return render_template("event_categories.html", ev=ev, cats=cats, form=form)
+        flash(_('Category added.'), 'success')
+        return redirect(url_for('event_categories', event_id=ev.id))
+    return render_template('event_categories.html', ev=ev, cats=cats, form=form)
 
 @app.route("/admin/events/<int:event_id>/categories/<int:cat_id>/delete", methods=["POST"])
 @admin_required
@@ -2287,6 +2317,50 @@ def event_category_delete(event_id: int, cat_id: int):
     db.session.commit()
     flash(_("Category deleted."), "info")
     return redirect(url_for("event_categories", event_id=ev.id))
+
+
+@app.route("/admin/events/<int:event_id>/categories/<int:cat_id>/edit", methods=["GET", "POST"])
+@admin_required
+def event_category_edit(event_id: int, cat_id: int):
+    ev = Event.query.get_or_404(event_id)
+    cat = EventCategory.query.filter_by(id=cat_id, event_id=ev.id).first_or_404()
+    form = EventCategoryForm(obj=cat)
+    if request.method == 'POST':
+        # parse integer fields
+        def gf_int(key):
+            v = request.form.get(key)
+            try:
+                return int(v) if v not in (None, '') else None
+            except Exception:
+                return None
+
+        age_from_val = gf_int('age_from')
+        age_to_val = gf_int('age_to')
+        if age_from_val is not None and age_to_val is not None and age_to_val < age_from_val:
+            flash(_('Age "to" must be greater than or equal to Age "from".'), 'danger')
+            return render_template('event_category_form.html', ev=ev, form=form, cat=cat)
+
+        # update fields
+        cat.name = request.form.get('name') or cat.name
+        cat.age_from = age_from_val
+        cat.age_to = age_to_val
+        cat.sex = request.form.get('sex') or None
+        cat.fee = gf_int('fee')
+        cat.team_size = request.form.get('team_size') or None
+        cat.kyu = request.form.get('kyu') or None
+        cat.dan = request.form.get('dan') or None
+        cat.other_cutoff_date = request.form.get('other_cutoff_date') or None
+        cat.limit = request.form.get('limit') or None
+        cat.limit_team = request.form.get('limit_team') or None
+        db.session.add(cat)
+        db.session.commit()
+        flash(_('Category updated.'), 'success')
+        # If AJAX request, return JSON so modal can close without redirect
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return {'success': True}
+        return redirect(url_for('event_categories', event_id=ev.id))
+
+    return render_template('event_category_form.html', ev=ev, form=form, cat=cat)
 
 #-----------------------------
 # Manually added
