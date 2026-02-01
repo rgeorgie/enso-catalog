@@ -37,6 +37,9 @@
     <a class="btn btn-outline-secondary" href="{{ url_for('list_players') }}">{{ _('Reset') }}</a>
     <a class="btn btn-outline-success" href="{{ url_for('export_csv') }}">{{ _('Export CSV') }}</a>
     <a class="btn btn-outline-success" href="{{ url_for('export_players_zip') }}">⬇️ {{ _('Export All Profiles (ZIP)') }}</a>
+      {% if session.get('is_admin') %}
+        <button type="button" class="btn btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#playersImportModal">⬆️ {{ _('Import Players (ZIP)') }}</button>
+      {% endif %}
   </div>
 </form>
 
@@ -281,4 +284,30 @@
     </table>
   {% endif %}
 </div>
+
+{% if session.get('is_admin') %}
+<!-- Players import modal -->
+<div class="modal fade" id="playersImportModal" tabindex="-1" aria-labelledby="playersImportModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('import_players_zip') }}" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title" id="playersImportModalLabel">{{ _('Import Players (ZIP)') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted">Upload ZIP produced by "Export All Profiles (ZIP)". Photos are ignored.</p>
+          <div class="mb-3">
+            <input class="form-control" type="file" name="zipfile" accept=".zip" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+          <button type="submit" class="btn btn-primary">{{ _('Import') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

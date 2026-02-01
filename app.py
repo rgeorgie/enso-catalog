@@ -2930,6 +2930,140 @@ def import_event_zip():
     return redirect(request.referrer or url_for('events_calendar'))
 
 
+# -------- Players ZIP import --------
+@app.route('/admin/players/import_zip', methods=['POST'])
+@admin_required
+def import_players_zip():
+    if 'zipfile' not in request.files:
+        flash('No file uploaded', 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+    f = request.files['zipfile']
+    if f.filename == '':
+        flash('No file selected', 'danger')
+        return redirect(request.referrer or url_for('list_players'))
+    try:
+        import io
+        import zipfile
+        import csv
+
+        data = f.read()
+        bio = io.BytesIO(data)
+        created = 0
+        updated = 0
+        skipped = 0
+        errors = 0
+        with zipfile.ZipFile(bio) as z:
+            app.logger.info(f"Players ZIP contents: {z.namelist()}")
+            # compute used ids to allocate first-available ids (include ones we create during this run)
+            existing_ids = {r[0] for r in db.session.query(Player.id).all()}
+            used_ids = set(existing_ids)
+
+            def first_available_id():
+                i = 1
+                while i in used_ids:
+                    i += 1
+                used_ids.add(i)
+                return i
+
+            # Process files under players/ or any CSV files that look like player exports
+            for name in z.namelist():
+                base = os.path.basename(name)
+                if not base.lower().endswith('.csv'):
+                    continue
+                # prefer files in players/ folder but accept any csv
+                if ('players/' not in name) and (not base.startswith('player_')):
+                    continue
+                with z.open(name) as pf:
+                    txt = io.TextIOWrapper(pf, encoding='utf-8')
+                    reader = csv.DictReader(txt)
+                    app.logger.info(f"Player CSV headers for {name}: {reader.fieldnames}")
+                    if not reader.fieldnames:
+                        continue
+                    for i, row in enumerate(reader):
+                        try:
+                            # normalize keys
+                            norm = { (k.strip().lower() if k else k): (v.strip() if isinstance(v, str) else v) for k, v in row.items() }
+
+                            def parse_date(v):
+                                if not v:
+                                    return None
+                                try:
+                                    return date.fromisoformat(v)
+                                except Exception:
+                                    return None
+
+                            def parse_int(v):
+                                if not v:
+                                    return None
+                                try:
+                                    return int(float(v))
+                                except Exception:
+                                    return None
+
+                            fn = norm.get('first_name') or ''
+                            ln = norm.get('last_name') or ''
+                            if not (fn and ln):
+                                skipped += 1
+                                continue
+
+                            # Always create a new Player; do NOT overwrite existing records.
+                            # Assign the first available numeric id (fill gaps) to the new player.
+                            p = Player(
+                                first_name=fn,
+                                last_name=ln,
+                                gender=norm.get('gender') or None,
+                                birthdate=parse_date(norm.get('birthdate')),
+                                pn=norm.get('pn') or None,
+                                belt_rank=norm.get('belt_rank') or 'White',
+                                grade_level=norm.get('grade_level') or None,
+                                grade_date=parse_date(norm.get('grade_date')),
+                                discipline=norm.get('discipline') or 'All',
+                                weight_kg=parse_int(norm.get('weight_kg')),
+                                height_cm=parse_int(norm.get('height_cm')),
+                                email=norm.get('email') or None,
+                                phone=norm.get('phone') or None,
+                                join_date=parse_date(norm.get('join_date')),
+                                active_member=(str(norm.get('active_member')).lower() in ('1','true','yes')) if norm.get('active_member') is not None else True,
+                                notes=norm.get('notes') or None,
+                                sportdata_wkf_url=norm.get('sportdata_wkf_url') or None,
+                                sportdata_bnfk_url=norm.get('sportdata_bnfk_url') or None,
+                                sportdata_enso_url=norm.get('sportdata_enso_url') or None,
+                                medical_exam_date=parse_date(norm.get('medical_exam_date')),
+                                medical_expiry_date=parse_date(norm.get('medical_expiry_date')),
+                                insurance_expiry_date=parse_date(norm.get('insurance_expiry_date')),
+                                monthly_fee_amount=parse_int(norm.get('monthly_fee_amount')),
+                                monthly_fee_is_monthly=(str(norm.get('monthly_fee_is_monthly')).lower() in ('1','true','yes')) if norm.get('monthly_fee_is_monthly') is not None else True,
+                                mother_name=norm.get('mother_name') or None,
+                                mother_phone=norm.get('mother_phone') or None,
+                                father_name=norm.get('father_name') or None,
+                                father_phone=norm.get('father_phone') or None,
+                            )
+                            # allocate id
+                            try:
+                                p.id = first_available_id()
+                            except Exception:
+                                pass
+                            db.session.add(p)
+                            created += 1
+                        except Exception:
+                            app.logger.exception('Error importing player row')
+                            errors += 1
+            db.session.commit()
+            # Ensure monthly payments exist for newly imported players so dues show up
+            try:
+                from datetime import date as _date
+                ensure_payments_for_month(_date.today().year, _date.today().month)
+            except Exception:
+                app.logger.exception('Failed to ensure monthly payments after import')
+        flash(f'Players import finished. Created: {created}. Updated: {updated}. Skipped: {skipped}. Errors: {errors}.', 'success')
+        return redirect(url_for('list_players'))
+    except zipfile.BadZipFile:
+        flash('Uploaded file is not a valid ZIP archive', 'danger')
+    except Exception as e:
+        app.logger.exception('Players import failed')
+        flash(f'Import failed: {e}', 'danger')
+    return redirect(request.referrer or url_for('list_players'))
+
 # -------- Medals Year Report --------
 @app.route("/reports/medals")
 @admin_required
