@@ -30,15 +30,23 @@
     {% else %}
       <p><strong>Plan:</strong> Per session</p>
       <p><strong>Sessions:</strong> {{ rec.sessions_taken }}/{{ rec.sessions_paid }} taken</p>
-      <form method="post" action="{{ url_for('receipt_tick_session', rid=rec.id) }}" class="no-print">
-        <button class="btn btn-sm btn-outline-primary">Mark one session taken</button>
-      </form>
     {% endif %}
   {% else %}
     <p><strong>Category:</strong> Event</p>
     {% if ev %}
       <p><strong>Event:</strong> {{ ev.title }}
         ({{ ev.start_date }}{% if ev.end_date %} – {{ ev.end_date }}{% endif %})
+      </p>
+    {% endif %}
+    {% if rec.event_registration and rec.event_registration.reg_categories %}
+      <p><strong>Event Categories:</strong>
+        <ul class="mb-0 ps-3">
+          {% for rc in rec.event_registration.reg_categories %}
+            <li>
+              {{ rc.category.name if rc.category else '—' }}
+            </li>
+          {% endfor %}
+        </ul>
       </p>
     {% endif %}
   {% endif %}

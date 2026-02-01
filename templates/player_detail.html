@@ -359,7 +359,6 @@
                 <th>{{ _('Dates') }}</th>
                 <th>{{ _('Fee (EUR)') }}</th>
                 <th>{{ _('Paid') }}</th>
-                <th>{{ _('Actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -371,9 +370,6 @@
                 <td>{{ r.event.start_date }}</td>
                 <td>{{ r.computed_fee() }}</td>
                 <td>{{ _('yes') if r.paid else _('no') }}</td>
-                <td>
-                  <!-- Removed New receipt button -->
-                </td>
               </tr>
               <tr class="collapse" id="reg-details-{{ r.id }}">
                 <td colspan="7">
