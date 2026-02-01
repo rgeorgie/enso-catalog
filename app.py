@@ -2554,22 +2554,119 @@ def event_export_csv(event_id: int):
             .join(Player)
             .order_by(Player.last_name.asc(), Player.first_name.asc())
             .all())
+    # Precompute CSV rows while the DB session is active to avoid detached-instance lazy loads
+    csv_rows = []
+    for r in regs:
+        cats = "; ".join([rc.category.name for rc in r.reg_categories]) if r.reg_categories else ""
+        medals = "; ".join([rc.medal or "" for rc in r.reg_categories]) if r.reg_categories else ""
+        expected = r.fee_override if r.fee_override is not None else (
+            sum((rc.category.fee or 0) for rc in r.reg_categories) if r.reg_categories else ""
+        )
+        paid = "yes" if r.paid else "no"
+        paid_on = r.paid_on.isoformat() if r.paid_on else ""
+        endd = (ev.end_date or ev.start_date).isoformat()
+        full_name = r.player.full_name() if r.player else ''
+        csv_rows.append((r.player_id, full_name, cats, medals, expected, paid, paid_on, ev.title, ev.start_date.isoformat(), endd, ev.location or ''))
 
     def generate():
         yield "player_id,full_name,categories,medals,fee_eur,paid,paid_on,event_title,start_date,end_date,location\n"
-        for r in regs:
-            cats = "; ".join([rc.category.name for rc in r.reg_categories]) if r.reg_categories else ""
-            medals = "; ".join([rc.medal or "" for rc in r.reg_categories]) if r.reg_categories else ""
-            expected = r.fee_override if r.fee_override is not None else (
-                sum((rc.category.fee or 0) for rc in r.reg_categories) if r.reg_categories else ""
-            )
-            paid = "yes" if r.paid else "no"
-            paid_on = r.paid_on.isoformat() if r.paid_on else ""
-            endd = (ev.end_date or ev.start_date).isoformat()
-            yield f"{r.player_id},{r.player.full_name()},{cats},{medals},{expected},{paid},{paid_on},{ev.title},{ev.start_date.isoformat()},{endd},{ev.location or ''}\n"
+        for row in csv_rows:
+            # Ensure values are CSV-safe (simple approach)
+            vals = [str(v) for v in row]
+            yield ",".join(vals) + "\n"
 
     headers = {"Content-Disposition": f'attachment; filename="event_{ev.id}_registrations.csv"'}
     return Response(generate(), mimetype="text/csv", headers=headers)
+
+
+@app.route("/admin/events/<int:event_id>/export_full", endpoint='event_export_full')
+@admin_required
+def event_export_full(event_id: int):
+    """Export full event data as a ZIP: event.json, categories.csv, registrations.csv,
+    per-player CSVs and photos."""
+    ev = Event.query.get_or_404(event_id)
+    cats = EventCategory.query.filter_by(event_id=ev.id).order_by(EventCategory.name.asc()).all()
+    regs = (EventRegistration.query
+            .filter_by(event_id=ev.id)
+            .join(Player)
+            .order_by(Player.last_name.asc(), Player.first_name.asc())
+            .all())
+
+    import json
+    import csv
+    from io import StringIO, BytesIO
+    import zipfile
+
+    # Prepare per-player list
+    player_ids = {r.player_id for r in regs if r.player_id}
+    players = Player.query.filter(Player.id.in_(player_ids)).all() if player_ids else []
+
+    mem_zip = BytesIO()
+    with zipfile.ZipFile(mem_zip, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        # event JSON
+        ev_dict = {
+            'id': ev.id,
+            'title': ev.title,
+            'start_date': ev.start_date.isoformat() if ev.start_date else None,
+            'end_date': ev.end_date.isoformat() if ev.end_date else None,
+            'location': ev.location,
+            'sportdata_url': ev.sportdata_url,
+            'notes': ev.notes,
+        }
+        zf.writestr(f'event_{ev.id}_detail.json', json.dumps(ev_dict, ensure_ascii=False, indent=2))
+
+        # categories CSV
+        cat_out = StringIO()
+        cat_writer = csv.writer(cat_out)
+        cat_writer.writerow(['id', 'name', 'age_from', 'age_to', 'sex', 'fee', 'team_size', 'kyu', 'dan', 'other_cutoff_date', 'limit_team', 'limit'])
+        for c in cats:
+            cat_writer.writerow([c.id, c.name, c.age_from, c.age_to, c.sex, c.fee, c.team_size, c.kyu, c.dan, c.other_cutoff_date, c.limit_team, c.limit])
+        zf.writestr(f'event_{ev.id}_categories.csv', cat_out.getvalue())
+
+        # registrations CSV
+        reg_out = StringIO()
+        reg_writer = csv.writer(reg_out)
+        reg_writer.writerow(['id', 'player_id', 'player_name', 'fee_override', 'computed_fee', 'paid', 'paid_on', 'note', 'categories', 'medals'])
+        for r in regs:
+            cats_list = []
+            medals_list = []
+            for rc in r.reg_categories or []:
+                # rc.category may be loaded; protect against None
+                cats_list.append(rc.category.name if rc.category else '')
+                medals_list.append(rc.medal or '')
+            computed = r.fee_override if r.fee_override is not None else (sum((rc.category.fee or 0) for rc in r.reg_categories) if r.reg_categories else '')
+            reg_writer.writerow([r.id, r.player_id, r.player.full_name() if r.player else '', r.fee_override, computed, r.paid, (r.paid_on.isoformat() if r.paid_on else ''), '', '; '.join(cats_list), '; '.join(medals_list)])
+        zf.writestr(f'event_{ev.id}_registrations.csv', reg_out.getvalue())
+
+        # per-player CSVs
+        fieldnames = [
+            'id', 'first_name', 'last_name', 'gender', 'birthdate', 'pn',
+            'belt_rank', 'grade_level', 'grade_date', 'discipline', 'weight_kg', 'height_cm',
+            'email', 'phone', 'join_date', 'active_member', 'notes', 'photo_filename',
+            'sportdata_wkf_url', 'sportdata_bnfk_url', 'sportdata_enso_url',
+            'medical_exam_date', 'medical_expiry_date', 'insurance_expiry_date',
+            'monthly_fee_amount', 'monthly_fee_is_monthly',
+            'mother_name', 'mother_phone', 'father_name', 'father_phone'
+        ]
+        for p in players:
+            out = StringIO()
+            dw = csv.DictWriter(out, fieldnames=fieldnames)
+            dw.writeheader()
+            row = {k: getattr(p, k, '') for k in fieldnames}
+            for k, v in row.items():
+                if hasattr(v, 'isoformat'):
+                    row[k] = v.isoformat()
+                elif isinstance(v, bool):
+                    row[k] = str(v)
+            dw.writerow(row)
+            zf.writestr(f'players/player_{p.id}_{(p.last_name or "").replace(" ","_")}.csv', out.getvalue())
+
+            # photos are intentionally omitted from full export
+
+    mem_zip.seek(0)
+    headers = {'Content-Disposition': f'attachment; filename="event_{ev.id}_full_export.zip"'}
+    return Response(mem_zip.getvalue(), mimetype='application/zip', headers=headers)
+
 
 # -------- Medals Year Report --------
 @app.route("/reports/medals")
