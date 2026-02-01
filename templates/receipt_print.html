@@ -21,8 +21,6 @@
       <h3 class="mb-1">Payment Receipt</h3>
       <div class="text-muted"># {{ rec.receipt_no or '—' }}</div>
       <div class="text-muted">Date: {{ (rec.paid_at or rec.created_at).strftime('%Y-%m-%d %H:%M') }}</div>
-    </div>
-    <div class="text-end">
       <div><strong>Player:</strong> {{ player.full_name() }}</div>
       <div><strong>ID:</strong> {{ player.id }}</div>
     </div>
@@ -42,6 +40,17 @@
     {% if ev %}
       <p><strong>Event:</strong> {{ ev.title }}
         ({{ ev.start_date }}{% if ev.end_date %} – {{ ev.end_date }}{% endif %})
+      </p>
+    {% endif %}
+    {% if rec.event_registration and rec.event_registration.reg_categories %}
+      <p><strong>Event Categories:</strong>
+        <ul class="mb-0 ps-3">
+          {% for rc in rec.event_registration.reg_categories %}
+            <li>
+              {{ rc.category.name if rc.category else '—' }}
+            </li>
+          {% endfor %}
+        </ul>
       </p>
     {% endif %}
   {% endif %}

@@ -34,6 +34,17 @@
         {% endif %}
       {% else %}
         <p><strong>Category:</strong> Event</p>
+        {% if rec.event_registration and rec.event_registration.reg_categories %}
+          <p><strong>Event Categories:</strong>
+            <ul class="mb-0 ps-3">
+              {% for rc in rec.event_registration.reg_categories %}
+                <li>
+                  {{ rc.category.name if rc.category else '—' }}
+                </li>
+              {% endfor %}
+            </ul>
+          </p>
+        {% endif %}
       {% endif %}
 
       <p class="mt-3">

@@ -13,8 +13,6 @@
       <h3 class="mb-1">Payment Receipt</h3>
       <div class="text-muted"># {{ rec.receipt_no or '—' }}</div>
       <div class="text-muted">Date: {{ (rec.paid_at or rec.created_at).strftime('%Y-%m-%d %H:%M') }}</div>
-    </div>
-    <div class="text-end">
       <div><strong>Player:</strong> {{ player.full_name() }}</div>
       <div><strong>ID:</strong> {{ player.id }}</div>
     </div>
@@ -30,15 +28,23 @@
     {% else %}
       <p><strong>Plan:</strong> Per session</p>
       <p><strong>Sessions:</strong> {{ rec.sessions_taken }}/{{ rec.sessions_paid }} taken</p>
-      <form method="post" action="{{ url_for('receipt_tick_session', rid=rec.id) }}" class="no-print">
-        <button class="btn btn-sm btn-outline-primary">Mark one session taken</button>
-      </form>
     {% endif %}
   {% else %}
     <p><strong>Category:</strong> Event</p>
     {% if ev %}
       <p><strong>Event:</strong> {{ ev.title }}
         ({{ ev.start_date }}{% if ev.end_date %} – {{ ev.end_date }}{% endif %})
+      </p>
+    {% endif %}
+    {% if rec.event_registration and rec.event_registration.reg_categories %}
+      <p><strong>Event Categories:</strong>
+        <ul class="mb-0 ps-3">
+          {% for rc in rec.event_registration.reg_categories %}
+            <li>
+              {{ rc.category.name if rc.category else '—' }}
+            </li>
+          {% endfor %}
+        </ul>
       </p>
     {% endif %}
   {% endif %}
@@ -72,7 +78,7 @@
   </div>
 
   <div class="mt-3 no-print d-flex gap-2">
-    <a class="btn btn-outline-secondary" href="{{ request.referrer or url_for('list_players') }}">Back</a>
+    <button class="btn btn-outline-danger" type="button" onclick="window.close()">Close</button>
     <a class="btn btn-success" href="{{ url_for('receipt_print_view', rid=rec.id) }}" target="_blank">Print (clean)</a>
   </div>
 

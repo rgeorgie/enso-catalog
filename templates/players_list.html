@@ -50,7 +50,7 @@
           <th>{{ _('Monthly Fee Type') }}</th>
           <th>{{ _('Monthly Due') }}</th>
           <th>{{ _('Active') }}</th>
-          <th>{{ _('Email') }}</th>
+          <!-- <th>{{ _('Email') }}</th> -->
           <th>{{ _('Sportdata') }}</th>
           <th>{{ _('Health') }}</th>
           <th style="width: 160px;"></th>
@@ -116,35 +116,133 @@
               <span class="badge bg-secondary">{{ _('No') }}</span>
             {% endif %}
           </td>
+          <!--
           <td>
             {% if p.email %}
               <a href="mailto:{{ p.email }}">{{ p.email }}</a>
             {% else %}—{% endif %}
           </td>
+          -->
           <td class="text-nowrap">
             {% if p.sportdata_wkf_url %}<a class="btn btn-sm btn-outline-primary me-1" target="_blank" href="{{ p.sportdata_wkf_url }}">WKF</a>{% endif %}
             {% if p.sportdata_bnfk_url %}<a class="btn btn-sm btn-outline-primary me-1" target="_blank" href="{{ p.sportdata_bnfk_url }}">BNFK</a>{% endif %}
             {% if p.sportdata_enso_url %}<a class="btn btn-sm btn-outline-primary" target="_blank" href="{{ p.sportdata_enso_url }}">ENSO</a>{% endif %}
           </td>
           <td class="text-nowrap">
-            <span class="badge bg-{{ med_color }} me-1">Med: {{ med_text }}</span>
-            <span class="badge bg-{{ ins_color }}">Ins: {{ ins_text }}</span>
+            <span class="badge bg-{{ p.med_color }} me-1">Med: {{ p.med_text }}</span>
+            <span class="badge bg-{{ p.ins_color }}">Ins: {{ p.ins_text }}</span>
           </td>
           <td>
-            <div class="d-flex flex-column flex-sm-row gap-2">
-              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_player', player_id=p.id) }}">{{ _('Edit') }}</a>
-              <form class="m-0" method="post" action="{{ url_for('delete_player', player_id=p.id) }}" onsubmit="return confirm('Delete this player?');">
-                <button class="btn btn-sm btn-outline-danger" type="submit">{{ _('Delete') }}</button>
-              </form>
+            <div class="d-flex flex-row justify-content-end gap-2">
               {% if not p.monthly_fee_is_monthly %}
                 <form class="m-0" method="post" action="{{ url_for('record_session', player_id=p.id) }}">
                   <button class="btn btn-sm btn-outline-secondary" type="submit">Record Session</button>
                 </form>
               {% endif %}
-              <form class="m-0" method="post" action="{{ url_for('player_pay_due', player_id=p.id) }}" onsubmit="return confirm('Pay all outstanding dues for this player?');">
-                <input type="hidden" name="kind" value="all">
-                <button class="btn btn-sm btn-outline-success" type="submit">Pay Due</button>
-              </form>
+              <button class="btn btn-sm {% if p.has_debt %}btn-danger{% else %}btn-outline-success{% endif %} pay-due-modal-btn ms-auto" type="button" data-player-id="{{ p.id }}">Pay Due</button>
+            <!-- PAY DUE MODAL -->
+            <div class="modal fade" id="payDueModal" tabindex="-1" aria-labelledby="payDueModalLabel" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <form id="payDueForm">
+                    <div class="modal-header">
+                      <h5 class="modal-title" id="payDueModalLabel">Outstanding Dues</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <div id="duesList">
+                        <div class="text-center text-muted py-3">Loading...</div>
+                      </div>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-success">Confirm Payment</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <script>
+            let currentPayDuePlayerId = null;
+            document.addEventListener('DOMContentLoaded', function() {
+              // Open modal and fetch dues for selected player
+              document.querySelectorAll('.pay-due-modal-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                  currentPayDuePlayerId = this.getAttribute('data-player-id');
+                  const payDueModal = new bootstrap.Modal(document.getElementById('payDueModal'));
+                  document.getElementById('duesList').innerHTML = '<div class="text-center text-muted py-3">Loading...</div>';
+                  payDueModal.show();
+                  fetch(`/admin/players/${currentPayDuePlayerId}/dues_json`)
+                    .then(response => response.json())
+                    .then(data => {
+                      const duesData = data.dues || [];
+                      const duesList = document.getElementById('duesList');
+                      if (!duesData.length) {
+                        duesList.innerHTML = '<div class="text-center text-muted py-3">Nothing to show.</div>';
+                        return;
+                      }
+                      duesList.innerHTML = duesData.map(function(due, idx) {
+                        if (due.type === 'owed_sessions' && due.session_list) {
+                          return `<div class="mb-2">
+                            <div class="fw-bold mb-1">
+                              ${due.label} <span class="badge bg-info text-dark ms-2">${due.amount} EUR</span>
+                            </div>
+                            <div class="ms-4 mt-2" id="sessions_${idx}">
+                              ${due.session_list.map((sess, sidx) => `
+                                <div class="form-check">
+                                  <input class="form-check-input" type="checkbox" value="${sess.session_id}" id="session_${sess.session_id}" name="session_ids_${idx}" checked>
+                                  <label class="form-check-label" for="session_${sess.session_id}">
+                                    ${sess.date} <span class="badge bg-secondary ms-2">${sess.session_id}</span>
+                                  </label>
+                                </div>
+                              `).join('')}
+                            </div>
+                          </div>`;
+                        } else {
+                          return `<div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" value="${due.id}" id="due_${due.id}" name="dues">
+                            <label class="form-check-label" for="due_${due.id}">
+                              ${due.label} <span class="badge bg-info text-dark ms-2">${due.amount} EUR</span>
+                            </label>
+                          </div>`;
+                        }
+                      }).join('');
+                    });
+                });
+              });
+
+              // Handle payment submission
+              document.getElementById('payDueForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (!currentPayDuePlayerId) return;
+                var checked = Array.from(document.querySelectorAll('#duesList input[name="dues"]:checked')).map(cb => cb.value);
+                var duesToSend = [];
+                // Only send checked owed sessions
+                var checkedSessionCheckboxes = Array.from(document.querySelectorAll('input[name^="session_ids_"]:checked'));
+                var sessionIds = checkedSessionCheckboxes.map(cb => cb.value);
+                if (sessionIds.length > 0) {
+                  duesToSend.push({type: 'owed_sessions', session_ids: sessionIds});
+                }
+                // Handle all other dues
+                checked.forEach(function(val) {
+                  duesToSend.push(val);
+                });
+                if (duesToSend.length === 0) return;
+                fetch(`/admin/players/${currentPayDuePlayerId}/pay_due_receipt`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ dues: duesToSend })
+                })
+                .then(response => response.json())
+                .then(data => {
+                  if (data.redirect) {
+                    window.location.href = data.redirect;
+                  }
+                });
+              });
+            });
+            </script>
             </div>
           </td>
         </tr>
@@ -165,7 +263,7 @@
       <tbody>
       {% for p in players %}
         <tr>
-          <td><a href="{{ url_for('player_detail_public', player_id=p.id) }}">{{ p.full_name() }}</a></td>
+          <td>{{ p.full_name() }}</td>
           <td><span class="belt-chip" style="{{ belt_chip_style(p.belt_rank) }}">{{ p.grade_level or _(p.belt_rank) }}</span></td>
           <td>
             {% if p.active_member %}

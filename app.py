@@ -1,3 +1,70 @@
+import os
+import json
+import calendar
+from datetime import date, datetime
+from functools import wraps
+from typing import Optional, Tuple
+
+from flask import (
+    Flask, render_template, request, redirect, url_for, flash, abort,
+    send_from_directory, session, Response
+)
+from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import FlaskForm
+from werkzeug.utils import secure_filename
+from wtforms import (
+    StringField, SelectField, DateField, IntegerField,
+    TextAreaField, SubmitField, BooleanField, SelectMultipleField
+)
+from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL
+from sqlalchemy import or_, and_, text
+from werkzeug.routing import BuildError
+
+# ...existing code...
+
+app = Flask(__name__)
+# ...existing code...
+
+# ...existing code...
+
+# Place public player detail route after app is defined
+@app.route("/players/public/<int:player_id>")
+def player_detail_public(player_id: int):
+    player = Player.query.get_or_404(player_id)
+    regs = (EventRegistration.query
+            .filter_by(player_id=player.id)
+            .join(Event)
+            .order_by(Event.start_date.desc())
+            .all())
+
+    # Use TrainingSession for session logic (unified with admin view)
+    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    paid_sessions = [s for s in all_sessions if s.paid]
+    unpaid_sessions = [s for s in all_sessions if not s.paid]
+    total_sessions_taken = len(all_sessions)
+    total_sessions_paid = len(paid_sessions)
+    total_sessions_unpaid = len(unpaid_sessions)
+    per_session_price = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
+    owed_amount = int(round(total_sessions_unpaid * per_session_price)) if per_session_price else 0
+    # Only show session receipts for sessions counted as paid
+    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    sess_records = all_receipts[:total_sessions_paid]
+
+    return render_template(
+        "player_detail_public.html",
+        player=player,
+        regs=regs,
+        total_sessions_paid=total_sessions_paid,
+        total_sessions_taken=total_sessions_taken,
+        total_sessions_unpaid=total_sessions_unpaid,
+        per_session_amount=per_session_price,
+        owed_amount=owed_amount,
+        sess_records=sess_records,
+    )
+# ...existing code...
+
+# Place this route after app and admin_required are defined
+# (Move to after admin_required function definition)
 # app.py
 import os
 import json
@@ -10,7 +77,6 @@ from flask import (
     Flask, render_template, request, redirect, url_for, flash, abort,
     send_from_directory, session, Response
 )
-    # ^ 'abort' imported but unused; kept for parity with your codebase
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from werkzeug.utils import secure_filename
@@ -33,6 +99,7 @@ os.makedirs(STATIC_IMG, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
+
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-change-me")
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(BASE_DIR, "karate_club.db")
@@ -47,6 +114,18 @@ ADMIN_PASS = os.environ.get("ADMIN_PASS", "admin123")
 db = SQLAlchemy(app)
 
 # -----------------------------
+# TrainingSession model (per-session attendance)
+# -----------------------------
+class TrainingSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(64), nullable=False)
+    __table_args__ = (db.UniqueConstraint('player_id', 'date', name='uq_player_session_date'),)
+    player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False, index=True)
+    date = db.Column(db.Date, nullable=True)
+    paid = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+# -----------------------------
 # i18n (BG default)
 # -----------------------------
 def get_lang() -> str:
@@ -54,6 +133,22 @@ def get_lang() -> str:
 
 translations = {
     "en": {
+        # --- Grade/Belt labels ---
+        "10 kyu – white belt": "10 kyu – white belt",
+        "9 kyu – white with yellow stripe": "9 kyu – white with yellow stripe",
+        "8 kyu – yellow belt": "8 kyu – yellow belt",
+        "7 kyu – orange belt": "7 kyu – orange belt",
+        "6 kyu – orange belt": "6 kyu – orange belt",
+        "5 kyu – green belt": "5 kyu – green belt",
+        "4 kyu – blue belt": "4 kyu – blue belt",
+        "3 kyu – blue belt": "3 kyu – blue belt",
+        "2 kyu – brown belt": "2 kyu – brown belt",
+        "1 kyu – brown belt": "1 kyu – brown belt",
+        "1 dan – black belt": "1 dan – black belt",
+        "2 dan – black belt": "2 dan – black belt",
+        "3 dan – black belt": "3 dan – black belt",
+        "4 dan – black belt": "4 dan – black belt",
+        "5 dan – black belt": "5 dan – black belt",
         # --- Navigation / Common ---
         "Team ENSO": "Team ENSO",
         "Karate Club": "Karate Club",
@@ -191,7 +286,7 @@ translations = {
         "Created": "Created",
         "Quick actions": "Quick actions",
         "Training sessions": "Training sessions",
-        "Actions":"Actions",
+        "Actions": "Actions",
         "New Training Receipt (per month)": "New Training Receipt (per month)",
         "New Training Receipt (per session)": "New Training Receipt (per session)",
         "New Event Receipt": "New Event Receipt",
@@ -316,6 +411,22 @@ translations = {
         "Method": "Method",
     },
     "bg": {
+        # --- Grade/Belt labels ---
+        "10 kyu – white belt": "10 кю – бял пояс",
+        "9 kyu – white with yellow stripe": "9 кю – бял с жълта лента",
+        "8 kyu – yellow belt": "8 кю – жълт пояс",
+        "7 kyu – orange belt": "7 кю – оранжев пояс",
+        "6 kyu – orange belt": "6 кю – оранжев пояс",
+        "5 kyu – green belt": "5 кю – зелен пояс",
+        "4 kyu – blue belt": "4 кю – син пояс",
+        "3 kyu – blue belt": "3 кю – син пояс",
+        "2 kyu – brown belt": "2 кю – кафяв пояс",
+        "1 kyu – brown belt": "1 кю – кафяв пояс",
+        "1 dan – black belt": "1 дан – черен пояс",
+        "2 dan – black belt": "2 дан – черен пояс",
+        "3 dan – black belt": "3 дан – черен пояс",
+        "4 dan – black belt": "4 дан – черен пояс",
+        "5 dan – black belt": "5 дан – черен пояс",
         # --- Navigation / Common ---
         "Team ENSO": "Team ENSO",
         "Karate Club": "Карате клуб",
@@ -371,7 +482,7 @@ translations = {
         "Join Date": "Дата на присъединяване",
         "Active Member": "Активен член",
         "Notes": "Бележки",
-        "Photo (jpg/png/gif/webp, ≤ 2MB)": "Снимка (jpg/png/gif/webp, ≤ 2MB)",
+        "Photo (jpg/png/gif/webp, ≤ 2MB)": "Снимка (jpg/png/gиф/webp, ≤ 2MB)",
         "Save": "Запази",
         "Cancel": "Откажи",
         "Joined": "Присъединяване",
@@ -379,13 +490,12 @@ translations = {
         "Mother Phone": "Телефон на майката",
         "Father Name": "Име на бащата",
         "Father Phone": "Телефон на бащата",
-        "Actions":"Действия",
+        "Actions": "Действия",
         "Profile": "Профил",
         "Contacts": "Контакти",
         "Fee": "Такса",
         "Fee (EUR)": "Такса (EUR)",
         "Categories & Medals": "Категории и медали",
-
 
         # --- Health / Insurance ---
         "Medical Examination": "Медицински преглед",
@@ -457,7 +567,6 @@ translations = {
         "Note": "Бележка",
         "Created": "Създадено",
         "Quick actions": "Бързи действия",
-        "Training sessions": "Тренировъчни сесии",
         "New Training Receipt (per month)": "Нова квитанция за тренировка (месечно)",
         "New Training Receipt (per session)": "Нова квитанция за тренировка (на тренировка)",
         "New Event Receipt": "Нова квитанция за събитие",
@@ -596,26 +705,26 @@ GRADING_SCHEME = {
         "5 kyu", "4 kyu", "3 kyu", "2 kyu", "1 kyu",
         "1 dan", "2 dan", "3 dan", "4 dan", "5 dan",
     ],
-    "belt_colors": ["White", "Yellow", "Orange", "Green", "Blue", "Purple", "Brown", "Black"],
+    # include WhiteYellow so users can filter 9 kyu
+    "belt_colors": ["White", "WhiteYellow", "Yellow", "Orange", "Green", "Blue", "Purple", "Brown", "Black"],
     "grade_to_color": {
-        "10 kyu": "White",
-        "9 kyu": "White",
-        "8 kyu": "Yellow",
-        "7 kyu": "Orange",
-        "6 kyu": "Green",
-        "5 kyu": "Blue",
-        "4 kyu": "Purple",
-        "3 kyu": "Brown",
-        "2 kyu": "Brown",
-        "1 kyu": "Brown",
-        "1 dan": "Black",
-        "2 dan": "Black",
-        "3 dan": "Black",
-        "4 dan": "Black",
-        "5 dan": "Black",
+           "10 kyu": "White",
+           "9 kyu": "WhiteYellow",
+           "8 kyu": "Yellow",
+           "7 kyu": "Orange",
+           "6 kyu": "Orange",
+           "5 kyu": "Green",
+           "4 kyu": "Blue",
+           "3 kyu": "Blue",
+           "2 kyu": "Brown",
+           "1 kyu": "Brown",
+           "1 dan": "Black",
+           "2 dan": "Black",
+           "3 dan": "Black",
+           "4 dan": "Black",
+           "5 dan": "Black",
     },
 }
-
 
 BELT_PALETTE = {
     "White":  "#f8f9fa",
@@ -626,6 +735,8 @@ BELT_PALETTE = {
     "Purple": "#9c36b5",
     "Brown":  "#8d5524",
     "Black":  "#111111",
+    # Centered yellow stripe on white background
+    "WhiteYellow": "linear-gradient(90deg, #f8f9fa 0 40%, #ffd60a 40% 60%, #f8f9fa 60% 100%)",
 }
 
 # Medal color palette for icons
@@ -635,7 +746,13 @@ MEDAL_COLORS = {
     "bronze": "#a97142",  # darker bronze
 }
 
-DISCIPLINE_VALUES = ["Kata", "Kumite", "Makiwara", "All Disciplines"]
+# Store short keys in DB; present localized labels in UI
+DISCIPLINE_CHOICES = [
+    ("All", "All Disciplines"),
+    ("Kata", "Kata"),
+    ("Kumite", "Kumite"),
+    ("Makiwara", "Makiwara"),
+]
 GENDER_VALUES = ["Male", "Female", "Other"]
 
 # -----------------------------
@@ -652,7 +769,6 @@ def ideal_text_color(bg_hex: str) -> str:
         return "#000000" if yiq >= 128 else "#ffffff"
     except Exception:
         return "#000000"
-
 
 def belt_chip_style(belt: Optional[str]) -> str:
     bg = belt_hex(belt)
@@ -680,7 +796,7 @@ def first_working_day(year: int, month: int) -> date:
             return d
     return date(year, month, 1)
 
-def parse_month_str(month_str: Optional[str]) -> tuple[int, int]:
+def parse_month_str(month_str: Optional[str]) -> Tuple[int, int]:
     t = date.today()
     if not month_str:
         return t.year, t.month
@@ -731,6 +847,17 @@ def admin_required(fn):
             return redirect(url_for("login", next=request.path))
         return fn(*args, **kwargs)
     return wrapper
+
+# Preview a single training session
+@app.route('/admin/training_session/<session_id>')
+@admin_required
+def preview_training_session(session_id):
+    session = TrainingSession.query.filter_by(session_id=session_id).first()
+    if not session:
+        flash(_('Training session not found.'), 'danger')
+        return redirect(url_for('players_list'))
+    player = Player.query.get(session.player_id)
+    return render_template('training_session_preview.html', session=session, player=player)
 
 # -----------------------------
 # Models
@@ -902,13 +1029,14 @@ class PaymentRecord(db.Model):
     related_receipt_id = db.Column(db.Integer, db.ForeignKey("payment_record.id"), nullable=True, index=True)
     related_receipt = db.relationship("PaymentRecord", remote_side=[id], backref="related_payments")
 
-    def assign_receipt_no(self):
+    def assign_receipt_no(self, do_commit: bool = True):
         if not self.id:
             return
         stamp = (self.paid_at or datetime.utcnow()).strftime("%Y%m%d")
         self.receipt_no = f"RCPT-{stamp}-{self.id:06d}"
         db.session.add(self)
-        db.session.commit()
+        if do_commit:
+            db.session.commit()
 
 # -----------------------------
 # Forms
@@ -975,7 +1103,8 @@ class EventRegistrationForm(FlaskForm):
 
 def set_localized_choices(form: PlayerForm):
     form.grade_level.choices = [(g, g) for g in GRADING_SCHEME["grades"]]
-    form.discipline.choices = [(v, _(v)) for v in DISCIPLINE_VALUES]
+    # Display localized label, store short key in DB
+    form.discipline.choices = [(value, _(label)) for (value, label) in DISCIPLINE_CHOICES]
     form.gender.choices = [("", _("—"))] + [(v, _(v)) for v in GENDER_VALUES]
 
 # -----------------------------
@@ -1001,7 +1130,6 @@ def utility_processor():
         EventRegistration=EventRegistration,
         EventRegCategory=EventRegCategory,
     )
-
 
 # -----------------------------
 # Routes
@@ -1050,6 +1178,10 @@ def list_players():
     month_year = (y, m)
 
     for p in players:
+        # Health/insurance badges via helper for consistent UX
+        p.med_text, p.med_color = validity_badge(p.medical_expiry_date)
+        p.ins_text, p.ins_color = validity_badge(p.insurance_expiry_date)
+
         sess_records = (PaymentRecord.query
                         .filter_by(player_id=p.id, kind='training_session')
                         .order_by(PaymentRecord.paid_at.desc())
@@ -1067,67 +1199,60 @@ def list_players():
             per_session_price = float(p.monthly_fee_amount)
 
         # infer sessions_paid from amounts only when price is known
-        inferred_sessions_paid = 0
-        if per_session_price:
-            for r in sess_receipts:
-                if (r.sessions_paid or 0) == 0 and (r.amount or 0) > 0:
-                    try:
-                        inferred_sessions_paid += int(round(float(r.amount) / float(per_session_price)))
-                    except Exception:
-                        pass
-        total_sessions_paid = explicit_sessions_paid + inferred_sessions_paid
 
-        # total taken is stored sum (tracking/ticked receipts)
-        total_sessions_taken = sum((r.sessions_taken or 0) for r in sess_records)
+        for p in players:
+            # Health/insurance badges via helper for consistent UX
+            p.med_text, p.med_color = validity_badge(p.medical_expiry_date)
+            p.ins_text, p.ins_color = validity_badge(p.insurance_expiry_date)
 
-        prepaid_credit = float(total_prepaid_amount)
-        expected_cost = owed_amount = None
-        if per_session_price is not None:
-            expected_cost = total_sessions_taken * per_session_price
-            owed_amount = expected_cost - prepaid_credit
+            # Use TrainingSession for per-session logic
+            all_sessions = TrainingSession.query.filter_by(player_id=p.id).all()
+            paid_sessions = [s for s in all_sessions if s.paid]
+            unpaid_sessions = [s for s in all_sessions if not s.paid]
+            p.total_sessions_taken = len(all_sessions)
+            p.total_sessions_paid = len(paid_sessions)
+            p.total_sessions_unpaid = len(unpaid_sessions)
+            per_session_price = float(p.monthly_fee_amount) if p.monthly_fee_amount and not p.monthly_fee_is_monthly else None
+            p.per_session_price = per_session_price
+            p.owed_amount = int(round(p.total_sessions_unpaid * per_session_price)) if per_session_price else 0
 
-        p.total_sessions_paid = total_sessions_paid
-        p.total_sessions_taken = total_sessions_taken
-        p.total_prepaid_amount = total_prepaid_amount
-        p.prepaid_credit = int(round(prepaid_credit)) if prepaid_credit is not None else None
-        p.per_session_price = per_session_price
-        p.expected_cost = expected_cost
-        p.owed_amount = int(round(owed_amount)) if owed_amount is not None else None
+            # Ensure monthly_due_amount and monthly_due_paid are always set
+            if not hasattr(p, 'monthly_due_amount'):
+                p.monthly_due_amount = None
+            if not hasattr(p, 'monthly_due_paid'):
+                p.monthly_due_paid = None
+            # Mark as having debt if session, monthly, or event debt exists
+            p.has_debt = False
+            if p.owed_amount > 0:
+                p.has_debt = True
+            if p.monthly_due_amount is not None and not p.monthly_due_paid and p.monthly_due_amount > 0:
+                p.has_debt = True
+            # Check for unpaid event registrations with a fee
+            unpaid_regs = EventRegistration.query.filter_by(player_id=p.id, paid=False).all()
+            for reg in unpaid_regs:
+                fee = reg.fee_override if reg.fee_override is not None else reg.computed_fee()
+                if fee and fee > 0:
+                    p.has_debt = True
+                    break
 
-        # debts shown from true auto-debt only
-        try:
-            debts_all = (PaymentRecord.query
-                         .filter(PaymentRecord.player_id == p.id)
-                         .filter(PaymentRecord.note.like('%AUTO_DEBT%'))
-                         .all())
-            outstanding = [d for d in debts_all if is_auto_debt_note(d.note) and 'AUTO_DEBT_PAID' not in (d.note or '')]
-            recorded_debt_total = sum((d.amount or 0) for d in outstanding)
-        except Exception:
-            recorded_debt_total = 0
-
-        expected_owed = p.owed_amount or 0
-        p.debt_total_recorded = int(recorded_debt_total)
-        p.debt_total_expected = int(expected_owed)
-        p.has_debt = bool(recorded_debt_total or (expected_owed and expected_owed > 0))
-
-        # monthly dues
+        # monthly dues (optional, skip if month_year not set)
         p.monthly_due_amount = None
         p.monthly_due_paid = None
-        if month_year:
-            yy, mm = month_year
-            pay_row = Payment.query.filter_by(player_id=p.id, year=yy, month=mm).first()
-            if pay_row:
-                p.monthly_due_amount = pay_row.amount or 0
-                p.monthly_due_paid = bool(pay_row.paid)
+        if 'month_year' in locals() and month_year:
+            try:
+                yy, mm = month_year
+                pay_row = Payment.query.filter_by(player_id=p.id, year=yy, month=mm).first()
+                if pay_row:
+                    p.monthly_due_amount = pay_row.amount or 0
+                    p.monthly_due_paid = bool(pay_row.paid)
+            except Exception:
+                pass
 
     return render_template(
         "players_list.html",
         players=players, q=q, belt=belt, active=active,
         belts=GRADING_SCHEME["belt_colors"]
     )
-@app.route("/public/player/<int:player_id>")
-def player_detail_public(player_id: int):
-    player = Player.query.get_or_404(player_id)
     regs = (EventRegistration.query
             .filter_by(player_id=player.id)
             .join(Event)
@@ -1157,53 +1282,31 @@ def player_detail(player_id: int):
             .order_by(Event.start_date.desc())
             .all())
 
-    sess_records_all = (PaymentRecord.query
-                        .filter_by(player_id=player.id, kind='training_session')
-                        .order_by(PaymentRecord.paid_at.desc())
-                        .all())
-
-    payment_count = db.session.query(PaymentRecord).filter_by(player_id=player.id).count()
-
-    sess_receipts = [r for r in sess_records_all if not is_auto_debt_note(r.note)]
-    explicit_sessions_paid = sum((r.sessions_paid or 0) for r in sess_receipts)
-    total_prepaid_amount = sum((r.amount or 0) for r in sess_receipts)
-
-    per_session_price = None
-    if player.monthly_fee_amount is not None and not player.monthly_fee_is_monthly:
-        per_session_price = float(player.monthly_fee_amount)
-
-    inferred_sessions_paid = 0
-    if per_session_price:
-        for r in sess_receipts:
-            if (r.sessions_paid or 0) == 0 and (r.amount or 0) > 0:
-                try:
-                    inferred_sessions_paid += int(round(float(r.amount) / float(per_session_price)))
-                except Exception:
-                    pass
-    total_sessions_paid = explicit_sessions_paid + inferred_sessions_paid
-
-    total_sessions_taken = sum((r.sessions_taken or 0) for r in sess_records_all)
-
-    prepaid_credit = float(total_prepaid_amount)
-    expected_cost = owed_amount = None
-    if per_session_price is not None:
-        expected_cost = total_sessions_taken * per_session_price
-        owed_amount = expected_cost - prepaid_credit
-
+    # Use TrainingSession for session logic (unified with player list)
+    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    paid_sessions = [s for s in all_sessions if s.paid]
+    unpaid_sessions = [s for s in all_sessions if not s.paid]
+    total_sessions_taken = len(all_sessions)
+    total_sessions_paid = len(paid_sessions)
+    total_sessions_unpaid = len(unpaid_sessions)
+    per_session_price = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
+    owed_amount = int(round(total_sessions_unpaid * per_session_price)) if per_session_price else 0
+    # Only show session receipts for sessions counted as paid
+    # Filter PaymentRecords for kind='training_session' and limit to total_sessions_paid
+    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    sess_records = all_receipts[:total_sessions_paid]
     return render_template(
         "player_detail.html",
         player=player,
         current_payment=current_payment,
         regs=regs,
-        sess_records=sess_records_all,
         total_sessions_paid=total_sessions_paid,
         total_sessions_taken=total_sessions_taken,
-        total_prepaid_amount=total_prepaid_amount,
-        prepaid_credit=int(round(prepaid_credit)) if prepaid_credit is not None else None,
+        total_sessions_unpaid=total_sessions_unpaid,
         per_session_amount=per_session_price,
-        expected_cost=expected_cost,
-        owed_amount=int(round(owed_amount)) if owed_amount is not None else None,
-        payment_count=payment_count,
+        owed_amount=owed_amount,
+        payment_count=db.session.query(PaymentRecord).filter_by(player_id=player.id).count(),
+        sess_records=sess_records,
     )
 
 @app.route("/uploads/<path:filename>")
@@ -1347,6 +1450,7 @@ def delete_player(player_id: int):
     try:
         PaymentRecord.query.filter_by(player_id=player.id).delete(synchronize_session=False)
         Payment.query.filter_by(player_id=player.id).delete(synchronize_session=False)
+        TrainingSession.query.filter_by(player_id=player.id).delete(synchronize_session=False)
         regs = EventRegistration.query.filter_by(player_id=player.id).all()
         for r in regs:
             db.session.delete(r)
@@ -1359,6 +1463,224 @@ def delete_player(player_id: int):
     flash(_("Player deleted."), "info")
     return redirect(url_for("list_players"))
 
+# --- Modal Dues Payment Backend ---
+@app.route("/admin/players/<int:player_id>/pay_due_receipt", methods=["POST"])
+@admin_required
+def player_pay_due_receipt(player_id: int):
+    import json as _json
+    player = Player.query.get_or_404(player_id)
+    data = request.get_json(force=True)
+    due_ids = data.get("dues", [])
+    created = []
+    total_amount = 0
+    today = date.today()
+
+    # Helper: get due type and object by ID
+    def get_due_obj(due_id):
+        # Try Payment (monthly)
+        p = Payment.query.filter_by(id=due_id, player_id=player.id, paid=False).first()
+        if p:
+            return ("monthly", p)
+        # Try EventRegistration (event)
+        r = EventRegistration.query.filter_by(id=due_id, player_id=player.id, paid=False).first()
+        if r:
+            return ("event", r)
+        # Try PaymentRecord (debt)
+        d = PaymentRecord.query.filter_by(id=due_id, player_id=player.id).first()
+        if d and is_auto_debt_note(d.note) and "AUTO_DEBT_PAID" not in (d.note or ""):
+            return ("debt", d)
+        return (None, None)
+
+    print('DEBUG: due_ids received:', due_ids)
+    for due_id in due_ids:
+        # Handle owed session payments (object with type and session_ids)
+        if isinstance(due_id, dict) and due_id.get('type') == 'owed_sessions' and due_id.get('session_ids'):
+            session_ids = due_id['session_ids']
+            # Fetch the TrainingSession records
+            sessions = TrainingSession.query.filter(TrainingSession.session_id.in_(session_ids), TrainingSession.player_id == player.id, TrainingSession.paid == False).all()
+            if not sessions:
+                continue
+            per_session_amount = player.monthly_fee_amount
+            amt = len(sessions) * per_session_amount
+            # Mark sessions as paid
+            for s in sessions:
+                s.paid = True
+                db.session.add(s)
+            # Create a single PaymentRecord for all selected sessions
+            # User-friendly note for receipt
+            if len(session_ids) == 1:
+                note = f"Session ID: {session_ids[0]}"
+            else:
+                note = f"Session IDs: {', '.join(session_ids)}"
+            rec = PaymentRecord(
+                kind='training_session', player_id=player.id,
+                amount=amt, year=today.year, month=today.month,
+                sessions_paid=0, sessions_taken=0,
+                currency='EUR', note=note
+            )
+            db.session.add(rec)
+            db.session.commit()
+            try:
+                rec.assign_receipt_no()
+            except Exception:
+                pass
+            total_amount += amt
+            created.append(rec)
+            continue
+        # Normal dues (int IDs)
+        try:
+            due_id_int = int(due_id)
+        except Exception:
+            continue
+        kind, obj = get_due_obj(due_id_int)
+        if kind == "monthly":
+            # Create PaymentRecord for monthly fee
+            amt = obj.amount or 0
+            rec = PaymentRecord(kind='training_month', player_id=player.id,
+                                amount=amt, year=obj.year, month=obj.month,
+                                payment_id=obj.id, currency='EUR', note='PAY_FROM_MODAL')
+            db.session.add(rec)
+            db.session.commit()
+            try:
+                rec.assign_receipt_no()
+            except Exception:
+                pass
+            obj.paid = True
+            obj.paid_on = today
+            db.session.add(obj)
+            total_amount += amt
+            created.append(rec)
+        elif kind == "event":
+            amt = obj.computed_fee() or 0
+            event_name = obj.event.title if obj.event and hasattr(obj.event, 'title') else 'Event'
+            note = f"PAY_FROM_MODAL | Event: {event_name}"
+            rec = PaymentRecord(kind='event', player_id=player.id,
+                                amount=amt, event_registration_id=obj.id,
+                                currency='EUR', note=note)
+            db.session.add(rec)
+            db.session.commit()
+            try:
+                rec.assign_receipt_no()
+            except Exception:
+                pass
+            obj.paid = True
+            obj.paid_on = today
+            db.session.add(obj)
+            db.session.commit()
+            total_amount += amt
+            created.append(rec)
+        elif kind == "debt":
+            d_amt = int(obj.amount or 0)
+            if d_amt <= 0:
+                continue
+            pay_rec = PaymentRecord(
+                kind=obj.kind, player_id=player.id,
+                amount=d_amt, currency=obj.currency or 'EUR',
+                method=None,
+                note=f'Payment for debt receipt {obj.id}',
+                related_receipt_id=obj.id
+            )
+            db.session.add(pay_rec)
+            db.session.commit()
+            try:
+                pay_rec.assign_receipt_no()
+            except Exception:
+                pass
+            obj.note = (obj.note or '') + ' | AUTO_DEBT_PAID'
+            db.session.add(obj)
+            db.session.commit()
+            created.append(pay_rec)
+            total_amount += d_amt
+
+    print('DEBUG: created PaymentRecords:', [r.id for r in created])
+    if created:
+        ids = ",".join(str(r.id) for r in created)
+        return _json.dumps({"redirect": url_for('receipts_print_batch') + f"?ids={ids}"})
+    else:
+        return _json.dumps({"redirect": url_for('player_detail', player_id=player.id)})
+#-------------Rosen
+
+# Outstanding dues JSON endpoint for modal
+@app.route("/admin/players/<int:player_id>/dues_json")
+@admin_required
+def player_dues_json(player_id: int):
+    player = Player.query.get_or_404(player_id)
+    today = date.today()
+    dues = []
+    # Monthly due (unpaid Payment row for this month)
+    pay = Payment.query.filter_by(player_id=player.id, year=today.year, month=today.month, paid=False).first()
+    if pay:
+        dues.append({
+            "id": pay.id,
+            "label": f"Monthly fee ({today.year}-{today.month:02d})",
+            "amount": pay.amount or 0,
+            "type": "monthly"
+        })
+
+    # Owed session payments (per-session plan, sessions taken > sessions paid)
+    if player.monthly_fee_is_monthly is False and player.monthly_fee_amount:
+        # Get all unpaid TrainingSession records for this player (all time)
+        unpaid_sessions = TrainingSession.query.filter_by(player_id=player.id, paid=False).order_by(TrainingSession.date.asc()).all()
+        per_session_amount = player.monthly_fee_amount
+        owed_sessions = len(unpaid_sessions)
+        if owed_sessions > 0:
+            session_list = [
+                {
+                    "session_id": s.session_id,
+                    "date": s.date.strftime('%Y-%m-%d') if s.date else "?"
+                }
+                for s in unpaid_sessions
+            ]
+            dues.append({
+                "id": f"owed_sessions_all_time",
+                "label": f"Owed sessions ({owed_sessions} x {per_session_amount} EUR)",
+                "amount": owed_sessions * per_session_amount,
+                "type": "owed_sessions",
+                "sessions": owed_sessions,
+                "session_list": session_list
+            })
+    # Unpaid event registrations
+    regs = EventRegistration.query.filter_by(player_id=player.id, paid=False).all()
+    for r in regs:
+        dues.append({
+            "id": r.id,
+            "label": f"Event: {r.event.title if r.event else 'Event'}",
+            "amount": r.computed_fee() or 0,
+            "type": "event"
+        })
+    # Debts (AUTO_DEBT)
+    # Session debt is intentionally excluded from the dues modal
+    print(f"DEBUG /dues_json for player {player_id}: {json.dumps(dues, indent=2)}")
+    return {"dues": dues}
+# Admin utility: Backfill missing TrainingSession records for all players
+
+# Place this route after other admin routes
+@app.route("/admin/backfill_training_sessions")
+@admin_required
+def backfill_training_sessions():
+    from sqlalchemy.orm import load_only
+    players = Player.query.options(load_only(Player.id)).all()
+    created_total = 0
+    for player in players:
+        if player.monthly_fee_is_monthly or not player.monthly_fee_amount:
+            continue  # Only per-session payers
+        # Count sessions_taken from PaymentRecord
+        total_taken = db.session.query(db.func.sum(PaymentRecord.sessions_taken)).filter_by(player_id=player.id, kind='training_session').scalar() or 0
+        # Count existing TrainingSession rows
+        existing_sessions = TrainingSession.query.filter_by(player_id=player.id).count()
+        missing = total_taken - existing_sessions
+        if missing > 0:
+            # Find the latest session date, or use today
+            last_date = db.session.query(db.func.max(TrainingSession.date)).filter_by(player_id=player.id).scalar() or date.today()
+            for i in range(missing):
+                sess_date = last_date  # Could randomize or increment if needed
+                session_id = TrainingSession.generate_session_id(player.id, sess_date)
+                ts = TrainingSession(player_id=player.id, date=sess_date, session_id=session_id, paid=False)
+                db.session.add(ts)
+                created_total += 1
+    db.session.commit()
+    flash(f"Backfilled {created_total} missing TrainingSession records.", "success")
+    return redirect(request.referrer or url_for('list_players'))
 # -------- Fees Report + Toggle + CSV ----------
 @app.route("/reports/fees")
 @admin_required
@@ -1371,8 +1693,6 @@ def fees_report():
     players = Player.query.filter_by(active_member=True).order_by(Player.last_name.asc(), Player.first_name.asc()).all()
     payments = {p.player_id: p for p in Payment.query.filter_by(year=year, month=month).all()}
 
-
-
     # Consolidate all payments per athlete
     from sqlalchemy import extract
     report_rows = []
@@ -1383,10 +1703,23 @@ def fees_report():
         monthly_paid = payment.paid if payment else False
         monthly_id = payment.id if payment else None
         # Per-session
-        session_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').filter(
-            extract('year', PaymentRecord.paid_at) == year,
-            extract('month', PaymentRecord.paid_at) == month
-        ).all()
+        # Include session receipts by session date (from TrainingSession)
+        session_receipts = []
+        all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').all()
+        for rec in all_receipts:
+            # Find related TrainingSession(s) for this receipt
+            # If note contains session IDs, parse them
+            session_ids = []
+            if rec.note and 'Session ID:' in rec.note:
+                session_ids = [rec.note.split('Session ID:')[1].strip()]
+            elif rec.note and 'Session IDs:' in rec.note:
+                session_ids = [x.strip() for x in rec.note.split('Session IDs:')[1].split(',')]
+            # For each session, check if its date matches the report month
+            for sid in session_ids:
+                ts = TrainingSession.query.filter_by(session_id=sid).first()
+                if ts and ts.date and ts.date.year == year and ts.date.month == month:
+                    session_receipts.append(rec)
+                    break
         sessions_paid = sum(r.sessions_paid or 0 for r in session_receipts)
         sessions_taken = sum(r.sessions_taken or 0 for r in session_receipts)
         prepaid_amount = sum(r.amount or 0 for r in session_receipts)
@@ -1430,16 +1763,29 @@ def fees_report():
                 'paid_on': ep.paid_at.date() if ep.paid_at else None,
                 'id': ep.id,
             })
+        # Find monthly receipt (PaymentRecord)
+        monthly_receipt = None
+        if payment:
+            monthly_receipt = PaymentRecord.query.filter_by(player_id=player.id, kind='training_month', year=year, month=month).first()
+        monthly_receipt_no = monthly_receipt.receipt_no if monthly_receipt else None
+        monthly_receipt_id = monthly_receipt.id if monthly_receipt else None
+        # Collect all session receipts for the month
+        session_receipt_nos = [r.receipt_no for r in session_receipts if r.receipt_no]
+        session_receipt_ids = [r.id for r in session_receipts if r.receipt_no]
         report_rows.append({
             'player': player,
             'player_id': player.id,
             'monthly_amount': monthly_amount,
             'monthly_paid': monthly_paid,
             'monthly_id': monthly_id,
+            'monthly_receipt_no': monthly_receipt_no,
+            'monthly_receipt_id': monthly_receipt_id,
             'sessions_paid': sessions_paid,
             'sessions_taken': sessions_taken,
             'prepaid_amount': prepaid_amount,
             'per_session_amount': per_session_amount,
+            'session_receipt_nos': session_receipt_nos,
+            'session_receipt_ids': session_receipt_ids,
             'owed_amount': (owed_amount or 0) + (event_owed or 0),
             'event_total': event_total,
             'event_owed': event_owed,
@@ -1449,7 +1795,12 @@ def fees_report():
             'month': month,
         })
 
-    due = first_working_day(year, month)
+    # Show due date as today if today is in the target month, else use first working day
+    today_dt = date.today()
+    if today_dt.year == year and today_dt.month == month:
+        due = today_dt
+    else:
+        due = first_working_day(year, month)
     return render_template(
         "report_fees.html",
         payments=report_rows,
@@ -1492,7 +1843,7 @@ def fees_export_csv():
             paid_on = p.paid_on.isoformat() if p.paid_on else ""
             yield f"{p.player_id},{full_name},{belt},{amount},{paid},{paid_on},{due.isoformat()}\n"
 
-    headers = {"Content-Disposition": f'attachment; filename=\"fees_{year:04d}-{month:02d}.csv\"'}
+    headers = {"Content-Disposition": f'attachment; filename="fees_{year:04d}-{month:02d}.csv"'}
     return Response(generate(), mimetype="text/csv", headers=headers)
 
 # -------- Players CSV ----------
@@ -1526,6 +1877,7 @@ def export_csv():
             prepaid_amount = sum((r.amount or 0) for r in sess_records)
             per_session_amount = int(p.monthly_fee_amount) if (p.monthly_fee_amount is not None and not p.monthly_fee_is_monthly) else ""
             owed_amount = ""
+            sessions_paid = explicit_sessions_paid
             if per_session_amount != "":
                 inferred = 0
                 try:
@@ -1721,7 +2073,6 @@ def event_categories(event_id: int):
     cats = ev.categories.order_by(EventCategory.name.asc()).all()
     return render_template("event_categories.html", ev=ev, cats=cats, form=form)
 
-
 @app.route("/admin/events/<int:event_id>/categories/<int:cat_id>/delete", methods=["POST"])
 @admin_required
 def event_category_delete(event_id: int, cat_id: int):
@@ -1731,6 +2082,7 @@ def event_category_delete(event_id: int, cat_id: int):
     db.session.commit()
     flash(_("Category deleted."), "info")
     return redirect(url_for("event_categories", event_id=ev.id))
+
 #-----------------------------
 # Manually added
 #-----------------------------
@@ -1753,7 +2105,6 @@ def event_reg_update_medals(reg_id):
         flash("No changes made.", "info")
     return redirect(request.referrer or url_for("event_registrations", event_id=reg.event_id))
 
-
 # Bulk import endpoint for event categories
 @app.route("/admin/events/<int:event_id>/categories/import", methods=["POST"])
 @admin_required
@@ -1764,7 +2115,7 @@ def event_categories_import(event_id: int):
     imported = 0
     errors = []
     for idx, row in enumerate(rows):
-        # Expect: name, age_from, age_to, sex, fee, team_size, kyu, dan, other_cutoff_date, limit, limit_team
+        # Expect: name, age_from, age_to, sex, fee, team_size, kyu, dan, other_cutoff_date, limit, team_limit
         if not row or not row[0]:
             continue
         try:
@@ -1799,7 +2150,6 @@ def event_categories_import(event_id: int):
 def event_registrations(event_id: int):
     ev = Event.query.get_or_404(event_id)
     form = EventRegistrationForm()
-
 
     players = Player.query.filter_by(active_member=True).order_by(Player.last_name.asc(), Player.first_name.asc()).all()
     form.player_ids.choices = [(p.id, p.full_name()) for p in players]
@@ -1854,18 +2204,41 @@ def event_registrations(event_id: int):
     if form.validate_on_submit():
         selected_cats = [EventCategory.query.get(cid) for cid in form.category_ids.data]
         selected_cats = [c for c in selected_cats if c and c.event_id == ev.id]
+        registration_added = False
         for pid in form.player_ids.data:
-            reg = EventRegistration(
-                event_id=ev.id,
-                player_id=pid,
-                fee_override=form.fee_override.data,
-                paid=bool(form.paid.data),
-                paid_on=(date.today() if form.paid.data else None),
-            )
-            reg.reg_categories = [EventRegCategory(category_id=c.id) for c in selected_cats]
-            db.session.add(reg)
+            # Check for existing registration for this event/player
+            existing_reg = EventRegistration.query.filter_by(event_id=ev.id, player_id=pid).first()
+            if existing_reg:
+                # Only add new categories that are not already registered
+                existing_cat_ids = {rc.category_id for rc in existing_reg.reg_categories}
+                new_cats = [c for c in selected_cats if c.id not in existing_cat_ids]
+                if new_cats:
+                    for c in new_cats:
+                        existing_reg.reg_categories.append(EventRegCategory(category_id=c.id))
+                    registration_added = True
+                # Optionally update fee_override/paid status if needed
+                if form.fee_override.data is not None:
+                    existing_reg.fee_override = form.fee_override.data
+                if form.paid.data:
+                    existing_reg.paid = True
+                    existing_reg.paid_on = date.today()
+                db.session.add(existing_reg)
+            else:
+                reg = EventRegistration(
+                    event_id=ev.id,
+                    player_id=pid,
+                    fee_override=form.fee_override.data,
+                    paid=bool(form.paid.data),
+                    paid_on=(date.today() if form.paid.data else None),
+                )
+                reg.reg_categories = [EventRegCategory(category_id=c.id) for c in selected_cats]
+                db.session.add(reg)
+                registration_added = True
         db.session.commit()
-        flash(_("Registration added."), "success")
+        if registration_added:
+            flash(_("Registration added."), "success")
+        else:
+            flash(_("Registration declined."), "danger")
         return redirect(url_for("event_registrations", event_id=ev.id))
 
     paid_filter = request.args.get("paid", "").strip().lower()
@@ -2133,6 +2506,12 @@ def migrate():
     return redirect(url_for("list_players"))
 
 def auto_migrate_on_startup():
+    # Add unique constraint on (player_id, date) for TrainingSession
+    with db.engine.begin() as conn:
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_player_session_date ON training_session (player_id, date)"))
+        except Exception:
+            pass
     with db.engine.begin() as conn:
         # --- EventCategory columns migration ---
         result3 = conn.execute(text("PRAGMA table_info(event_category)"))
@@ -2152,7 +2531,7 @@ def auto_migrate_on_startup():
             col_sql = f'"{col}"' if col in ("limit", "limit_team") else col
             if col not in existing3:
                 conn.execute(text(f"ALTER TABLE event_category ADD COLUMN {col_sql} {t}"))
-    with db.engine.begin() as conn:
+
         result = conn.execute(text("PRAGMA table_info(player)"))
         existing = {row[1] for row in result}
         to_add = []
@@ -2181,6 +2560,12 @@ def auto_migrate_on_startup():
         existing2 = {row[1] for row in result2}
         if "related_receipt_id" not in existing2:
             conn.execute(text("ALTER TABLE payment_record ADD COLUMN related_receipt_id INTEGER"))
+
+        # Add unique constraint on (player_id, date) for TrainingSession
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_player_session_date ON training_session (player_id, date)"))
+        except Exception:
+            pass
 
 with app.app_context():
     db.create_all()
@@ -2228,7 +2613,6 @@ def payment_new():
     if amount is None or amount < 0:
         flash("Amount is required.", "danger")
         return redirect(url_for("payment_new", player_id=player_id, reg_id=reg_id))
-
 
     # Uniqueness checks (except per-session)
     if kind == "training_month":
@@ -2326,44 +2710,36 @@ def player_due_print(player_id: int):
     events_due = sum([(r.computed_fee() or 0) for r in regs_unpaid])
     due_date = first_working_day(year, month)
 
-    sess_records = (PaymentRecord.query
-                    .filter_by(player_id=player.id, kind='training_session')
-                    .all())
-    sess_receipts = [r for r in sess_records if not is_auto_debt_note(r.note)]
-    explicit_sessions_paid = sum((r.sessions_paid or 0) for r in sess_receipts)
-    total_sessions_taken = sum((r.sessions_taken or 0) for r in sess_records)
-    total_prepaid_amount = sum((r.amount or 0) for r in sess_receipts)
-    per_session_amount = int(player.monthly_fee_amount) if (player.monthly_fee_amount is not None and not player.monthly_fee_is_monthly) else None
-
-    inferred_sessions = 0
-    if per_session_amount is not None and per_session_amount > 0:
-        for r in sess_receipts:
-            if (r.sessions_paid or 0) == 0 and (r.amount or 0) > 0:
-                try:
-                    inferred_sessions += int(round(float(r.amount) / float(per_session_amount)))
-                except Exception:
-                    pass
-    total_sessions_paid = explicit_sessions_paid + inferred_sessions
-    prepaid_credit = float(total_prepaid_amount)
-    owed_amount = None
-    if per_session_amount is not None:
-        owed_amount = (total_sessions_taken * per_session_amount) - prepaid_credit
-
+    # Use TrainingSession for session logic (unified with player_detail)
+    all_sessions = TrainingSession.query.filter_by(player_id=player.id).all()
+    paid_sessions = [s for s in all_sessions if s.paid]
+    unpaid_sessions = [s for s in all_sessions if not s.paid]
+    total_sessions_taken = len(all_sessions)
+    total_sessions_paid = len(paid_sessions)
+    total_sessions_unpaid = len(unpaid_sessions)
+    per_session_amount = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
+    owed_amount = int(round(total_sessions_unpaid * per_session_amount)) if per_session_amount else 0
+    # Only show session receipts for sessions counted as paid
+    all_receipts = PaymentRecord.query.filter_by(player_id=player.id, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    sess_records = all_receipts[:total_sessions_paid]
+    total_due = owed_amount + events_due
     return render_template(
         "player_due_print.html",
         player=player,
         year=year, month=month, due_date=due_date,
         pay=pay, regs_unpaid=regs_unpaid,
-        monthly_due=monthly_due, events_due=events_due,
+        monthly_due=owed_amount,
+        events_due=events_due,
+        total_due=total_due,
         sess_records=sess_records,
         total_sessions_paid=total_sessions_paid,
         total_sessions_taken=total_sessions_taken,
-        total_prepaid_amount=total_prepaid_amount,
-        prepaid_credit=int(round(prepaid_credit)) if prepaid_credit is not None else None,
+        total_sessions_unpaid=total_sessions_unpaid,
+        total_prepaid_amount=sum((r.amount or 0) for r in sess_records),
+        prepaid_credit=sum((r.amount or 0) for r in sess_records),
         per_session_amount=per_session_amount,
-        owed_amount=int(round(owed_amount)) if owed_amount is not None else None,
+        owed_amount=owed_amount,
     )
-
 
 @app.route("/admin/receipts/<int:rid>")
 @admin_required
@@ -2455,88 +2831,13 @@ def record_session(player_id: int):
         flash('Player is not a per-session payer.', 'warning')
         return redirect(request.referrer or url_for('player_detail', player_id=player.id))
 
-    per_price = float(player.monthly_fee_amount) if (player.monthly_fee_amount is not None and not player.monthly_fee_is_monthly) else None
-
-    allocated = False
-    receipts = (PaymentRecord.query
-                .filter_by(player_id=player.id, kind='training_session')
-                .filter((PaymentRecord.note == None) | (~PaymentRecord.note.like('%AUTO_DEBT%')))
-                .order_by(PaymentRecord.paid_at.asc())
-                .all())
-
-    for r in receipts:
-        paid = (r.sessions_paid or 0)
-        taken = (r.sessions_taken or 0)
-        available = paid - taken
-        if available > 0:
-            r.sessions_taken = taken + 1
-            db.session.add(r)
-            db.session.commit()
-            allocated = True
-            flash('Session recorded against prepaid sessions.', 'success')
-            break
-        if paid == 0 and (r.amount or 0) > 0 and per_price is not None and per_price > 0:
-            try:
-                inferred = int(round(float(r.amount) / float(per_price)))
-            except Exception:
-                inferred = 0
-            if inferred > 0:
-                r.sessions_paid = inferred
-                r.sessions_taken = 1
-                db.session.add(r)
-                db.session.commit()
-                allocated = True
-                flash('Session recorded (inferred from payment).', 'success')
-                break
-
-    if not allocated:
-        # 1) log the taken session on a non-debt tracking receipt
-        tracking = (PaymentRecord.query
-                    .filter_by(player_id=player.id, kind='training_session')
-                    .filter((PaymentRecord.note == None) | (~PaymentRecord.note.like('%AUTO_DEBT%')))
-                    .order_by(PaymentRecord.paid_at.desc())
-                    .first())
-        if tracking:
-            tracking.sessions_taken = (tracking.sessions_taken or 0) + 1
-            db.session.add(tracking)
-            db.session.commit()
-            try:
-                if not tracking.receipt_no:
-                    tracking.assign_receipt_no()
-            except Exception:
-                pass
-        else:
-            tracking = PaymentRecord(
-                kind='training_session', player_id=player.id,
-                sessions_paid=0, sessions_taken=1,
-                amount=0, currency='EUR', method=None,
-                note='SESSION_LOG'
-            )
-            db.session.add(tracking)
-            db.session.commit()
-            try:
-                tracking.assign_receipt_no()
-            except Exception:
-                pass
-
-        # 2) create a separate AUTO_DEBT with sessions_taken=0
-        debt_amount = int(round(per_price)) if per_price is not None else 0
-        debt = PaymentRecord(
-            kind='training_session', player_id=player.id,
-            sessions_paid=0, sessions_taken=0,
-            amount=debt_amount, currency='EUR', method=None,
-            note=f"AUTO_DEBT from list action: 1 extra session",
-        )
-        db.session.add(debt)
-        db.session.commit()
-        try:
-            debt.assign_receipt_no()
-        except Exception:
-            pass
-        if per_price is None:
-            flash("Session recorded. Price not set; created 0-EUR debt. Set price in player profile to settle.", 'warning')
-        else:
-            flash(f"Session recorded. Player now owes {debt.amount} EUR (debt receipt created).", 'warning')
+    # Always create a new TrainingSession row for this player
+    today = date.today()
+    session_id = f"{player.id}_{today.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S%f')}"
+    ts = TrainingSession(player_id=player.id, date=today, session_id=session_id, paid=False, created_at=datetime.now())
+    db.session.add(ts)
+    db.session.commit()
+    flash('Session recorded. New TrainingSession created.', 'success')
 
     return redirect(request.referrer or url_for('player_detail', player_id=player.id))
 
@@ -2749,4 +3050,10 @@ def event_reg_fee_json(reg_id: int):
 # Entrypoint
 # -----------------------------
 if __name__ == "__main__":
+    # Optional hardening for cookies in production
+    # app.config.update(
+    #     SESSION_COOKIE_HTTPONLY=True,
+    #     SESSION_COOKIE_SAMESITE="Lax",
+    #     # SESSION_COOKIE_SECURE=True,  # enable if served over HTTPS
+    # )
     app.run(host="0.0.0.0", port=5000)
