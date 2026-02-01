@@ -1189,42 +1189,22 @@ def list_players():
         if p.monthly_fee_amount is not None and not p.monthly_fee_is_monthly:
             per_session_price = float(p.monthly_fee_amount)
 
-        # infer sessions_paid from amounts only when price is known
+        # Use TrainingSession for per-session logic
+        all_sessions = TrainingSession.query.filter_by(player_pn=p.pn).all()
+        paid_sessions = [s for s in all_sessions if s.paid]
+        unpaid_sessions = [s for s in all_sessions if not s.paid]
+        p.total_sessions_taken = len(all_sessions)
+        p.total_sessions_paid = len(paid_sessions)
+        p.total_sessions_unpaid = len(unpaid_sessions)
+        per_session_price = float(p.monthly_fee_amount) if p.monthly_fee_amount and not p.monthly_fee_is_monthly else None
+        p.per_session_price = per_session_price
+        p.owed_amount = int(round(p.total_sessions_unpaid * per_session_price)) if per_session_price else 0
 
-        for p in players:
-            # Health/insurance badges via helper for consistent UX
-            p.med_text, p.med_color = validity_badge(p.medical_expiry_date)
-            p.ins_text, p.ins_color = validity_badge(p.insurance_expiry_date)
-
-            # Use TrainingSession for per-session logic
-            all_sessions = TrainingSession.query.filter_by(player_pn=p.pn).all()
-            paid_sessions = [s for s in all_sessions if s.paid]
-            unpaid_sessions = [s for s in all_sessions if not s.paid]
-            p.total_sessions_taken = len(all_sessions)
-            p.total_sessions_paid = len(paid_sessions)
-            p.total_sessions_unpaid = len(unpaid_sessions)
-            per_session_price = float(p.monthly_fee_amount) if p.monthly_fee_amount and not p.monthly_fee_is_monthly else None
-            p.per_session_price = per_session_price
-            p.owed_amount = int(round(p.total_sessions_unpaid * per_session_price)) if per_session_price else 0
-
-            # Ensure monthly_due_amount and monthly_due_paid are always set
-            if not hasattr(p, 'monthly_due_amount'):
-                p.monthly_due_amount = None
-            if not hasattr(p, 'monthly_due_paid'):
-                p.monthly_due_paid = None
-            # Mark as having debt if session, monthly, or event debt exists
-            p.has_debt = False
-            if p.owed_amount > 0:
-                p.has_debt = True
-            if p.monthly_due_amount is not None and not p.monthly_due_paid and p.monthly_due_amount > 0:
-                p.has_debt = True
-            # Check for unpaid event registrations with a fee
-            unpaid_regs = EventRegistration.query.filter_by(player_pn=p.pn, paid=False).all()
-            for reg in unpaid_regs:
-                fee = reg.fee_override if reg.fee_override is not None else reg.computed_fee()
-                if fee and fee > 0:
-                    p.has_debt = True
-                    break
+        # Ensure monthly_due_amount and monthly_due_paid are always set
+        if not hasattr(p, 'monthly_due_amount'):
+            p.monthly_due_amount = None
+        if not hasattr(p, 'monthly_due_paid'):
+            p.monthly_due_paid = None
 
         # monthly dues (optional, skip if month_year not set)
         p.monthly_due_amount = None
@@ -1238,6 +1218,20 @@ def list_players():
                     p.monthly_due_paid = bool(pay_row.paid)
             except Exception:
                 pass
+
+        # Mark as having debt if session, monthly, or event debt exists
+        p.has_debt = False
+        if p.owed_amount > 0:
+            p.has_debt = True
+        if p.monthly_due_amount is not None and not p.monthly_due_paid and p.monthly_due_amount > 0:
+            p.has_debt = True
+        # Check for unpaid event registrations with a fee
+        unpaid_regs = EventRegistration.query.filter_by(player_pn=p.pn, paid=False).all()
+        for reg in unpaid_regs:
+            fee = reg.fee_override if reg.fee_override is not None else reg.computed_fee()
+            if fee and fee > 0:
+                p.has_debt = True
+                break
 
     return render_template(
         "players_list.html",
@@ -1266,15 +1260,19 @@ def player_detail(player_id: int):
     except Exception:
         pass
 
-    current_payment = Payment.query.filter_by(player_pn=player.pn, year=today.year, month=today.month).first()
+    # Use player PN when available, otherwise fall back to player_id for legacy rows
+    pay_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    current_payment = Payment.query.filter_by(**pay_filter, year=today.year, month=today.month).first()
+    reg_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
     regs = (EventRegistration.query
-            .filter_by(player_pn=player.pn)
-            .join(Event)
-            .order_by(Event.start_date.desc())
-            .all())
+        .filter_by(**reg_filter)
+        .join(Event)
+        .order_by(Event.start_date.desc())
+        .all())
 
     # Use TrainingSession for session logic (unified with player list)
-    all_sessions = TrainingSession.query.filter_by(player_pn=player.pn).all()
+    sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    all_sessions = TrainingSession.query.filter_by(**sess_filter).all()
     paid_sessions = [s for s in all_sessions if s.paid]
     unpaid_sessions = [s for s in all_sessions if not s.paid]
     total_sessions_taken = len(all_sessions)
@@ -1284,7 +1282,8 @@ def player_detail(player_id: int):
     owed_amount = int(round(total_sessions_unpaid * per_session_price)) if per_session_price else 0
     # Only show session receipts for sessions counted as paid
     # Filter PaymentRecords for kind='training_session' and limit to total_sessions_paid
-    all_receipts = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
+    rec_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    all_receipts = PaymentRecord.query.filter_by(**rec_filter, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
     sess_records = all_receipts[:total_sessions_paid]
     return render_template(
         "player_detail.html",
@@ -1296,7 +1295,7 @@ def player_detail(player_id: int):
         total_sessions_unpaid=total_sessions_unpaid,
         per_session_amount=per_session_price,
         owed_amount=owed_amount,
-        payment_count=db.session.query(PaymentRecord).filter_by(player_pn=player.pn).count(),
+        payment_count=db.session.query(PaymentRecord).filter_by(**({'player_pn': player.pn} if player.pn else {'player_id': player.id})).count(),
         sess_records=sess_records,
     )
 
@@ -1560,6 +1559,7 @@ def create_player():
         player = Player(
             first_name=form.first_name.data,
             last_name=form.last_name.data,
+            pn=form.pn.data,
             gender=form.gender.data or None,
             birthdate=form.birthdate.data,
             grade_level=form.grade_level.data or None,
@@ -1975,28 +1975,43 @@ def fees_report():
         monthly_paid = payment.paid if payment else False
         monthly_id = payment.id if payment else None
         # Per-session
-        # Include session receipts by session date (from TrainingSession)
-        session_receipts = []
-        all_receipts = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').all()
-        for rec in all_receipts:
-            # Find related TrainingSession(s) for this receipt
-            # If note contains session IDs, parse them
-            session_ids = []
-            if rec.note and 'Session ID:' in rec.note:
-                session_ids = [rec.note.split('Session ID:')[1].strip()]
-            elif rec.note and 'Session IDs:' in rec.note:
-                session_ids = [x.strip() for x in rec.note.split('Session IDs:')[1].split(',')]
-            # For each session, check if its date matches the report month
-            for sid in session_ids:
-                ts = TrainingSession.query.filter_by(session_id=sid).first()
-                if ts and ts.date and ts.date.year == year and ts.date.month == month:
-                    session_receipts.append(rec)
-                    break
-        sessions_paid = sum(r.sessions_paid or 0 for r in session_receipts)
-        sessions_taken = sum(r.sessions_taken or 0 for r in session_receipts)
-        prepaid_amount = sum(r.amount or 0 for r in session_receipts)
+        # Count TrainingSession rows in the report month and use their paid flag to compute owed amount.
         per_session_amount = player.monthly_fee_amount if player.monthly_fee_is_monthly is False else None
-        owed_amount = max(0, (sessions_taken - sessions_paid) * per_session_amount) if per_session_amount else 0
+        sessions_taken = 0
+        sessions_paid = 0
+        prepaid_amount = 0
+        sessions_in_month = []
+        sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+        if per_session_amount is not None:
+            # Date range for month
+            from calendar import monthrange
+            month_start = date(year, month, 1)
+            month_end = date(year, month, monthrange(year, month)[1])
+            # Training sessions in the month (prefer player_pn for lookup)
+            sessions_in_month = TrainingSession.query.filter_by(**sess_filter).filter(TrainingSession.date >= month_start, TrainingSession.date <= month_end).all()
+            sessions_taken = len(sessions_in_month)
+            sessions_paid = sum(1 for s in sessions_in_month if getattr(s, 'paid', False))
+            # Fallback/prepaid amount: sum PaymentRecord amounts for training_session kind in the month
+            session_pay_recs = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').filter(
+                db.func.strftime('%Y', PaymentRecord.paid_at) == str(year),
+                db.func.strftime('%m', PaymentRecord.paid_at) == f"{month:02d}"
+            ).all()
+            prepaid_amount = sum(r.amount or 0 for r in session_pay_recs)
+            # For compatibility with previous logic, expose these as session_receipts
+            session_receipts = session_pay_recs
+            owed_amount = max(0, (sessions_taken - sessions_paid) * per_session_amount)
+        else:
+            owed_amount = 0
+        # Build a lightweight session list for the UI (session_id, date, paid)
+        session_list = [
+            {
+                'session_id': s.session_id,
+                'date': s.date.isoformat() if s.date else None,
+                'paid': bool(getattr(s, 'paid', False)),
+                'amount': per_session_amount if per_session_amount is not None else None
+            }
+            for s in (locals().get('sessions_in_month') or [])
+        ]
         # Events
         event_payments = PaymentRecord.query.filter_by(player_pn=player.pn, kind='event').filter(
             extract('year', PaymentRecord.paid_at) == year,
@@ -2042,8 +2057,8 @@ def fees_report():
         monthly_receipt_no = monthly_receipt.receipt_no if monthly_receipt else None
         monthly_receipt_id = monthly_receipt.id if monthly_receipt else None
         # Collect all session receipts for the month
-        session_receipt_nos = [r.receipt_no for r in session_receipts if r.receipt_no]
-        session_receipt_ids = [r.id for r in session_receipts if r.receipt_no]
+        session_receipt_nos = [r.receipt_no for r in (locals().get('session_receipts') or []) if r.receipt_no]
+        session_receipt_ids = [r.id for r in (locals().get('session_receipts') or []) if r.receipt_no]
         report_rows.append({
             'player': player,
             'player_id': player.id,
@@ -2058,6 +2073,7 @@ def fees_report():
             'per_session_amount': per_session_amount,
             'session_receipt_nos': session_receipt_nos,
             'session_receipt_ids': session_receipt_ids,
+            'session_list': session_list,
             'owed_amount': (owed_amount or 0) + (event_owed or 0),
             'event_total': event_total,
             'event_owed': event_owed,

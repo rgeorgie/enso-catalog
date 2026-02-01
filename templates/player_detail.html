@@ -418,8 +418,10 @@
                     {% set _ = medal_counts.__setitem__(rc.medal, medal_counts.get(rc.medal, 0) + 1) %}
                   {% endif %}
                 {% endfor %}
-              <tr data-bs-toggle="collapse" data-bs-target="#reg-details-{{ r.id }}" aria-expanded="false" aria-controls="reg-details-{{ r.id }}" style="cursor:pointer;">
-                <td>{{ r.id }}</td>
+              <tr>
+                <td>
+                  <button class="btn btn-sm btn-link p-0" data-bs-toggle="collapse" data-bs-target="#reg-details-{{ r.id }}" aria-expanded="false" aria-controls="reg-details-{{ r.id }}">▾ {{ r.id }}</button>
+                </td>
                 <td>{{ r.event.title }}</td>
                 <td>{{ r.event.start_date }}</td>
                 <td>{{ r.computed_fee() }}</td>
