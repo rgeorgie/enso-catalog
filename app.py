@@ -1688,6 +1688,49 @@ def delete_player(player_id: int):
     flash(_("Player deleted (soft). Related registrations and payments preserved and linked by PN#."), "info")
     return redirect(url_for("list_players"))
 
+
+@app.route('/admin/players/<int:player_id>/purge', methods=['POST'])
+@admin_required
+def purge_player(player_id: int):
+    """Permanently remove a player row after migrating related rows to use PN.
+
+    This is destructive and irreversible. The form must include `confirm` field
+    with the literal value 'PURGE' to proceed. Make a DB backup before running.
+    """
+    player = Player.query.get_or_404(player_id)
+    confirm = (request.form.get('confirm') or '').strip()
+    if confirm != 'PURGE':
+        flash('Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE', 'danger')
+        return redirect(url_for('player_detail', player_id=player.id))
+
+    pn_val = player.pn
+    try:
+        # Backfill player_pn on related rows so history remains tied to PN
+        if pn_val:
+            PaymentRecord.query.filter_by(player_id=player.id).update({'player_pn': pn_val}, synchronize_session=False)
+            Payment.query.filter_by(player_id=player.id).update({'player_pn': pn_val}, synchronize_session=False)
+            TrainingSession.query.filter_by(player_id=player.id).update({'player_pn': pn_val}, synchronize_session=False)
+            EventRegistration.query.filter_by(player_id=player.id).update({'player_pn': pn_val}, synchronize_session=False)
+
+        # Remove photo file if present
+        if player.photo_filename:
+            try:
+                os.remove(os.path.join(UPLOAD_FOLDER, player.photo_filename))
+            except Exception:
+                pass
+
+        # Finally delete the player row
+        db.session.delete(player)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.exception('Failed to purge player')
+        flash(f'Purge failed: {e}', 'danger')
+        return redirect(url_for('player_detail', player_id=player.id))
+
+    flash('Player permanently deleted and related rows backfilled with PN.', 'success')
+    return redirect(url_for('list_players'))
+
 # --- Modal Dues Payment Backend ---
 @app.route("/admin/players/<int:player_id>/pay_due_receipt", methods=["POST"])
 @admin_required
@@ -1834,7 +1877,8 @@ def player_dues_json(player_id: int):
     today = date.today()
     dues = []
     # Monthly due (unpaid Payment row for this month)
-    pay = Payment.query.filter_by(player_pn=player.pn, year=today.year, month=today.month, paid=False).first()
+    pay_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    pay = Payment.query.filter_by(**pay_filter, year=today.year, month=today.month, paid=False).first()
     if pay:
         dues.append({
             "id": pay.id,
@@ -1846,7 +1890,8 @@ def player_dues_json(player_id: int):
     # Owed session payments (per-session plan, sessions taken > sessions paid)
     if player.monthly_fee_is_monthly is False and player.monthly_fee_amount:
         # Get all unpaid TrainingSession records for this player (all time)
-        unpaid_sessions = TrainingSession.query.filter_by(player_pn=player.pn, paid=False).order_by(TrainingSession.date.asc()).all()
+        sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+        unpaid_sessions = TrainingSession.query.filter_by(**sess_filter, paid=False).order_by(TrainingSession.date.asc()).all()
         per_session_amount = player.monthly_fee_amount
         owed_sessions = len(unpaid_sessions)
         if owed_sessions > 0:
@@ -1866,7 +1911,8 @@ def player_dues_json(player_id: int):
                 "session_list": session_list
             })
     # Unpaid event registrations
-    regs = EventRegistration.query.filter_by(player_pn=player.pn, paid=False).all()
+    reg_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    regs = EventRegistration.query.filter_by(**reg_filter, paid=False).all()
     for r in regs:
         dues.append({
             "id": r.id,

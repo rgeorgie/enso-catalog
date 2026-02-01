@@ -105,6 +105,48 @@
             ⬇️ {{ _('Export Profile (CSV)') }}
           </a>
         </div>
+        {% if session.get('is_admin') %}
+        <hr />
+        <div class="mt-2">
+          <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#purgeModal">🚨 {{ _('Permanently delete (PURGE)') }}</button>
+        </div>
+
+        <!-- Purge confirmation modal -->
+        <div class="modal fade" id="purgeModal" tabindex="-1" aria-labelledby="purgeModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <form method="post" action="{{ url_for('purge_player', player_id=player.id) }}">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="purgeModalLabel">{{ _('Permanently delete player') }}</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <p class="text-danger">{{ _('This is irreversible. All player data will be removed but related historical rows will keep the PN#.') }}</p>
+                  <p>{{ _('To confirm, type the word') }} <strong>PURGE</strong> {{ _('in the box below') }}.</p>
+                  <div class="mb-2">
+                    <input type="text" name="confirm" id="purge_confirm_input" class="form-control" placeholder="PURGE" required>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+                  <button type="submit" id="purge_submit_btn" class="btn btn-danger" disabled>{{ _('Permanently delete') }}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            var input = document.getElementById('purge_confirm_input');
+            var btn = document.getElementById('purge_submit_btn');
+            if (input && btn) {
+              input.addEventListener('input', function() {
+                btn.disabled = input.value.trim() !== 'PURGE';
+              });
+            }
+          });
+        </script>
+        {% endif %}
 
         <hr>
 
