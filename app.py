@@ -2204,18 +2204,41 @@ def event_registrations(event_id: int):
     if form.validate_on_submit():
         selected_cats = [EventCategory.query.get(cid) for cid in form.category_ids.data]
         selected_cats = [c for c in selected_cats if c and c.event_id == ev.id]
+        registration_added = False
         for pid in form.player_ids.data:
-            reg = EventRegistration(
-                event_id=ev.id,
-                player_id=pid,
-                fee_override=form.fee_override.data,
-                paid=bool(form.paid.data),
-                paid_on=(date.today() if form.paid.data else None),
-            )
-            reg.reg_categories = [EventRegCategory(category_id=c.id) for c in selected_cats]
-            db.session.add(reg)
+            # Check for existing registration for this event/player
+            existing_reg = EventRegistration.query.filter_by(event_id=ev.id, player_id=pid).first()
+            if existing_reg:
+                # Only add new categories that are not already registered
+                existing_cat_ids = {rc.category_id for rc in existing_reg.reg_categories}
+                new_cats = [c for c in selected_cats if c.id not in existing_cat_ids]
+                if new_cats:
+                    for c in new_cats:
+                        existing_reg.reg_categories.append(EventRegCategory(category_id=c.id))
+                    registration_added = True
+                # Optionally update fee_override/paid status if needed
+                if form.fee_override.data is not None:
+                    existing_reg.fee_override = form.fee_override.data
+                if form.paid.data:
+                    existing_reg.paid = True
+                    existing_reg.paid_on = date.today()
+                db.session.add(existing_reg)
+            else:
+                reg = EventRegistration(
+                    event_id=ev.id,
+                    player_id=pid,
+                    fee_override=form.fee_override.data,
+                    paid=bool(form.paid.data),
+                    paid_on=(date.today() if form.paid.data else None),
+                )
+                reg.reg_categories = [EventRegCategory(category_id=c.id) for c in selected_cats]
+                db.session.add(reg)
+                registration_added = True
         db.session.commit()
-        flash(_("Registration added."), "success")
+        if registration_added:
+            flash(_("Registration added."), "success")
+        else:
+            flash(_("Registration declined."), "danger")
         return redirect(url_for("event_registrations", event_id=ev.id))
 
     paid_filter = request.args.get("paid", "").strip().lower()
