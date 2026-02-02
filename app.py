@@ -2831,37 +2831,27 @@ def event_registrations(event_id: int):
         selected_cats = [c for c in selected_cats if c and c.event_id == ev.id]
         registration_added = False
         for pid in form.player_ids.data:
-            # Check for existing registration for this event/player
-            existing_reg = EventRegistration.query.filter_by(event_id=ev.id, player_id=pid).first()
-            if existing_reg:
-                # Only add new categories that are not already registered
-                existing_cat_ids = {rc.category_id for rc in existing_reg.reg_categories}
-                new_cats = [c for c in selected_cats if c.id not in existing_cat_ids]
-                if new_cats:
-                    for c in new_cats:
-                        existing_reg.reg_categories.append(EventRegCategory(category_id=c.id))
+            # Check for existing registrations for this event/player
+            existing_regs = EventRegistration.query.filter_by(event_id=ev.id, player_id=pid).all()
+            existing_cat_ids = set()
+            for reg in existing_regs:
+                existing_cat_ids.update(rc.category_id for rc in reg.reg_categories)
+
+            # Create separate registration for each selected category that isn't already registered
+            player_obj = Player.query.get(pid)
+            for cat in selected_cats:
+                if cat.id not in existing_cat_ids:
+                    reg = EventRegistration(
+                        event_id=ev.id,
+                        player_id=pid,
+                        player_pn=(player_obj.pn if player_obj else None),
+                        fee_override=form.fee_override.data,
+                        paid=bool(form.paid.data),
+                        paid_on=(date.today() if form.paid.data else None),
+                    )
+                    reg.reg_categories = [EventRegCategory(category_id=cat.id)]
+                    db.session.add(reg)
                     registration_added = True
-                # Optionally update fee_override/paid status if needed
-                if form.fee_override.data is not None:
-                    existing_reg.fee_override = form.fee_override.data
-                if form.paid.data:
-                    existing_reg.paid = True
-                    existing_reg.paid_on = date.today()
-                db.session.add(existing_reg)
-            else:
-                # set player_pn for new registration
-                player_obj = Player.query.get(pid)
-                reg = EventRegistration(
-                    event_id=ev.id,
-                    player_id=pid,
-                    player_pn=(player_obj.pn if player_obj else None),
-                    fee_override=form.fee_override.data,
-                    paid=bool(form.paid.data),
-                    paid_on=(date.today() if form.paid.data else None),
-                )
-                reg.reg_categories = [EventRegCategory(category_id=c.id) for c in selected_cats]
-                db.session.add(reg)
-                registration_added = True
         db.session.commit()
         if registration_added:
             flash(_("Registration added."), "success")
