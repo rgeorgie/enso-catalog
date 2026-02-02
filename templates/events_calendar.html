@@ -50,8 +50,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const currentDate = new Date();
-  let displayDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  // Use server-provided month/year instead of current date
+  let displayDate = new Date({{ year }}, {{ month - 1 }}, 1);
 
   // Helper function to format date as YYYY-MM-DD in local time
   function formatLocalDate(date) {
@@ -100,15 +100,15 @@ document.addEventListener('DOMContentLoaded', function() {
         dayButton.className = 'btn w-100 position-relative';
         dayButton.style.minHeight = '80px';
 
-        // Check if this is today's date
+        // Check if this is today's date (only highlight if shown month/year match)
         const today = new Date();
-        const isToday = currentDate.getDate() === today.getDate() && 
-                       currentDate.getMonth() === today.getMonth() && 
+        const isToday = currentDate.getDate() === today.getDate() &&
+                       currentDate.getMonth() === today.getMonth() &&
                        currentDate.getFullYear() === today.getFullYear();
 
-        if (isToday) {
+        if (isToday && currentDate.getMonth() === month && currentDate.getFullYear() === year) {
           dayButton.classList.add('btn-success');
-        } else if (currentDate.getMonth() === month) {
+        } else if (currentDate.getMonth() === month && currentDate.getFullYear() === year) {
           dayButton.classList.add('btn-outline-primary');
         } else {
           dayButton.classList.add('btn-outline-secondary');
