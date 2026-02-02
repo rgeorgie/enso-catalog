@@ -188,6 +188,7 @@ The application supports Bulgarian (default) and English. Use the language switc
 - **Interactive Calendar**: Click dates to create events (admin)
 - **Event Details**: Click events for full information
 - **Attendance Tracking**: Daily participation numbers
+- **BNFK Events**: External Bulgarian National Karate Federation events (informational only, cached daily)
 - **Multi-language Support**: Localized date formats
 
 ### Data Validation

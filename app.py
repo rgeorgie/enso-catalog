@@ -1424,6 +1424,145 @@ def first_working_day(year: int, month: int) -> date:
             return d
     return date(year, month, 1)
 
+def scrape_bnfk_events():
+    """Scrape events from BNFK calendar for informational display."""
+    import json
+    from datetime import datetime
+    
+    cache_file = os.path.join(BASE_DIR, 'bnfk_cache.json')
+    cache_duration_hours = 24
+    
+    # Check if we have a valid cache
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+            
+            cached_time = datetime.fromisoformat(cache_data['timestamp'])
+            if (datetime.now() - cached_time).total_seconds() < (cache_duration_hours * 3600):
+                # Cache is still valid, return cached events
+                return cache_data['events']
+        except (json.JSONDecodeError, KeyError, ValueError):
+            # Cache is corrupted, continue to scrape
+            pass
+    
+    # Scrape fresh data
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+        
+        url = "https://www.bnfk.bg/calendar"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Find the calendar table
+        events = []
+        
+        # Look for table rows with event data
+        table = soup.find('table')
+        if table:
+            rows = table.find_all('tr')
+            for row in rows:
+                cols = row.find_all('td')
+                if len(cols) >= 3:
+                    date_range = cols[0].get_text(strip=True)
+                    title = cols[1].get_text(strip=True)
+                    location = cols[2].get_text(strip=True)
+                    
+                    # Parse date range (e.g., "09-11.01.2026", "29.01-01.02.2026", "24.01.2026")
+                    try:
+                        if '-' in date_range:
+                            parts = date_range.split('-')
+                            if len(parts) == 2:
+                                start_str, end_str = parts
+                                
+                                # Handle cases like "29.01-01.02.2026" where year is at the end
+                                if '.' in start_str and '.' in end_str:
+                                    start_parts = start_str.split('.')
+                                    end_parts = end_str.split('.')
+                                    
+                                    if len(start_parts) == 2 and len(end_parts) == 3:
+                                        # Format: "DD.MM-DD.MM.YYYY"
+                                        start_day, start_month = start_parts
+                                        end_day, end_month, year = end_parts
+                                        start_date = date(int(year), int(start_month), int(start_day))
+                                        end_date = date(int(year), int(end_month), int(end_day))
+                                    elif len(start_parts) == 2 and len(end_parts) == 2:
+                                        # Format: "DD.MM-DD.MM" (same year as current)
+                                        start_day, start_month = start_parts
+                                        end_day, end_month = end_parts
+                                        # Assume current year or next year if month is earlier
+                                        current_year = date.today().year
+                                        start_date = date(current_year, int(start_month), int(start_day))
+                                        end_date = date(current_year, int(end_month), int(end_day))
+                                        # If end month is before start month, assume next year
+                                        if int(end_month) < int(start_month):
+                                            end_date = date(current_year + 1, int(end_month), int(end_day))
+                                    else:
+                                        continue
+                                else:
+                                    continue
+                            else:
+                                continue
+                        else:
+                            # Single date
+                            if '.' in date_range:
+                                parts = date_range.split('.')
+                                if len(parts) >= 3:
+                                    day, month, year = parts[:3]
+                                    start_date = date(int(year), int(month), int(day))
+                                    end_date = start_date
+                                else:
+                                    continue
+                            else:
+                                continue
+                        
+                        events.append({
+                            'title': f'🇧🇬 BNFK: {title}',
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'location': location,
+                            'url': url,  # Link back to BNFK calendar
+                            'is_external': True
+                        })
+                        
+                    except (ValueError, IndexError):
+                        continue
+        
+        # Cache the results
+        cache_data = {
+            'timestamp': datetime.now().isoformat(),
+            'events': events
+        }
+        
+        # Convert date objects to ISO strings for JSON serialization
+        for event in cache_data['events']:
+            event['start_date'] = event['start_date'].isoformat()
+            event['end_date'] = event['end_date'].isoformat()
+        
+        try:
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            # If caching fails, just continue without caching
+            pass
+        
+        return events
+        
+    except Exception as e:
+        app.logger.warning(f'Failed to scrape BNFK events: {e}')
+        # Try to return cached data even if expired
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    cache_data = json.load(f)
+                return cache_data.get('events', [])
+            except Exception:
+                pass
+        return []
+
 def parse_month_str(month_str: Optional[str]) -> Tuple[int, int]:
     t = date.today()
     if not month_str:
@@ -3319,6 +3458,22 @@ def events_calendar():
         .all()
     )
 
+    # Scrape BNFK events
+    bnfk_events = scrape_bnfk_events()
+    
+    # Convert string dates back to date objects if loaded from cache
+    for event in bnfk_events:
+        if isinstance(event['start_date'], str):
+            event['start_date'] = date.fromisoformat(event['start_date'])
+        if isinstance(event['end_date'], str):
+            event['end_date'] = date.fromisoformat(event['end_date'])
+    
+    # Filter BNFK events for current month
+    bnfk_events_filtered = [
+        e for e in bnfk_events 
+        if e['start_date'] <= last and (e['end_date'] or e['start_date']) >= first
+    ]
+
     cal = calendar.monthcalendar(y, m)
     weeks = []
     
@@ -3342,6 +3497,8 @@ def events_calendar():
     
     # Prepare events by date for JavaScript
     events_by_date = {}
+    
+    # Add local events
     for e in events:
         # For events spanning multiple days, add to each day
         event_start = e.start_date
@@ -3355,6 +3512,22 @@ def events_calendar():
                 events_by_date[date_key].append({
                     'title': e.title,
                     'url': url_for('event_detail', event_id=e.id)
+                })
+            current_date += timedelta(days=1)
+    
+    # Add BNFK events
+    for e in bnfk_events_filtered:
+        event_start = e['start_date']
+        event_end = e['end_date']
+        current_date = event_start
+        while current_date <= event_end:
+            if first <= current_date <= last:
+                date_key = current_date.isoformat()
+                if date_key not in events_by_date:
+                    events_by_date[date_key] = []
+                events_by_date[date_key].append({
+                    'title': e['title'],
+                    'url': e['url']
                 })
             current_date += timedelta(days=1)
     
