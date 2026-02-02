@@ -238,6 +238,7 @@ The application supports Bulgarian (default) and English. Use the language switc
 - **Documentation**: Refer to this guide and inline help
 - **Error Logs**: Check application logs for issues
 - **Data Validation**: Use export features to verify data integrity
+- **Report Issues**: [GitHub Issues](https://github.com/rgeorgie/enso-catalog/issues) - Report bugs and request features
 
 ---
 
