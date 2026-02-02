@@ -100,7 +100,15 @@ document.addEventListener('DOMContentLoaded', function() {
         dayButton.className = 'btn w-100 position-relative';
         dayButton.style.minHeight = '80px';
 
-        if (currentDate.getMonth() === month) {
+        // Check if this is today's date
+        const today = new Date();
+        const isToday = currentDate.getDate() === today.getDate() && 
+                       currentDate.getMonth() === today.getMonth() && 
+                       currentDate.getFullYear() === today.getFullYear();
+
+        if (isToday) {
+          dayButton.classList.add('btn-success');
+        } else if (currentDate.getMonth() === month) {
           dayButton.classList.add('btn-outline-primary');
         } else {
           dayButton.classList.add('btn-outline-secondary');
