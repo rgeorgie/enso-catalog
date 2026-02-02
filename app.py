@@ -3456,6 +3456,11 @@ def events_calendar():
         .all()
     )
 
+    # Get registration counts for events
+    event_reg_counts = {}
+    for e in events:
+        event_reg_counts[e.id] = EventRegistration.query.filter_by(event_id=e.id).count()
+
     # Scrape BNFK events
     bnfk_events = scrape_bnfk_events()
     
@@ -3509,7 +3514,8 @@ def events_calendar():
                     events_by_date[date_key] = []
                 events_by_date[date_key].append({
                     'title': e.title,
-                    'url': url_for('event_detail', event_id=e.id)
+                    'url': url_for('event_detail', event_id=e.id),
+                    'registrations_count': event_reg_counts[e.id]
                 })
             current_date += timedelta(days=1)
     
@@ -3525,7 +3531,8 @@ def events_calendar():
                     events_by_date[date_key] = []
                 events_by_date[date_key].append({
                     'title': e['title'],
-                    'url': e['url']
+                    'url': e['url'],
+                    'registrations_count': 0
                 })
             current_date += timedelta(days=1)
     
