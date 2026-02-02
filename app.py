@@ -2,7 +2,7 @@ import os
 import re
 import json
 import calendar
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 from typing import Optional, Tuple
 
@@ -157,15 +157,118 @@ translations = {
         "Add Player": "Add Player",
         "Edit Player": "Edit Player",
         "Back": "Back",
+        "Previous": "Previous",
+        "Next": "Next",
+        "Help & User Guide": "Help & User Guide",
+        "Getting Started": "Getting Started",
+        "Installation & Setup": "Installation & Setup",
+        "Prerequisites: Python 3.8+ and pip": "Prerequisites: Python 3.8+ and pip",
+        "Create Virtual Environment": "Create Virtual Environment",
+        "Install Dependencies": "Install Dependencies",
+        "Set Environment Variables": "Set Environment Variables",
+        "Run the Application": "Run the Application",
+        "Access: Open http://127.0.0.1:5000 in your browser": "Access: Open http://127.0.0.1:5000 in your browser",
+        "Language Support": "Language Support",
+        "The application supports Bulgarian (default) and English. Use the language switcher in the top navigation to change languages.": "The application supports Bulgarian (default) and English. Use the language switcher in the top navigation to change languages.",
+        "Player Management": "Player Management",
+        "Adding New Players": "Adding New Players",
+        "Navigate to Players → + Add Player": "Navigate to Players → + Add Player",
+        "Fill in required information: First Name, Last Name, PN (10-digit Bulgarian ID), Gender, Birthdate, Belt Rank": "Fill in required information: First Name, Last Name, PN (10-digit Bulgarian ID), Gender, Birthdate, Belt Rank",
+        "Choose payment type: Monthly or per-session": "Choose payment type: Monthly or per-session",
+        "Add optional contact info, parent contacts, medical data, and photo": "Add optional contact info, parent contacts, medical data, and photo",
+        "Managing Players": "Managing Players",
+        "Search & Filter: Use the search bar and filters for belt rank, active status": "Search & Filter: Use the search bar and filters for belt rank, active status",
+        "Edit Player: Click the edit button on any player profile": "Edit Player: Click the edit button on any player profile",
+        "Record Sessions: For all players, record training attendance": "Record Sessions: For all players, record training attendance",
+        "Payment Management: Track fees, generate receipts, mark payments": "Payment Management: Track fees, generate receipts, mark payments",
+        "Training Session Tracking": "Training Session Tracking",
+        "Recording Sessions": "Recording Sessions",
+        "Go to a player's profile": "Go to a player's profile",
+        "Click \"Record Session\" button": "Click \"Record Session\" button",
+        "Sessions are automatically marked as paid/unpaid based on payment type": "Sessions are automatically marked as paid/unpaid based on payment type",
+        "Viewing Attendance": "Viewing Attendance",
+        "Calendar View: Visual calendar with session indicators": "Calendar View: Visual calendar with session indicators",
+        "List View: Detailed chronological list of all sessions": "List View: Detailed chronological list of all sessions",
+        "Main Calendar: Club-wide calendar showing daily attendance numbers": "Main Calendar: Club-wide calendar showing daily attendance numbers",
+        "Payment & Fee Management": "Payment & Fee Management",
+        "Payment Types": "Payment Types",
+        "Monthly Training": "Monthly Training",
+        "Fixed monthly fee for unlimited sessions": "Fixed monthly fee for unlimited sessions",
+        "Per-Session Training": "Per-Session Training",
+        "Pay per individual training session": "Pay per individual training session",
+        "Managing Payments": "Managing Payments",
+        "From Player Profile: Use quick action buttons to record payments": "From Player Profile: Use quick action buttons to record payments",
+        "Payment Forms: Create receipts for training, events, or outstanding debts": "Payment Forms: Create receipts for training, events, or outstanding debts",
+        "Toggle Payment Status: Mark payments as paid/unpaid": "Toggle Payment Status: Mark payments as paid/unpaid",
+        "Print Receipts: Generate printable payment receipts": "Print Receipts: Generate printable payment receipts",
+        "Event Management": "Event Management",
+        "Creating Events": "Creating Events",
+        "Admin Access Required": "Admin Access Required",
+        "Navigate to Calendar → New Event": "Navigate to Calendar → New Event",
+        "Event Details: Title, date range, location, categories with fees": "Event Details: Title, date range, location, categories with fees",
+        "Player Registration": "Player Registration",
+        "Go to event details": "Go to event details",
+        "Click \"Add Registration\"": "Click \"Add Registration\"",
+        "Select categories and mark payments": "Select categories and mark payments",
+        "Reporting & Exports": "Reporting & Exports",
+        "Available Reports": "Available Reports",
+        "Fee Reports: Monthly payment summaries": "Fee Reports: Monthly payment summaries",
+        "Medal Reports: Competition results by year": "Medal Reports: Competition results by year",
+        "Player Lists: Filtered player directories": "Player Lists: Filtered player directories",
+        "Payment Exports: Complete transaction history": "Payment Exports: Complete transaction history",
+        "Export Formats": "Export Formats",
+        "Comma-separated values for spreadsheets": "Comma-separated values for spreadsheets",
+        "Complete data packages with photos": "Complete data packages with photos",
+        "Printable payment documents": "Printable payment documents",
+        "Troubleshooting": "Troubleshooting",
+        "Common Issues": "Common Issues",
+        "Login Problems": "Login Problems",
+        "Verify ADMIN_USER and ADMIN_PASS environment variables": "Verify ADMIN_USER and ADMIN_PASS environment variables",
+        "File Upload Errors": "File Upload Errors",
+        "Ensure files are under 2MB and in supported formats (JPG, PNG, GIF, WEBP)": "Ensure files are under 2MB and in supported formats (JPG, PNG, GIF, WEBP)",
+        "Calendar Display Issues": "Calendar Display Issues",
+        "Clear browser cache, check JavaScript is enabled, verify date formats": "Clear browser cache, check JavaScript is enabled, verify date formats",
+        "Payment Calculation Errors": "Payment Calculation Errors",
+        "Verify player payment type settings and fee amounts": "Verify player payment type settings and fee amounts",
+        "Data Recovery": "Data Recovery",
+        "Database Backup: Regular exports of karate_club.db": "Database Backup: Regular exports of karate_club.db",
+        "Photo Backup: Backup uploads/ directory": "Photo Backup: Backup uploads/ directory",
+        "CSV Exports: Keep exported data for reference": "CSV Exports: Keep exported data for reference",
+        "Security Best Practices": "Security Best Practices",
+        "Strong Passwords: Use complex admin passwords": "Strong Passwords: Use complex admin passwords",
+        "Regular Backups: Backup data before major changes": "Regular Backups: Backup data before major changes",
+        "Access Control: Limit admin access to authorized personnel": "Access Control: Limit admin access to authorized personnel",
+        "File Validation: Only upload trusted files": "File Validation: Only upload trusted files",
+        "Session Management: Log out when not using the system": "Session Management: Log out when not using the system",
+        "Quick Start Guide": "Quick Start Guide",
+        "Add Players": "Add Players",
+        "Start by adding your karate club members with their personal information and payment preferences.": "Start by adding your karate club members with their personal information and payment preferences.",
+        "Record Sessions": "Record Sessions",
+        "Track attendance for each training session to monitor participation and manage payments.": "Track attendance for each training session to monitor participation and manage payments.",
+        "Manage Payments": "Manage Payments",
+        "Keep track of fees, generate receipts, and monitor outstanding payments.": "Keep track of fees, generate receipts, and monitor outstanding payments.",
         "Edit": "Edit",
         "Run DB migration": "Run DB migration",
         "Admin Login": "Admin Login",
+        "Admin exports": "Admin exports",
+        "Admin imports": "Admin imports",
+        "Imports": "Imports",
+        "Exports": "Exports",
+        "Export All Payments (CSV)": "Export All Payments (CSV)",
+        "Export Players (ZIP)": "Export Players (ZIP)",
+        "Export Events (ZIP)": "Export Events (ZIP)",
+        "Import Players (ZIP)": "Import Players (ZIP)",
+        "Import Players (CSV)": "Import Players (CSV)",
+        "Import Payments (CSV)": "Import Payments (CSV)",
+        "Export All Profiles (ZIP)": "Export All Profiles (ZIP)",
+        "Delete": "Delete",
         "Logout": "Logout",
         "Language": "Language",
         "BG": "BG", "EN": "EN",
         "All": "All",
 
         # --- Filters / Table headers ---
+        "Category Fees": "Category Fees",
         "Search": "Search",
         "Belt": "Belt",
         "Belt Color": "Belt Color",
@@ -186,6 +289,7 @@ translations = {
         "Birthdate": "Birthdate",
         "PN#": "PN#",
         "Belt Rank": "Belt Rank",
+        "Grade Level": "Grade Level",
         "Grade": "Grade",
         "Grade Date": "Grade Date",
         "Weight (kg)": "Weight (kg)",
@@ -205,6 +309,7 @@ translations = {
         "Contacts": "Contacts",
         "Fee": "Fee",
         "Fee (EUR)": "Fee (EUR)",
+        "Categories & Medals": "Categories & Medals",
 
         # --- Health / Insurance ---
         "Medical Examination": "Medical Examination",
@@ -225,10 +330,12 @@ translations = {
         "per session": "per session",
         "Month": "Month",
         "Session": "Session",
+        "Monthly": "Monthly",
         "Due date": "Due date",
         "Amount": "Amount",
         "Paid": "Paid",
         "Unpaid": "Unpaid",
+        "Owed": "Owed",
         "Toggle Paid": "Toggle Paid",
         "Nothing to show.": "Nothing to show.",
         "Payment toggled.": "Payment toggled.",
@@ -270,6 +377,8 @@ translations = {
         "Event": "Event",
         "Record payment": "Record payment",
         "Record payment for this debt": "Record payment for this debt",
+        "Record Session": "Record Session",
+        "Pay Due": "Pay Due",
         "Open payment form": "Open payment form",
         "Receipt": "Receipt",
         "Amount (EUR)": "Amount (EUR)",
@@ -305,7 +414,9 @@ translations = {
         "Paste/Import Categories": "Paste/Import Categories",
         "Paste tabular data (one row per category, columns: Name, Age from, Age to, Sex, Fee, Team size, KYU, DAN, Other cut-off date, Limit, Team Limit)": "Paste tabular data (one row per category, columns: Name, Age from, Age to, Sex, Fee, Team size, KYU, DAN, Other cut-off date, Limit, Team Limit)",
         "Import": "Import",
+        "Import Event (ZIP)": "Import Event (ZIP)",
         "Sports Calendar": "Sports Calendar",
+        "Athletes participated:": "Athletes participated:",
         "New Event": "New Event",
         "Edit Event": "Edit Event",
         "Event": "Event",
@@ -368,6 +479,22 @@ translations = {
         "ENSO Profile URL": "ENSO Profile URL",
         "Open": "Open",
 
+        # --- Player Detail Page ---
+        "No photo uploaded": "No photo uploaded",
+        "Export Profile (CSV)": "Export Profile (CSV)",
+        "Permanently delete": "Permanently delete",
+        "Permanently delete (PURGE)": "Permanently delete (PURGE)",
+        "Permanently delete player": "Permanently delete player",
+        "This is irreversible. All player data will be removed but related historical rows will keep the PN#.": "This is irreversible. All player data will be removed but related historical rows will keep the PN#.",
+        "To confirm, type the word": "To confirm, type the word",
+        "in the box below": "in the box below",
+        "Total medals": "Total medals",
+        "No categories for this registration.": "No categories for this registration.",
+        "month (optional)": "month (optional)",
+        "Delete Player": "Delete Player",
+        "Back to Players List": "Back to Players List",
+        "Player Details": "Player Details",
+
         # --- Auth / Flash ---
         "Username": "Username",
         "Password": "Password",
@@ -378,9 +505,46 @@ translations = {
         "Player created.": "Player created.",
         "Player updated.": "Player updated.",
         "Player deleted.": "Player deleted.",
+        "Failed to fully delete player and related records.": "Failed to fully delete player and related records.",
+        "Player deleted (soft). Related registrations and payments preserved and linked by PN#.": "Player deleted (soft). Related registrations and payments preserved and linked by PN#.",
+        "Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE": "Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE",
+        "Purge failed: {e}": "Purge failed: {e}",
+        "Player permanently deleted and related rows backfilled with PN.": "Player permanently deleted and related rows backfilled with PN.",
+        "Backfilled {created_total} missing TrainingSession records.": "Backfilled {created_total} missing TrainingSession records.",
+        "No file uploaded": "No file uploaded",
+        "No file selected": "No file selected",
+        "Close": "Close",
         "DB migration: added columns: {cols}": "DB migration: added columns: {cols}",
         "DB migration: nothing to do.": "DB migration: nothing to do.",
         "DB migration failed: {err}": "DB migration failed: {err}",
+
+        # --- Player Deletion Confirmation ---
+        "Confirm Player Deletion": "Confirm Player Deletion",
+        "Warning!": "Warning!",
+        "This player has outstanding debts. Deleting them may result in lost revenue.": "This player has outstanding debts. Deleting them may result in lost revenue.",
+        "Player Information": "Player Information",
+        "Name:": "Name:",
+        "PN#:": "PN#:",
+        "Active Member:": "Active Member:",
+        "Outstanding Debts": "Outstanding Debts",
+        "Type": "Type",
+        "Description": "Description",
+        "Total Outstanding": "Total Outstanding",
+        "Note:": "Note:",
+        "Deleting this player will perform a soft delete - the player record will be deactivated but preserved for historical records. All related payments and registrations will be maintained.": "Deleting this player will perform a soft delete - the player record will be deactivated but preserved for historical records. All related payments and registrations will be maintained.",
+        "Purging this player will permanently remove their record from the database. This action cannot be undone. Make sure you have a backup.": "Purging this player will permanently remove their record from the database. This action cannot be undone. Make sure you have a backup.",
+        "Delete Player Anyway": "Delete Player Anyway",
+        "Purge Player Anyway": "Purge Player Anyway",
+        "Are you absolutely sure you want to delete this player despite outstanding debts?": "Are you absolutely sure you want to delete this player despite outstanding debts?",
+
+        # --- Common UI ---
+        "yes": "yes",
+        "no": "no",
+
+        # --- Debt Types ---
+        "monthly": "monthly",
+        "sessions": "sessions",
+        "event": "event",
 
         # --- Enums / Days ---
         "—": "—",
@@ -401,6 +565,141 @@ translations = {
         "Month (YYYY-MM)": "Month (YYYY-MM)",
         "Currency": "Currency",
         "Method": "Method",
+
+        # --- Additional Help Section Translations ---
+        "Clone/Download the application files": "Clone/Download the application files",
+        "(On Windows: .venv\\Scripts\\activate)": "(On Windows: .venv\\Scripts\\activate)",
+        "User Roles & Access": "User Roles & Access",
+        "Regular Users": "Regular Users",
+        "View public player profiles": "View public player profiles",
+        "Access basic information": "Access basic information",
+        "Administrators": "Administrators",
+        "Full access to all features": "Full access to all features",
+        "Login required for sensitive operations": "Login required for sensitive operations",
+        "Use the admin login form with credentials set in environment variables": "Use the admin login form with credentials set in environment variables",
+        "First Name & Last Name": "First Name & Last Name",
+        "Player's full name": "Player's full name",
+        "PN (Personal Number)": "PN (Personal Number)",
+        "Mandatory 10-digit Bulgarian ID number (ЕГН)": "Mandatory 10-digit Bulgarian ID number (ЕГН)",
+        "Male/Female/Other": "Male/Female/Other",
+        "Date of birth": "Date of birth",
+        "Current karate belt level": "Current karate belt level",
+        "Kyu/Dan ranking": "Kyu/Dan ranking",
+        "Monthly or per-session": "Monthly or per-session",
+        "Optional information": "Optional information",
+        "Contact details (phone, email)": "Contact details (phone, email)",
+        "Parent contacts (for minors)": "Parent contacts (for minors)",
+        "Medical examination and insurance expiry dates": "Medical examination and insurance expiry dates",
+        "Photo upload (JPG/PNG/GIF/WEBP, max 2MB)": "Photo upload (JPG/PNG/GIF/WEBP, max 2MB)",
+        "View Profile": "View Profile",
+        "Click on a player's name to see detailed information": "Click on a player's name to see detailed information",
+        "Player Profile Features": "Player Profile Features",
+        "Training Calendar": "Training Calendar",
+        "Interactive calendar showing sessions and events": "Interactive calendar showing sessions and events",
+        "Payment History": "Payment History",
+        "View all payments and receipts": "View all payments and receipts",
+        "Event Registrations": "Event Registrations",
+        "See registered events and payment status": "See registered events and payment status",
+        "Quick Actions": "Quick Actions",
+        "Print due fees, export profile data": "Print due fees, export profile data",
+        "Monthly payers": "Monthly payers",
+        "Sessions are free (marked as paid)": "Sessions are free (marked as paid)",
+        "Per-session payers": "Per-session payers",
+        "Sessions require payment": "Sessions require payment",
+        "Calendar View": "Calendar View",
+        "Visual calendar with session indicators": "Visual calendar with session indicators",
+        "List View": "List View",
+        "Detailed chronological list of all sessions": "Detailed chronological list of all sessions",
+        "Main Calendar": "Main Calendar",
+        "Club-wide calendar showing daily attendance numbers": "Club-wide calendar showing daily attendance numbers",
+        "Fee Tracking": "Fee Tracking",
+        "Outstanding Debts": "Outstanding Debts",
+        "View unpaid fees across all players": "View unpaid fees across all players",
+        "Complete transaction history": "Complete transaction history",
+        "Due Fee Reports": "Due Fee Reports",
+        "Generate reports for unpaid amounts": "Generate reports for unpaid amounts",
+        "Event Categories": "Event Categories",
+        "Define competition categories (age, weight, belt requirements)": "Define competition categories (age, weight, belt requirements)",
+        "Set registration fees per category": "Set registration fees per category",
+        "Configure team size limits and registration cut-off dates": "Configure team size limits and registration cut-off dates",
+        "Select categories and fee overrides if needed": "Select categories and fee overrides if needed",
+        "Mark payments and track registration status": "Mark payments and track registration status",
+        "Event Reporting": "Event Reporting",
+        "Registration Lists": "Registration Lists",
+        "View all registered athletes": "View all registered athletes",
+        "Payment Tracking": "Payment Tracking",
+        "Monitor paid/unpaid registrations": "Monitor paid/unpaid registrations",
+        "Export Data": "Export Data",
+        "CSV exports for external systems": "CSV exports for external systems",
+        "Medal Tracking": "Medal Tracking",
+        "Record competition results": "Record competition results",
+        "Admin Export/Import Tools": "Admin Export/Import Tools",
+        "Bulk Operations": "Bulk Operations",
+        "Import multiple players/events": "Import multiple players/events",
+        "Data Backup": "Data Backup",
+        "Full system backups": "Full system backups",
+        "Migration Tools": "Migration Tools",
+        "Database schema updates": "Database schema updates",
+        "Daily Operations": "Daily Operations",
+        "Morning Routine": "Morning Routine",
+        "Check Calendar: Review scheduled events and training sessions": "Check Calendar: Review scheduled events and training sessions",
+        "Record Attendance: Mark players present for training": "Record Attendance: Mark players present for training",
+        "Monitor Payments: Check for overdue fees": "Monitor Payments: Check for overdue fees",
+        "Weekly Tasks": "Weekly Tasks",
+        "Process Payments: Record weekly/monthly fee collections": "Process Payments: Record weekly/monthly fee collections",
+        "Update Medical Records: Verify insurance and medical exam validity": "Update Medical Records: Verify insurance and medical exam validity",
+        "Event Preparation: Check upcoming event registrations": "Event Preparation: Check upcoming event registrations",
+        "Monthly Procedures": "Monthly Procedures",
+        "Generate Fee Reports: Identify outstanding payments": "Generate Fee Reports: Identify outstanding payments",
+        "Process Monthly Dues: Record monthly training fees": "Process Monthly Dues: Record monthly training fees",
+        "Update Insurance: Renew expiring medical/insurance records": "Update Insurance: Renew expiring medical/insurance records",
+        "Backup Data: Export important data for safekeeping": "Backup Data: Export important data for safekeeping",
+        "Advanced Features": "Advanced Features",
+        "Calendar Integration": "Calendar Integration",
+        "Interactive Calendar": "Interactive Calendar",
+        "Click dates to create events (admin)": "Click dates to create events (admin)",
+        "Event Details": "Event Details",
+        "Click events for full information": "Click events for full information",
+        "Attendance Tracking": "Attendance Tracking",
+        "Daily participation numbers": "Daily participation numbers",
+        "Multi-language Support": "Multi-language Support",
+        "Localized date formats": "Localized date formats",
+        "Data Validation": "Data Validation",
+        "PN Validation": "PN Validation",
+        "10-digit Bulgarian ID format checking": "10-digit Bulgarian ID format checking",
+        "File Upload Security": "File Upload Security",
+        "Type and size restrictions": "Type and size restrictions",
+        "Duplicate Prevention": "Duplicate Prevention",
+        "Automatic duplicate detection": "Automatic duplicate detection",
+        "Backup & Recovery": "Backup & Recovery",
+        "Automatic Backups": "Automatic Backups",
+        "Export critical data regularly": "Export critical data regularly",
+        "Data Integrity": "Data Integrity",
+        "Foreign key relationships maintained": "Foreign key relationships maintained",
+        "Recovery Procedures": "Recovery Procedures",
+        "Restore from backups if needed": "Restore from backups if needed",
+        "Support & Maintenance": "Support & Maintenance",
+        "Regular Maintenance": "Regular Maintenance",
+        "Database Cleanup": "Database Cleanup",
+        "Remove old temporary files": "Remove old temporary files",
+        "Photo Organization": "Photo Organization",
+        "Organize uploaded images": "Organize uploaded images",
+        "Performance Monitoring": "Performance Monitoring",
+        "Check for slow operations": "Check for slow operations",
+        "Update Dependencies": "Update Dependencies",
+        "Keep Python packages current": "Keep Python packages current",
+        "Getting Help": "Getting Help",
+        "Documentation": "Documentation",
+        "Refer to this guide and inline help": "Refer to this guide and inline help",
+        "Error Logs": "Error Logs",
+        "Check application logs for issues": "Check application logs for issues",
+        "Use export features to verify data integrity": "Use export features to verify data integrity",
+        "Report Issues": "Report Issues",
+        "GitHub Issues - Report bugs and request features": "GitHub Issues - Report bugs and request features",
+        "Note": "Note",
+        "This application stores all data locally in SQLite. For production use, consider additional security measures and regular backups.": "This application stores all data locally in SQLite. For production use, consider additional security measures and regular backups.",
+        "Overview": "Overview",
+        "The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club's operations. It handles player registration, training session tracking, payment management, event organization, and reporting.": "The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club's operations. It handles player registration, training session tracking, payment management, event organization, and reporting.",
     },
     "bg": {
         # --- Grade/Belt labels ---
@@ -430,9 +729,24 @@ translations = {
         "Add Player": "Добави Спортист",
         "Edit Player": "Редакция на Спортист",
         "Back": "Назад",
+        "Previous": "Предишна",
+        "Next": "Следваща",
+        "Help & User Guide": "Помощ и ръководство",
         "Edit": "Редакция",
         "Run DB migration": "Стартирай миграция",
         "Admin Login": "Админ вход",
+        "Admin exports": "Админ експорти",
+        "Admin imports": "Админ импорти",
+        "Imports": "Импорти",
+        "Exports": "Експорти",
+        "Export All Payments (CSV)": "Експорт всички плащания (CSV)",
+        "Export Players (ZIP)": "Експорт спортисти (ZIP)",
+        "Export Events (ZIP)": "Експорт събития (ZIP)",
+        "Import Players (ZIP)": "Импорт спортисти (ZIP)",
+        "Import Players (CSV)": "Импорт спортисти (CSV)",
+        "Import Payments (CSV)": "Импорт плащания (CSV)",
+        "Export All Profiles (ZIP)": "Експорт всички профили (ZIP)",
+        "Delete": "Изтрий",
         "Logout": "Изход",
         "Language": "Език",
         "BG": "BG", "EN": "EN",
@@ -502,10 +816,12 @@ translations = {
         "per session": "на тренировка",
         "Month": "Месец",
         "Session": "Сесия",
+        "Monthly": "Месечни",
         "Due date": "Падеж",
         "Amount": "Сума",
         "Paid": "Платено",
         "Unpaid": "Неплатено",
+        "Owed": "Дължими",
         "Toggle Paid": "Смени статус",
         "Nothing to show.": "Няма данни.",
         "Payment toggled.": "Плащането е променено.",
@@ -547,12 +863,15 @@ translations = {
         "Event": "Събитие",
         "Record payment": "Запиши плащане",
         "Record payment for this debt": "Запиши плащане за този дълг",
+        "Record Session": "Запиши тренировка",
+        "Pay Due": "Плати дължимото",
         "Open payment form": "Отвори форма за плащане",
         "Receipt": "Квитанция",
         "Amount (EUR)": "Сума (EUR)",
         "Note": "Бележка",
         "Created": "Създадено",
         "Quick actions": "Бързи действия",
+        "Training sessions": "Тренировки",
         "New Training Receipt (per month)": "Нова квитанция за тренировка (месечно)",
         "New Training Receipt (per session)": "Нова квитанция за тренировка (на тренировка)",
         "New Event Receipt": "Нова квитанция за събитие",
@@ -580,7 +899,9 @@ translations = {
         "Paste/Import Categories": "Постави/Импортирай категории",
         "Paste tabular data (one row per category, columns: Name, Age from, Age to, Sex, Fee, Team size, KYU, DAN, Other cut-off date, Limit, Team Limit)": "Поставете таблични данни (по един ред за категория, колони: Име, Възраст от, Възраст до, Пол, Такса, Отбор, KYU, DAN, Друга дата, Лимит, Лимит отбор)",
         "Import": "Импортирай",
+        "Import Event (ZIP)": "Импортирай събитие (ZIP)",
         "Sports Calendar": "Спортен календар",
+        "Athletes participated:": "Участвали спортисти:",
         "New Event": "Ново събитие",
         "Edit Event": "Редакция на събитие",
         "Event": "Събитие",
@@ -643,6 +964,22 @@ translations = {
         "ENSO Profile URL": "ENSO профил (URL)",
         "Open": "Отвори",
 
+        # --- Player Detail Page ---
+        "No photo uploaded": "Няма качена снимка",
+        "Export Profile (CSV)": "Експорт профил (CSV)",
+        "Permanently delete": "Изтрий завинаги",
+        "Permanently delete (PURGE)": "Изтрий завинаги (ИЗЧИСТИ)",
+        "Permanently delete player": "Изтрий спортист завинаги",
+        "This is irreversible. All player data will be removed but related historical rows will keep the PN#.": "Това е необратимо. Всички данни за спортиста ще бъдат премахнати, но свързаните исторически редове ще запазят ЕГН.",
+        "To confirm, type the word": "За потвърждение, напишете думата",
+        "in the box below": "в полето по-долу",
+        "Total medals": "Общо медали",
+        "No categories for this registration.": "Няма категории за това записване.",
+        "month (optional)": "месец (по избор)",
+        "Delete Player": "Изтрий Спортист",
+        "Back to Players List": "Обратно към списъка със спортисти",
+        "Player Details": "Детайли за Спортист",
+
         # --- Auth / Flash ---
         "Username": "Потребител",
         "Password": "Парола",
@@ -653,9 +990,46 @@ translations = {
         "Player created.": "Спортистът е създаден.",
         "Player updated.": "Спортистът е обновен.",
         "Player deleted.": "Спортистът е изтрит.",
+        "Failed to fully delete player and related records.": "Неуспешно пълно изтриване на спортист и свързаните записи.",
+        "Player deleted (soft). Related registrations and payments preserved and linked by PN#.": "Спортистът е изтрит (меко). Свързаните регистрации и плащания са запазени и свързани по ЕГН.",
+        "Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE": "Липсващ или неправилен токен за потвърждение. За постоянно изтриване, изпратете POST с confirm=PURGE",
+        "Purge failed: {e}": "Изчистването неуспешно: {e}",
+        "Player permanently deleted and related rows backfilled with PN.": "Спортистът е постоянно изтрит и свързаните редове са попълнени с ЕГН.",
+        "Backfilled {created_total} missing TrainingSession records.": "Попълнени {created_total} липсващи записи за тренировъчни сесии.",
+        "No file uploaded": "Няма качен файл",
+        "No file selected": "Няма избран файл",
+        "Close": "Затвори",
         "DB migration: added columns: {cols}": "Миграция: добавени колони: {cols}",
         "DB migration: nothing to do.": "Миграция: няма какво да се прави.",
         "DB migration failed: {err}": "Миграция: грешка: {err}",
+
+        # --- Player Deletion Confirmation ---
+        "Confirm Player Deletion": "Потвърждение за изтриване на спортист",
+        "Warning!": "Внимание!",
+        "This player has outstanding debts. Deleting them may result in lost revenue.": "Този спортист има неплатени задължения. Изтриването му може да доведе до загуба на приходи.",
+        "Player Information": "Информация за спортист",
+        "Name:": "Име:",
+        "PN#:": "ЕГН:",
+        "Active Member:": "Активен член:",
+        "Outstanding Debts": "Неплатени задължения",
+        "Type": "Тип",
+        "Description": "Описание",
+        "Total Outstanding": "Общо неплатено",
+        "Note:": "Бележка:",
+        "Deleting this player will perform a soft delete - the player record will be deactivated but preserved for historical records. All related payments and registrations will be maintained.": "Изтриването на този спортист ще извърши меко изтриване - записът ще бъде деактивиран, но запазен за исторически данни. Всички свързани плащания и записвания ще бъдат запазени.",
+        "Purging this player will permanently remove their record from the database. This action cannot be undone. Make sure you have a backup.": "Изчистването на този спортист ще премахне завинаги записа му от базата данни. Това действие не може да бъде отменено. Уверете се, че имате резервно копие.",
+        "Delete Player Anyway": "Изтрий спортиста въпреки това",
+        "Purge Player Anyway": "Изчисти спортиста въпреки това",
+        "Are you absolutely sure you want to delete this player despite outstanding debts?": "Сигурни ли сте, че искате да изтриете този спортист въпреки неплатените задължения?",
+
+        # --- Common UI ---
+        "yes": "да",
+        "no": "не",
+
+        # --- Debt Types ---
+        "monthly": "месечна",
+        "sessions": "тренировки",
+        "event": "събитие",
 
         # --- Enums / Days ---
         "—": "—",
@@ -676,6 +1050,229 @@ translations = {
         "Month (YYYY-MM)": "Месец (ГГГГ-ММ)",
         "Currency": "Валута",
         "Method": "Метод",
+        "Help & User Guide": "Помощ и ръководство",
+        "Getting Started": "Първи стъпки",
+        "Installation & Setup": "Инсталация и настройка",
+        "Prerequisites: Python 3.8+ and pip": "Предварителни изисквания: Python 3.8+ и pip",
+        "Create Virtual Environment": "Създайте виртуална среда",
+        "Install Dependencies": "Инсталирайте зависимости",
+        "Set Environment Variables": "Задайте променливи на средата",
+        "Run the Application": "Стартирайте приложението",
+        "Access: Open http://127.0.0.1:5000 in your browser": "Достъп: Отворете http://127.0.0.1:5000 в браузъра",
+        "Language Support": "Поддръжка на езици",
+        "The application supports Bulgarian (default) and English. Use the language switcher in the top navigation to change languages.": "Приложението поддържа български (по подразбиране) и английски. Използвайте превключвателя за език в горната навигация, за да промените езика.",
+        "Player Management": "Управление на спортисти",
+        "Adding New Players": "Добавяне на нови спортисти",
+        "Navigate to Players → + Add Player": "Отидете в Спортисти → + Добави Спортист",
+        "Fill in required information: First Name, Last Name, PN (10-digit Bulgarian ID), Gender, Birthdate, Belt Rank": "Попълнете задължителната информация: Име, Фамилия, ЕГН (10-цифрен български ID), Пол, Дата на раждане, Степен на колан",
+        "Choose payment type: Monthly or per-session": "Изберете тип плащане: Месечно или на тренировка",
+        "Add optional contact info, parent contacts, medical data, and photo": "Добавете допълнителна информация за контакт, родители, медицински данни и снимка",
+        "Managing Players": "Управление на спортисти",
+        "Search & Filter: Use the search bar and filters for belt rank, active status": "Търсене и филтриране: Използвайте лентата за търсене и филтрите за степен на колан, активен статус",
+        "Edit Player: Click the edit button on any player profile": "Редактиране на спортист: Кликнете бутона за редактиране в профила на всеки спортист",
+        "Record Sessions: For all players, record training attendance": "Записване на тренировки: За всички спортисти, записвайте присъствие на тренировки",
+        "Payment Management: Track fees, generate receipts, mark payments": "Управление на плащания: Следете такси, генерирайте разписки, маркирайте плащания",
+        "Training Session Tracking": "Проследяване на тренировъчни сесии",
+        "Recording Sessions": "Записване на сесии",
+        "Go to a player's profile": "Отидете в профила на спортист",
+        "Click \"Record Session\" button": "Кликнете бутона \"Запиши тренировка\"",
+        "Sessions are automatically marked as paid/unpaid based on payment type": "Сесиите се маркират автоматично като платени/неплатени въз основа на типа плащане",
+        "Viewing Attendance": "Преглед на присъствие",
+        "Calendar View: Visual calendar with session indicators": "Календарен изглед: Визуален календар с индикатори за сесии",
+        "List View: Detailed chronological list of all sessions": "Изглед като списък: Подробен хронологичен списък на всички сесии",
+        "Main Calendar: Club-wide calendar showing daily attendance numbers": "Основен календар: Календар на клуба, показващ дневни числа на присъствие",
+        "Payment & Fee Management": "Управление на плащания и такси",
+        "Payment Types": "Типове плащания",
+        "Monthly Training": "Месечни тренировки",
+        "Fixed monthly fee for unlimited sessions": "Фиксирана месечна такса за неограничени сесии",
+        "Per-Session Training": "Тренировки на сесия",
+        "Pay per individual training session": "Плащане за всяка отделна тренировъчна сесия",
+        "Managing Payments": "Управление на плащания",
+        "From Player Profile: Use quick action buttons to record payments": "От профила на спортист: Използвайте бутоните за бързи действия, за да записвате плащания",
+        "Payment Forms: Create receipts for training, events, or outstanding debts": "Форми за плащане: Създавайте разписки за тренировки, събития или неизплатени дългове",
+        "Toggle Payment Status: Mark payments as paid/unpaid": "Превключване на статуса на плащане: Маркирайте плащанията като платени/неплатени",
+        "Print Receipts: Generate printable payment receipts": "Печат на разписки: Генерирайте разписки за печат",
+        "Event Management": "Управление на събития",
+        "Creating Events": "Създаване на събития",
+        "Admin Access Required": "Изисква се администраторски достъп",
+        "Navigate to Calendar → New Event": "Отидете в Календар → Ново събитие",
+        "Event Details: Title, date range, location, categories with fees": "Детайли за събитието: Заглавие, период от дати, локация, категории с такси",
+        "Player Registration": "Записване на спортисти",
+        "Go to event details": "Отидете в детайлите на събитието",
+        "Click \"Add Registration\"": "Кликнете \"Добави записване\"",
+        "Select categories and mark payments": "Изберете категории и маркирайте плащания",
+        "Reporting & Exports": "Отчети и експорти",
+        "Available Reports": "Налични отчети",
+        "Fee Reports: Monthly payment summaries": "Отчети за такси: Месечни обобщения на плащания",
+        "Medal Reports: Competition results by year": "Отчети за медали: Резултати от състезания по години",
+        "Player Lists: Filtered player directories": "Списъци на спортисти: Филтрирани директории на спортисти",
+        "Payment Exports: Complete transaction history": "Експорти на плащания: Пълна история на транзакции",
+        "Export Formats": "Формати за експорт",
+        "Comma-separated values for spreadsheets": "Стойности, разделени със запетаи, за електронни таблици",
+        "Complete data packages with photos": "Пълни пакети с данни със снимки",
+        "Printable payment documents": "Документи за плащане, подходящи за печат",
+        "Troubleshooting": "Отстраняване на проблеми",
+        "Common Issues": "Чести проблеми",
+        "Login Problems": "Проблеми с вход",
+        "Verify ADMIN_USER and ADMIN_PASS environment variables": "Проверете променливите на средата ADMIN_USER и ADMIN_PASS",
+        "File Upload Errors": "Грешки при качване на файлове",
+        "Ensure files are under 2MB and in supported formats (JPG, PNG, GIF, WEBP)": "Уверете се, че файловете са под 2MB и в поддържани формати (JPG, PNG, GIF, WEBP)",
+        "Calendar Display Issues": "Проблеми с показването на календара",
+        "Clear browser cache, check JavaScript is enabled, verify date formats": "Изчистете кеша на браузъра, проверете дали JavaScript е активиран, проверете форматите на датите",
+        "Payment Calculation Errors": "Грешки в изчисляването на плащания",
+        "Verify player payment type settings and fee amounts": "Проверете настройките за тип плащане на спортист и сумите на таксите",
+        "Data Recovery": "Възстановяване на данни",
+        "Database Backup: Regular exports of karate_club.db": "Резервно копие на база данни: Редовни експорти на karate_club.db",
+        "Photo Backup: Backup uploads/ directory": "Резервно копие на снимки: Резервно копие на директорията uploads/",
+        "CSV Exports: Keep exported data for reference": "CSV експорти: Запазвайте експортираните данни за справка",
+        "Security Best Practices": "Най-добри практики за сигурност",
+        "Strong Passwords: Use complex admin passwords": "Силни пароли: Използвайте сложни администраторски пароли",
+        "Regular Backups: Backup data before major changes": "Редовни резервни копия: Правете резервни копия преди големи промени",
+        "Access Control: Limit admin access to authorized personnel": "Контрол на достъпа: Ограничете администраторския достъп до упълномощен персонал",
+        "File Validation: Only upload trusted files": "Валидация на файлове: Качвайте само доверени файлове",
+        "Session Management: Log out when not using the system": "Управление на сесии: Излизайте от системата, когато не я използвате",
+        "Quick Start Guide": "Ръководство за бърз старт",
+        "Add Players": "Добавете спортисти",
+        "Start by adding your karate club members with their personal information and payment preferences.": "Започнете като добавите членовете на вашия клуб по karate с личната им информация и предпочитания за плащане.",
+        "Record Sessions": "Записвайте сесии",
+        "Track attendance for each training session to monitor participation and manage payments.": "Проследявайте присъствието за всяка тренировъчна сесия, за да наблюдавате участието и управлявате плащанията.",
+        "Manage Payments": "Управлявайте плащания",
+        "Keep track of fees, generate receipts, and monitor outstanding payments.": "Следете таксите, генерирайте разписки и наблюдавайте неизплатените плащания.",
+
+        # --- Additional Help Section Translations ---
+        "Clone/Download the application files": "Клонирайте/изтеглете файловете на приложението",
+        "(On Windows: .venv\\Scripts\\activate)": "(В Windows: .venv\\Scripts\\activate)",
+        "User Roles & Access": "Потребителски роли и достъп",
+        "Regular Users": "Обикновени потребители",
+        "View public player profiles": "Преглед на публични профили на спортисти",
+        "Access basic information": "Достъп до основна информация",
+        "Administrators": "Администратори",
+        "Full access to all features": "Пълен достъп до всички функции",
+        "Login required for sensitive operations": "Изисква се вход за чувствителни операции",
+        "Use the admin login form with credentials set in environment variables": "Използвайте формата за администраторски вход с идентификационни данни, зададени в променливите на средата",
+        "First Name & Last Name": "Име и Фамилия",
+        "Player's full name": "Пълното име на спортиста",
+        "PN (Personal Number)": "ЕГН (Личен номер)",
+        "Mandatory 10-digit Bulgarian ID number (ЕГН)": "Задължителен 10-цифрен български идентификационен номер (ЕГН)",
+        "Male/Female/Other": "Мъж/Жена/Друго",
+        "Date of birth": "Дата на раждане",
+        "Current karate belt level": "Текущо ниво на карате колан",
+        "Kyu/Dan ranking": "Кю/Дан класиране",
+        "Monthly or per-session": "Месечно или на тренировка",
+        "Optional information": "Допълнителна информация",
+        "Contact details (phone, email)": "Данни за контакт (телефон, имейл)",
+        "Parent contacts (for minors)": "Контакти с родители (за непълнолетни)",
+        "Medical examination and insurance expiry dates": "Дати на медицински преглед и изтичане на застраховка",
+        "Photo upload (JPG/PNG/GIF/WEBP, max 2MB)": "Качване на снимка (JPG/PNG/GIF/WEBP, макс 2MB)",
+        "View Profile": "Преглед на профил",
+        "Click on a player's name to see detailed information": "Кликнете върху името на спортист, за да видите подробна информация",
+        "Player Profile Features": "Функции на профила на спортист",
+        "Training Calendar": "Тренировъчен календар",
+        "Interactive calendar showing sessions and events": "Интерактивен календар, показващ сесии и събития",
+        "Payment History": "История на плащанията",
+        "View all payments and receipts": "Преглед на всички плащания и разписки",
+        "Event Registrations": "Записвания за събития",
+        "See registered events and payment status": "Вижте записаните събития и статуса на плащане",
+        "Quick Actions": "Бързи действия",
+        "Print due fees, export profile data": "Печат на дължими такси, експорт на данни от профил",
+        "Monthly payers": "Месечни платци",
+        "Sessions are free (marked as paid)": "Сесиите са безплатни (маркирани като платени)",
+        "Per-session payers": "Платци на тренировка",
+        "Sessions require payment": "Сесиите изискват плащане",
+        "Calendar View": "Календарен изглед",
+        "Visual calendar with session indicators": "Визуален календар с индикатори за сесии",
+        "List View": "Изглед като списък",
+        "Detailed chronological list of all sessions": "Подробен хронологичен списък на всички сесии",
+        "Main Calendar": "Основен календар",
+        "Club-wide calendar showing daily attendance numbers": "Календар на клуба, показващ дневни числа на присъствие",
+        "Fee Tracking": "Проследяване на такси",
+        "Outstanding Debts": "Неизплатени дългове",
+        "View unpaid fees across all players": "Преглед на неплатени такси за всички спортисти",
+        "Complete transaction history": "Пълна история на транзакциите",
+        "Due Fee Reports": "Отчети за дължими такси",
+        "Generate reports for unpaid amounts": "Генерирайте отчети за неплатени суми",
+        "Event Categories": "Категории на събития",
+        "Define competition categories (age, weight, belt requirements)": "Дефинирайте категории за състезания (възраст, тегло, изисквания за колан)",
+        "Set registration fees per category": "Задайте такси за записване за всяка категория",
+        "Configure team size limits and registration cut-off dates": "Конфигурирайте лимити за размер на отбора и крайни срокове за записване",
+        "Select categories and fee overrides if needed": "Изберете категории и отмени на такси, ако е необходимо",
+        "Mark payments and track registration status": "Маркирайте плащания и проследявайте статуса на записване",
+        "Event Reporting": "Отчети за събития",
+        "Registration Lists": "Списъци за записване",
+        "View all registered athletes": "Преглед на всички записани спортисти",
+        "Payment Tracking": "Проследяване на плащания",
+        "Monitor paid/unpaid registrations": "Наблюдавайте платени/неплатени записвания",
+        "Export Data": "Експорт на данни",
+        "CSV exports for external systems": "CSV експорти за външни системи",
+        "Medal Tracking": "Проследяване на медали",
+        "Record competition results": "Записвайте резултати от състезания",
+        "Admin Export/Import Tools": "Инструменти за експорт/импорт на администратор",
+        "Bulk Operations": "Масови операции",
+        "Import multiple players/events": "Импорт на множество спортисти/събития",
+        "Data Backup": "Резервно копие на данни",
+        "Full system backups": "Пълни резервни копия на системата",
+        "Migration Tools": "Инструменти за миграция",
+        "Database schema updates": "Актуализации на схемата на базата данни",
+        "Daily Operations": "Дневни операции",
+        "Morning Routine": "Утринна рутина",
+        "Check Calendar: Review scheduled events and training sessions": "Проверете календара: Прегледайте планирани събития и тренировъчни сесии",
+        "Record Attendance: Mark players present for training": "Запишете присъствие: Маркирайте присъстващите спортисти за тренировка",
+        "Monitor Payments: Check for overdue fees": "Наблюдавайте плащания: Проверете за просрочени такси",
+        "Weekly Tasks": "Седмични задачи",
+        "Process Payments: Record weekly/monthly fee collections": "Обработете плащания: Запишете седмични/месечни събирания на такси",
+        "Update Medical Records: Verify insurance and medical exam validity": "Актуализирайте медицински записи: Проверете валидността на застраховка и медицински преглед",
+        "Event Preparation: Check upcoming event registrations": "Подготовка за събития: Проверете предстоящите записвания за събития",
+        "Monthly Procedures": "Месечни процедури",
+        "Generate Fee Reports: Identify outstanding payments": "Генерирайте отчети за такси: Идентифицирайте неизплатените плащания",
+        "Process Monthly Dues: Record monthly training fees": "Обработете месечни вноски: Запишете месечни такси за тренировки",
+        "Update Insurance: Renew expiring medical/insurance records": "Актуализирайте застраховка: Подновете изтичащи медицински/застрахователни записи",
+        "Backup Data: Export important data for safekeeping": "Резервно копие на данни: Експортирайте важни данни за съхранение",
+        "Advanced Features": "Разширени функции",
+        "Calendar Integration": "Интеграция с календар",
+        "Interactive Calendar": "Интерактивен календар",
+        "Click dates to create events (admin)": "Кликнете върху дати, за да създадете събития (администратор)",
+        "Event Details": "Детайли за събитието",
+        "Click events for full information": "Кликнете върху събития за пълна информация",
+        "Attendance Tracking": "Проследяване на присъствие",
+        "Daily participation numbers": "Дневни числа на участие",
+        "Multi-language Support": "Поддръжка на множество езици",
+        "Localized date formats": "Локализирани формати на дати",
+        "Data Validation": "Валидация на данни",
+        "PN Validation": "Валидация на ЕГН",
+        "10-digit Bulgarian ID format checking": "Проверка на формат на 10-цифрен български ID",
+        "File Upload Security": "Сигурност при качване на файлове",
+        "Type and size restrictions": "Ограничения за тип и размер",
+        "Duplicate Prevention": "Предотвратяване на дубликати",
+        "Automatic duplicate detection": "Автоматично откриване на дубликати",
+        "Backup & Recovery": "Резервно копие и възстановяване",
+        "Automatic Backups": "Автоматични резервни копия",
+        "Export critical data regularly": "Експортирайте критични данни редовно",
+        "Data Integrity": "Целост на данните",
+        "Foreign key relationships maintained": "Поддържат се връзки с външни ключове",
+        "Recovery Procedures": "Процедури за възстановяване",
+        "Restore from backups if needed": "Възстановете от резервни копия, ако е необходимо",
+        "Support & Maintenance": "Поддръжка и обслужване",
+        "Regular Maintenance": "Редовно обслужване",
+        "Database Cleanup": "Почистване на база данни",
+        "Remove old temporary files": "Премахнете стари временни файлове",
+        "Photo Organization": "Организация на снимки",
+        "Organize uploaded images": "Организирайте качените изображения",
+        "Performance Monitoring": "Мониторинг на производителността",
+        "Check for slow operations": "Проверете за бавни операции",
+        "Update Dependencies": "Актуализирайте зависимости",
+        "Keep Python packages current": "Поддържайте Python пакетите актуални",
+        "Getting Help": "Получаване на помощ",
+        "Documentation": "Документация",
+        "Refer to this guide and inline help": "Обърнете се към това ръководство и вградена помощ",
+        "Error Logs": "Дневници за грешки",
+        "Check application logs for issues": "Проверете дневниците на приложението за проблеми",
+        "Use export features to verify data integrity": "Използвайте функции за експорт, за да проверите целостта на данните",
+        "Report Issues": "Докладвайте проблеми",
+        "GitHub Issues - Report bugs and request features": "GitHub Issues - Докладвайте грешки и искайте функции",
+        "Note": "Забележка",
+        "This application stores all data locally in SQLite. For production use, consider additional security measures and regular backups.": "Това приложение съхранява всички данни локално в SQLite. За производствена употреба, обмислете допълнителни мерки за сигурност и редовни резервни копия.",
+        "Overview": "Обзор",
+        "The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club's operations. It handles player registration, training session tracking, payment management, event organization, and reporting.": "Системата за управление на клуб по karate е цялостно уеб приложение, предназначено да управлява всички аспекти на операциите на клуб по karate. То обработва регистрация на спортисти, проследяване на тренировъчни сесии, управление на плащания, организация на събития и отчитане.",
     },
 }
 
@@ -1272,7 +1869,7 @@ def player_detail(player_id: int):
 
     # Use TrainingSession for session logic (unified with player list)
     sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
-    all_sessions = TrainingSession.query.filter_by(**sess_filter).all()
+    all_sessions = TrainingSession.query.filter_by(**sess_filter).order_by(TrainingSession.date.desc()).all()
     paid_sessions = [s for s in all_sessions if s.paid]
     unpaid_sessions = [s for s in all_sessions if not s.paid]
     total_sessions_taken = len(all_sessions)
@@ -1285,11 +1882,38 @@ def player_detail(player_id: int):
     rec_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
     all_receipts = PaymentRecord.query.filter_by(**rec_filter, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
     sess_records = all_receipts[:total_sessions_paid]
+    
+    # Prepare sessions data for calendar
+    sessions_data = [{
+        'id': s.id,
+        'session_id': s.session_id,
+        'date': s.date.isoformat() if s.date else None,
+        'paid': s.paid,
+        'created_at': s.created_at.isoformat() if s.created_at else None
+    } for s in all_sessions]
+    
+    # Prepare events data for calendar
+    events_data = []
+    for reg in regs:
+        event = reg.event
+        if event.start_date:
+            events_data.append({
+                'id': event.id,
+                'title': event.title,
+                'start_date': event.start_date.isoformat(),
+                'end_date': event.end_date.isoformat() if event.end_date else event.start_date.isoformat(),
+                'location': event.location,
+                'paid': reg.paid,
+                'fee': reg.computed_fee()
+            })
+    
     return render_template(
         "player_detail.html",
         player=player,
         current_payment=current_payment,
         regs=regs,
+        all_sessions=sessions_data,
+        events_data=events_data,
         total_sessions_paid=total_sessions_paid,
         total_sessions_taken=total_sessions_taken,
         total_sessions_unpaid=total_sessions_unpaid,
@@ -1410,6 +2034,10 @@ def logout():
     session.pop("is_admin", None)
     flash(_("Logged out."), "info")
     return redirect(url_for("list_players"))
+
+@app.route("/help")
+def help_page():
+    return render_template("help.html", _=_ , current_lang=get_lang())
 
 # -------- CRUD Players ----------
 @app.route("/admin/players/import_csv", methods=["POST"], endpoint='admin_players_import_csv')
@@ -1653,10 +2281,86 @@ def edit_player(player_id: int):
         player=player,
     )
 
+# Helper functions for debt checking
+def player_has_outstanding_debts(player: Player) -> bool:
+    """Check if a player has any outstanding debts."""
+    today = date.today()
+    
+    # Check for unpaid monthly fees
+    pay_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    unpaid_monthly = Payment.query.filter_by(**pay_filter, year=today.year, month=today.month, paid=False).first()
+    if unpaid_monthly:
+        return True
+    
+    # Check for unpaid training sessions
+    if player.monthly_fee_is_monthly is False and player.monthly_fee_amount:
+        sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+        unpaid_sessions = TrainingSession.query.filter_by(**sess_filter, paid=False).count()
+        if unpaid_sessions > 0:
+            return True
+    
+    # Check for unpaid event registrations
+    reg_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    unpaid_regs = EventRegistration.query.filter_by(**reg_filter, paid=False).count()
+    if unpaid_regs > 0:
+        return True
+    
+    return False
+
+def get_player_debts(player: Player) -> list:
+    """Get detailed list of player's outstanding debts."""
+    today = date.today()
+    debts = []
+    
+    # Monthly due
+    pay_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    pay = Payment.query.filter_by(**pay_filter, year=today.year, month=today.month, paid=False).first()
+    if pay:
+        debts.append({
+            "type": "monthly",
+            "label": f"Monthly fee ({today.year}-{today.month:02d})",
+            "amount": pay.amount or 0
+        })
+    
+    # Owed session payments
+    if player.monthly_fee_is_monthly is False and player.monthly_fee_amount:
+        sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+        unpaid_sessions = TrainingSession.query.filter_by(**sess_filter, paid=False).count()
+        if unpaid_sessions > 0:
+            per_session_amount = player.monthly_fee_amount
+            debts.append({
+                "type": "sessions",
+                "label": f"Owed sessions ({unpaid_sessions} x {per_session_amount} EUR)",
+                "amount": unpaid_sessions * per_session_amount
+            })
+    
+    # Unpaid event registrations
+    reg_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    regs = EventRegistration.query.filter_by(**reg_filter, paid=False).all()
+    for r in regs:
+        debts.append({
+            "type": "event",
+            "label": f"Event: {r.event.title if r.event else 'Event'}",
+            "amount": r.computed_fee() or 0
+        })
+    
+    return debts
+
 @app.route("/admin/players/<int:player_id>/delete", methods=["POST"])
 @admin_required
 def delete_player(player_id: int):
     player = Player.query.get_or_404(player_id)
+    
+    # Check for outstanding debts
+    has_debts = player_has_outstanding_debts(player)
+    confirm_delete = request.form.get('confirm_delete_with_debts') == 'yes'
+    
+    if has_debts and not confirm_delete:
+        # Show confirmation modal instead of deleting
+        return render_template('player_delete_confirm.html', 
+                             player=player, 
+                             debts=get_player_debts(player))
+    
     if player.photo_filename:
         try:
             os.remove(os.path.join(UPLOAD_FOLDER, player.photo_filename))
@@ -1683,7 +2387,7 @@ def delete_player(player_id: int):
         db.session.commit()
     except Exception:
         db.session.rollback()
-        flash("Failed to fully delete player and related records.", "danger")
+        flash(_("Failed to fully delete player and related records."), "danger")
         return redirect(url_for("player_detail", player_id=player.id))
     flash(_("Player deleted (soft). Related registrations and payments preserved and linked by PN#."), "info")
     return redirect(url_for("list_players"))
@@ -1698,9 +2402,21 @@ def purge_player(player_id: int):
     with the literal value 'PURGE' to proceed. Make a DB backup before running.
     """
     player = Player.query.get_or_404(player_id)
+    
+    # Check for outstanding debts
+    has_debts = player_has_outstanding_debts(player)
+    confirm_delete = request.form.get('confirm_delete_with_debts') == 'yes'
+    
+    if has_debts and not confirm_delete:
+        # Show confirmation modal instead of purging
+        return render_template('player_delete_confirm.html', 
+                             player=player, 
+                             debts=get_player_debts(player),
+                             is_purge=True)
+    
     confirm = (request.form.get('confirm') or '').strip()
     if confirm != 'PURGE':
-        flash('Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE', 'danger')
+        flash(_('Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE'), 'danger')
         return redirect(url_for('player_detail', player_id=player.id))
 
     pn_val = player.pn
@@ -1725,10 +2441,10 @@ def purge_player(player_id: int):
     except Exception as e:
         db.session.rollback()
         app.logger.exception('Failed to purge player')
-        flash(f'Purge failed: {e}', 'danger')
+        flash(_(f'Purge failed: {e}'), 'danger')
         return redirect(url_for('player_detail', player_id=player.id))
 
-    flash('Player permanently deleted and related rows backfilled with PN.', 'success')
+    flash(_('Player permanently deleted and related rows backfilled with PN.'), 'success')
     return redirect(url_for('list_players'))
 
 # --- Modal Dues Payment Backend ---
@@ -1951,7 +2667,7 @@ def backfill_training_sessions():
                 db.session.add(ts)
                 created_total += 1
     db.session.commit()
-    flash(f"Backfilled {created_total} missing TrainingSession records.", "success")
+    flash(_(f"Backfilled {created_total} missing TrainingSession records."), "success")
     return redirect(request.referrer or url_for('list_players'))
 # -------- Fees Report + Toggle + CSV ----------
 @app.route("/reports/fees")
@@ -2300,11 +3016,11 @@ def export_events_zip_all():
 def admin_payments_import_csv():
     """Import payment/receipt rows from CSV into PaymentRecord."""
     if 'csv_file' not in request.files:
-        flash('No file uploaded', 'danger')
+        flash(_('No file uploaded'), 'danger')
         return redirect(request.referrer or url_for('admin_imports'))
     file = request.files.get('csv_file')
     if not file or not file.filename:
-        flash('No file uploaded', 'danger')
+        flash(_('No file uploaded'), 'danger')
         return redirect(request.referrer or url_for('admin_imports'))
     import io
     import csv
@@ -2480,14 +3196,53 @@ def events_calendar():
 
     cal = calendar.monthcalendar(y, m)
     weeks = []
+    
+    # Get attendance data for the month
+    first = date(y, m, 1)
+    last = date(y, m, last_day)
+    attendance_data = {}
+    
+    # Query all training sessions for this month
+    sessions = TrainingSession.query.filter(
+        TrainingSession.date >= first,
+        TrainingSession.date <= last
+    ).all()
+    
+    # Count sessions per day
+    for session in sessions:
+        date_key = session.date.isoformat()
+        if date_key not in attendance_data:
+            attendance_data[date_key] = 0
+        attendance_data[date_key] += 1
+    
+    # Prepare events by date for JavaScript
+    events_by_date = {}
+    for e in events:
+        # For events spanning multiple days, add to each day
+        event_start = e.start_date
+        event_end = e.end_date or e.start_date
+        current_date = event_start
+        while current_date <= event_end:
+            if first <= current_date <= last:
+                date_key = current_date.isoformat()
+                if date_key not in events_by_date:
+                    events_by_date[date_key] = []
+                events_by_date[date_key].append({
+                    'title': e.title,
+                    'url': url_for('event_detail', event_id=e.id)
+                })
+            current_date += timedelta(days=1)
+    
     for wk in cal:
         row = []
         for d in wk:
             if d == 0:
-                row.append({"day": None, "events": []})
+                row.append({"day": None, "events": [], "attendance": 0})
             else:
                 dt = date(y, m, d)
-                row.append({"day": dt, "events": [e for e in events if e.spans(dt)]})
+                day_events = [e for e in events if e.spans(dt)]
+                day_attendance = attendance_data.get(dt, 0)
+                row.append({"day": dt, "events": day_events, "attendance": day_attendance})
         weeks.append(row)
 
     prev_y, prev_m = (y - 1, 12) if m == 1 else (y, m - 1)
@@ -2497,8 +3252,12 @@ def events_calendar():
         "events_calendar.html",
         year=y, month=m, month_name=calendar.month_name[m],
         weeks=weeks,
+        events_by_date=events_by_date,
+        attendance_by_date=attendance_data,
         prev_str=f"{prev_y:04d}-{prev_m:02d}",
         next_str=f"{next_y:04d}-{next_m:02d}",
+        _=_,
+        current_lang=get_lang(),
     )
 
 @app.route("/event-list")
@@ -2831,37 +3590,27 @@ def event_registrations(event_id: int):
         selected_cats = [c for c in selected_cats if c and c.event_id == ev.id]
         registration_added = False
         for pid in form.player_ids.data:
-            # Check for existing registration for this event/player
-            existing_reg = EventRegistration.query.filter_by(event_id=ev.id, player_id=pid).first()
-            if existing_reg:
-                # Only add new categories that are not already registered
-                existing_cat_ids = {rc.category_id for rc in existing_reg.reg_categories}
-                new_cats = [c for c in selected_cats if c.id not in existing_cat_ids]
-                if new_cats:
-                    for c in new_cats:
-                        existing_reg.reg_categories.append(EventRegCategory(category_id=c.id))
+            # Check for existing registrations for this event/player
+            existing_regs = EventRegistration.query.filter_by(event_id=ev.id, player_id=pid).all()
+            existing_cat_ids = set()
+            for reg in existing_regs:
+                existing_cat_ids.update(rc.category_id for rc in reg.reg_categories)
+
+            # Create separate registration for each selected category that isn't already registered
+            player_obj = Player.query.get(pid)
+            for cat in selected_cats:
+                if cat.id not in existing_cat_ids:
+                    reg = EventRegistration(
+                        event_id=ev.id,
+                        player_id=pid,
+                        player_pn=(player_obj.pn if player_obj else None),
+                        fee_override=form.fee_override.data,
+                        paid=bool(form.paid.data),
+                        paid_on=(date.today() if form.paid.data else None),
+                    )
+                    reg.reg_categories = [EventRegCategory(category_id=cat.id)]
+                    db.session.add(reg)
                     registration_added = True
-                # Optionally update fee_override/paid status if needed
-                if form.fee_override.data is not None:
-                    existing_reg.fee_override = form.fee_override.data
-                if form.paid.data:
-                    existing_reg.paid = True
-                    existing_reg.paid_on = date.today()
-                db.session.add(existing_reg)
-            else:
-                # set player_pn for new registration
-                player_obj = Player.query.get(pid)
-                reg = EventRegistration(
-                    event_id=ev.id,
-                    player_id=pid,
-                    player_pn=(player_obj.pn if player_obj else None),
-                    fee_override=form.fee_override.data,
-                    paid=bool(form.paid.data),
-                    paid_on=(date.today() if form.paid.data else None),
-                )
-                reg.reg_categories = [EventRegCategory(category_id=c.id) for c in selected_cats]
-                db.session.add(reg)
-                registration_added = True
         db.session.commit()
         if registration_added:
             flash(_("Registration added."), "success")
@@ -3096,11 +3845,11 @@ def event_export_full(event_id: int):
 def import_event_zip():
     # Handle uploaded ZIP exported by the full-event export
     if 'zipfile' not in request.files:
-        flash('No file uploaded', 'danger')
+        flash(_('No file uploaded'), 'danger')
         return redirect(request.referrer or url_for('events_calendar'))
     f = request.files['zipfile']
     if f.filename == '':
-        flash('No file selected', 'danger')
+        flash(_('No file selected'), 'danger')
         return redirect(request.referrer or url_for('events_calendar'))
     try:
         import io
@@ -3277,11 +4026,11 @@ def import_event_zip():
 @admin_required
 def import_players_zip():
     if 'zipfile' not in request.files:
-        flash('No file uploaded', 'danger')
+        flash(_('No file uploaded'), 'danger')
         return redirect(request.referrer or url_for('list_players'))
     f = request.files['zipfile']
     if f.filename == '':
-        flash('No file selected', 'danger')
+        flash(_('No file selected'), 'danger')
         return redirect(request.referrer or url_for('list_players'))
     try:
         import io
@@ -3902,9 +4651,6 @@ def receipt_tick_session(rid: int):
 @admin_required
 def record_session(player_id: int):
     player = Player.query.get_or_404(player_id)
-    if player.monthly_fee_is_monthly:
-        flash('Player is not a per-session payer.', 'warning')
-        return redirect(request.referrer or url_for('player_detail', player_id=player.id))
 
     # Always create a new TrainingSession row for this player
     today = date.today()
@@ -3913,8 +4659,12 @@ def record_session(player_id: int):
     if existing:
         flash('Session for today already recorded.', 'info')
         return redirect(request.referrer or url_for('player_detail', player_id=player.id))
+    
+    # For monthly payers, mark as paid since they pay monthly
+    is_paid = player.monthly_fee_is_monthly
+    
     session_id = f"{player.id}_{today.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S%f')}"
-    ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=today, session_id=session_id, paid=False, created_at=datetime.now())
+    ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=today, session_id=session_id, paid=is_paid, created_at=datetime.now())
     db.session.add(ts)
     try:
         db.session.commit()

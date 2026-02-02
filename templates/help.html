@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="mb-0">{{ _('Help & User Guide') }}</h1>
+      <a href="{{ request.referrer or url_for('list_players') }}" class="btn btn-secondary">{{ _('Back') }}</a>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div class="accordion" id="helpAccordion">
+
+          <!-- Getting Started -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#gettingStarted">
+                🚀 {{ _('Getting Started') }}
+              </button>
+            </h2>
+            <div id="gettingStarted" class="accordion-collapse collapse show" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <h5>{{ _('Installation & Setup') }}</h5>
+                <ol>
+                  <li>{{ _('Prerequisites: Python 3.8+ and pip') }}</li>
+                  <li>{{ _('Clone/Download the application files') }}</li>
+                  <li>{{ _('Create Virtual Environment') }}: <code>python3 -m venv .venv</code><br><code>source .venv/bin/activate</code> {{ _('(On Windows: .venv\\Scripts\\activate)') }}</li>
+                  <li>{{ _('Install Dependencies') }}: <code>pip install -r requirements.txt</code></li>
+                  <li>{{ _('Set Environment Variables') }}: <code>export SECRET_KEY="your-secret-key-here"<br>export ADMIN_USER="admin"<br>export ADMIN_PASS="your-admin-password"</code></li>
+                  <li>{{ _('Run the Application') }}: <code>python app.py</code></li>
+                  <li>{{ _('Access: Open http://127.0.0.1:5000 in your browser') }}</li>
+                </ol>
+
+                <h5>{{ _('Language Support') }}</h5>
+                <p>{{ _('The application supports Bulgarian (default) and English. Use the language switcher in the top navigation to change languages.') }}</p>
+
+                <h5>{{ _('User Roles & Access') }}</h5>
+                <h6>{{ _('Regular Users') }}</h6>
+                <ul>
+                  <li>{{ _('View public player profiles') }}</li>
+                  <li>{{ _('Access basic information') }}</li>
+                </ul>
+                <h6>{{ _('Administrators') }}</h6>
+                <ul>
+                  <li>{{ _('Full access to all features') }}</li>
+                  <li>{{ _('Login required for sensitive operations') }}</li>
+                  <li>{{ _('Use the admin login form with credentials set in environment variables') }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Player Management -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#playerManagement">
+                👥 {{ _('Player Management') }}
+              </button>
+            </h2>
+            <div id="playerManagement" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <h5>{{ _('Adding New Players') }}</h5>
+                <ol>
+                  <li>{{ _('Navigate to Players → + Add Player') }}</li>
+                  <li>{{ _('Fill in required information') }}:
+                    <ul>
+                      <li><strong>{{ _('First Name & Last Name') }}</strong>: {{ _('Player\'s full name') }}</li>
+                      <li><strong>{{ _('PN (Personal Number)') }}</strong>: {{ _('Mandatory 10-digit Bulgarian ID number (ЕГН)') }}</li>
+                      <li><strong>{{ _('Gender') }}</strong>: {{ _('Male/Female/Other') }}</li>
+                      <li><strong>{{ _('Birthdate') }}</strong>: {{ _('Date of birth') }}</li>
+                      <li><strong>{{ _('Belt Rank') }}</strong>: {{ _('Current karate belt level') }}</li>
+                      <li><strong>{{ _('Grade Level') }}</strong>: {{ _('Kyu/Dan ranking') }}</li>
+                      <li><strong>{{ _('Payment Type') }}</strong>: {{ _('Monthly or per-session') }}</li>
+                    </ul>
+                  </li>
+                  <li>{{ _('Optional information') }}:
+                    <ul>
+                      <li>{{ _('Contact details (phone, email)') }}</li>
+                      <li>{{ _('Parent contacts (for minors)') }}</li>
+                      <li>{{ _('Medical examination and insurance expiry dates') }}</li>
+                      <li>{{ _('Photo upload (JPG/PNG/GIF/WEBP, max 2MB)') }}</li>
+                    </ul>
+                  </li>
+                </ol>
+
+                <h5>{{ _('Managing Players') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Search & Filter') }}</strong>: {{ _('Use the search bar and filters for belt rank, active status') }}</li>
+                  <li><strong>{{ _('Edit Player') }}</strong>: {{ _('Click the edit button on any player profile') }}</li>
+                  <li><strong>{{ _('View Profile') }}</strong>: {{ _('Click on a player\'s name to see detailed information') }}</li>
+                  <li><strong>{{ _('Record Sessions') }}</strong>: {{ _('For all players, record training attendance') }}</li>
+                  <li><strong>{{ _('Payment Management') }}</strong>: {{ _('Track fees, generate receipts, mark payments') }}</li>
+                </ul>
+
+                <h5>{{ _('Player Profile Features') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Training Calendar') }}</strong>: {{ _('Interactive calendar showing sessions and events') }}</li>
+                  <li><strong>{{ _('Payment History') }}</strong>: {{ _('View all payments and receipts') }}</li>
+                  <li><strong>{{ _('Event Registrations') }}</strong>: {{ _('See registered events and payment status') }}</li>
+                  <li><strong>{{ _('Quick Actions') }}</strong>: {{ _('Print due fees, export profile data') }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Training Sessions -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#trainingSessions">
+                🥋 {{ _('Training Session Tracking') }}
+              </button>
+            </h2>
+            <div id="trainingSessions" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <h5>{{ _('Recording Sessions') }}</h5>
+                <ol>
+                  <li>{{ _('Go to a player\'s profile') }}</li>
+                  <li>{{ _('Click "Record Session" button') }}</li>
+                  <li>{{ _('Sessions are automatically marked as paid/unpaid based on payment type') }}:
+                    <ul>
+                      <li><strong>{{ _('Monthly payers') }}</strong>: {{ _('Sessions are free (marked as paid)') }}</li>
+                      <li><strong>{{ _('Per-session payers') }}</strong>: {{ _('Sessions require payment') }}</li>
+                    </ul>
+                  </li>
+                </ol>
+
+                <h5>{{ _('Viewing Attendance') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Calendar View') }}</strong>: {{ _('Visual calendar with session indicators') }}</li>
+                  <li><strong>{{ _('List View') }}</strong>: {{ _('Detailed chronological list of all sessions') }}</li>
+                  <li><strong>{{ _('Main Calendar') }}</strong>: {{ _('Club-wide calendar showing daily attendance numbers') }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payments -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#payments">
+                💰 {{ _('Payment & Fee Management') }}
+              </button>
+            </h2>
+            <div id="payments" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <h5>{{ _('Payment Types') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Monthly Training') }}</strong>: {{ _('Fixed monthly fee for unlimited sessions') }}</li>
+                  <li><strong>{{ _('Per-Session Training') }}</strong>: {{ _('Pay per individual training session') }}</li>
+                </ul>
+
+                <h5>{{ _('Managing Payments') }}</h5>
+                <ol>
+                  <li>{{ _('From Player Profile: Use quick action buttons to record payments') }}</li>
+                  <li>{{ _('Payment Forms: Create receipts for training, events, or outstanding debts') }}</li>
+                  <li>{{ _('Toggle Payment Status: Mark payments as paid/unpaid') }}</li>
+                  <li>{{ _('Print Receipts: Generate printable payment receipts') }}</li>
+                </ol>
+
+                <h5>{{ _('Fee Tracking') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Outstanding Debts') }}</strong>: {{ _('View unpaid fees across all players') }}</li>
+                  <li><strong>{{ _('Payment History') }}</strong>: {{ _('Complete transaction history') }}</li>
+                  <li><strong>{{ _('Due Fee Reports') }}</strong>: {{ _('Generate reports for unpaid amounts') }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Events -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#events">
+                🏆 {{ _('Event Management') }}
+              </button>
+            </h2>
+            <div id="events" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <h5>{{ _('Creating Events') }}</h5>
+                <ol>
+                  <li>{{ _('Admin Access Required') }}</li>
+                  <li>{{ _('Navigate to Calendar → New Event') }}</li>
+                  <li>{{ _('Event Details: Title, date range, location, categories with fees') }}</li>
+                </ol>
+
+                <h5>{{ _('Event Categories') }}</h5>
+                <ul>
+                  <li>{{ _('Define competition categories (age, weight, belt requirements)') }}</li>
+                  <li>{{ _('Set registration fees per category') }}</li>
+                  <li>{{ _('Configure team size limits and registration cut-off dates') }}</li>
+                </ul>
+
+                <h5>{{ _('Player Registration') }}</h5>
+                <ol>
+                  <li>{{ _('Go to event details') }}</li>
+                  <li>{{ _('Click "Add Registration"') }}</li>
+                  <li>{{ _('Select categories and fee overrides if needed') }}</li>
+                  <li>{{ _('Mark payments and track registration status') }}</li>
+                </ol>
+
+                <h5>{{ _('Event Reporting') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Registration Lists') }}</strong>: {{ _('View all registered athletes') }}</li>
+                  <li><strong>{{ _('Payment Tracking') }}</strong>: {{ _('Monitor paid/unpaid registrations') }}</li>
+                  <li><strong>{{ _('Export Data') }}</strong>: {{ _('CSV exports for external systems') }}</li>
+                  <li><strong>{{ _('Medal Tracking') }}</strong>: {{ _('Record competition results') }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reports -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#reports">
+                📊 {{ _('Reporting & Exports') }}
+              </button>
+            </h2>
+            <div id="reports" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <h5>{{ _('Available Reports') }}</h5>
+                <ul>
+                  <li>{{ _('Fee Reports: Monthly payment summaries') }}</li>
+                  <li>{{ _('Medal Reports: Competition results by year') }}</li>
+                  <li>{{ _('Player Lists: Filtered player directories') }}</li>
+                  <li>{{ _('Payment Exports: Complete transaction history') }}</li>
+                </ul>
+
+                <h5>{{ _('Export Formats') }}</h5>
+                <ul>
+                  <li><strong>CSV</strong>: {{ _('Comma-separated values for spreadsheets') }}</li>
+                  <li><strong>ZIP</strong>: {{ _('Complete data packages with photos') }}</li>
+                  <li><strong>PDF</strong>: {{ _('Printable payment documents') }}</li>
+                </ul>
+
+                <h5>{{ _('Admin Export/Import Tools') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Bulk Operations') }}</strong>: {{ _('Import multiple players/events') }}</li>
+                  <li><strong>{{ _('Data Backup') }}</strong>: {{ _('Full system backups') }}</li>
+                  <li><strong>{{ _('Migration Tools') }}</strong>: {{ _('Database schema updates') }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Daily Operations -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dailyOps">
+                📅 {{ _('Daily Operations') }}
+              </button>
+            </h2>
+            <div id="dailyOps" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <h5>{{ _('Morning Routine') }}</h5>
+                <ol>
+                  <li>{{ _('Check Calendar: Review scheduled events and training sessions') }}</li>
+                  <li>{{ _('Record Attendance: Mark players present for training') }}</li>
+                  <li>{{ _('Monitor Payments: Check for overdue fees') }}</li>
+                </ol>
+
+                <h5>{{ _('Weekly Tasks') }}</h5>
+                <ol>
+                  <li>{{ _('Process Payments: Record weekly/monthly fee collections') }}</li>
+                  <li>{{ _('Update Medical Records: Verify insurance and medical exam validity') }}</li>
+                  <li>{{ _('Event Preparation: Check upcoming event registrations') }}</li>
+                </ol>
+
+                <h5>{{ _('Monthly Procedures') }}</h5>
+                <ol>
+                  <li>{{ _('Generate Fee Reports: Identify outstanding payments') }}</li>
+                  <li>{{ _('Process Monthly Dues: Record monthly training fees') }}</li>
+                  <li>{{ _('Update Insurance: Renew expiring medical/insurance records') }}</li>
+                  <li>{{ _('Backup Data: Export important data for safekeeping') }}</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <!-- Advanced Features -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#advanced">
+                ⚡ {{ _('Advanced Features') }}
+              </button>
+            </h2>
+            <div id="advanced" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <h5>{{ _('Calendar Integration') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Interactive Calendar') }}</strong>: {{ _('Click dates to create events (admin)') }}</li>
+                  <li><strong>{{ _('Event Details') }}</strong>: {{ _('Click events for full information') }}</li>
+                  <li><strong>{{ _('Attendance Tracking') }}</strong>: {{ _('Daily participation numbers') }}</li>
+                  <li><strong>{{ _('Multi-language Support') }}</strong>: {{ _('Localized date formats') }}</li>
+                </ul>
+
+                <h5>{{ _('Data Validation') }}</h5>
+                <ul>
+                  <li><strong>{{ _('PN Validation') }}</strong>: {{ _('10-digit Bulgarian ID format checking') }}</li>
+                  <li><strong>{{ _('File Upload Security') }}</strong>: {{ _('Type and size restrictions') }}</li>
+                  <li><strong>{{ _('Duplicate Prevention') }}</strong>: {{ _('Automatic duplicate detection') }}</li>
+                </ul>
+
+                <h5>{{ _('Backup & Recovery') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Automatic Backups') }}</strong>: {{ _('Export critical data regularly') }}</li>
+                  <li><strong>{{ _('Data Integrity') }}</strong>: {{ _('Foreign key relationships maintained') }}</li>
+                  <li><strong>{{ _('Recovery Procedures') }}</strong>: {{ _('Restore from backups if needed') }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Troubleshooting -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#troubleshooting">
+                🔧 {{ _('Troubleshooting') }}
+              </button>
+            </h2>
+            <div id="troubleshooting" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <h5>{{ _('Common Issues') }}</h5>
+                <dl>
+                  <dt>{{ _('Login Problems') }}</dt>
+                  <dd>{{ _('Verify ADMIN_USER and ADMIN_PASS environment variables') }}</dd>
+
+                  <dt>{{ _('File Upload Errors') }}</dt>
+                  <dd>{{ _('Ensure files are under 2MB and in supported formats (JPG, PNG, GIF, WEBP)') }}</dd>
+
+                  <dt>{{ _('Calendar Display Issues') }}</dt>
+                  <dd>{{ _('Clear browser cache, check JavaScript is enabled, verify date formats') }}</dd>
+
+                  <dt>{{ _('Payment Calculation Errors') }}</dt>
+                  <dd>{{ _('Verify player payment type settings and fee amounts') }}</dd>
+                </dl>
+
+                <h5>{{ _('Data Recovery') }}</h5>
+                <ol>
+                  <li>{{ _('Database Backup: Regular exports of karate_club.db') }}</li>
+                  <li>{{ _('Photo Backup: Backup uploads/ directory') }}</li>
+                  <li>{{ _('CSV Exports: Keep exported data for reference') }}</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <!-- Security -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#security">
+                🔒 {{ _('Security Best Practices') }}
+              </button>
+            </h2>
+            <div id="security" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <ul>
+                  <li>{{ _('Strong Passwords: Use complex admin passwords') }}</li>
+                  <li>{{ _('Regular Backups: Backup data before major changes') }}</li>
+                  <li>{{ _('Access Control: Limit admin access to authorized personnel') }}</li>
+                  <li>{{ _('File Validation: Only upload trusted files') }}</li>
+                  <li>{{ _('Session Management: Log out when not using the system') }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Support & Maintenance -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#support">
+                🛠️ {{ _('Support & Maintenance') }}
+              </button>
+            </h2>
+            <div id="support" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <h5>{{ _('Regular Maintenance') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Database Cleanup') }}</strong>: {{ _('Remove old temporary files') }}</li>
+                  <li><strong>{{ _('Photo Organization') }}</strong>: {{ _('Organize uploaded images') }}</li>
+                  <li><strong>{{ _('Performance Monitoring') }}</strong>: {{ _('Check for slow operations') }}</li>
+                  <li><strong>{{ _('Update Dependencies') }}</strong>: {{ _('Keep Python packages current') }}</li>
+                </ul>
+
+                <h5>{{ _('Getting Help') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Documentation') }}</strong>: {{ _('Refer to this guide and inline help') }}</li>
+                  <li><strong>{{ _('Error Logs') }}</strong>: {{ _('Check application logs for issues') }}</li>
+                  <li><strong>{{ _('Data Validation') }}</strong>: {{ _('Use export features to verify data integrity') }}</li>
+                  <li><strong>{{ _('Report Issues') }}</strong>: <a href="https://github.com/rgeorgie/enso-catalog/issues" target="_blank">{{ _('GitHub Issues - Report bugs and request features') }}</a></li>
+                </ul>
+
+                <div class="alert alert-info">
+                  <strong>{{ _('Note') }}</strong>: {{ _('This application stores all data locally in SQLite. For production use, consider additional security measures and regular backups.') }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 p-3 bg-light rounded">
+      <h5>{{ _('Overview') }}</h5>
+      <p>{{ _('The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club\'s operations. It handles player registration, training session tracking, payment management, event organization, and reporting.') }}</p>
+
+      <h5>{{ _('Quick Start Guide') }}</h5>
+      <div class="row">
+        <div class="col-md-4">
+          <h6>1. {{ _('Add Players') }}</h6>
+          <p>{{ _('Start by adding your karate club members with their personal information and payment preferences.') }}</p>
+        </div>
+        <div class="col-md-4">
+          <h6>2. {{ _('Record Sessions') }}</h6>
+          <p>{{ _('Track attendance for each training session to monitor participation and manage payments.') }}</p>
+        </div>
+        <div class="col-md-4">
+          <h6>3. {{ _('Manage Payments') }}</h6>
+          <p>{{ _('Keep track of fees, generate receipts, and monitor outstanding payments.') }}</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

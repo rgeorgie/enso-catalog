@@ -59,6 +59,10 @@
 
     <hr />
     <p class="small text-muted mt-3">{{ _('CSV uploads require admin privileges. ZIP import dialogs are available on the players and events pages.') }}</p>
+    
+    <div class="mt-4">
+      <a class="btn btn-secondary" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
+    </div>
   </div>
 </div>
 {% endblock %}
