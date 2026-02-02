@@ -4,6 +4,15 @@
 
 The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club's operations. It handles player registration, training session tracking, payment management, event organization, and reporting.
 
+## Kiosk Mode
+
+For quick session recording without admin login, use the **Kiosk Mode** (`/kiosk`):
+- Displays active players as large, clickable cards
+- Athletes click their name to open a session recording modal
+- Enter Player Number to confirm and record the training session
+- Automatic payment status based on player type (monthly vs per-session)
+- Prevents duplicate sessions for the same day
+
 ## Getting Started
 
 ### Installation & Setup

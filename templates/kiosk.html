@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <div class="text-center mb-4">
+        <h1 class="display-4">{{ _('Kiosk Mode') }}</h1>
+        <p class="lead">{{ _('Click on your name to record a training session') }}</p>
+      </div>
+
+      <!-- Search and Filter Controls -->
+      <div class="row mb-4">
+        <div class="col-md-8">
+          <form method="get" class="d-flex">
+            <input type="text" name="q" value="{{ q }}" class="form-control me-2" placeholder="{{ _('Search by name...') }}" style="font-size: 1.2rem; padding: 0.75rem;">
+            <select name="belt" class="form-select me-2" style="font-size: 1.2rem;">
+              <option value="">{{ _('All Belts') }}</option>
+              {% for belt_option in ['White', 'Yellow', 'Orange', 'Green', 'Blue', 'Brown', 'Black'] %}
+                <option value="{{ belt_option }}" {% if belt == belt_option %}selected{% endif %}>{{ belt_option }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-lg">{{ _('Search') }}</button>
+          </form>
+        </div>
+        <div class="col-md-4 text-end">
+          <a href="{{ url_for('list_players') }}" class="btn btn-outline-secondary btn-lg">{{ _('Admin View') }}</a>
+        </div>
+      </div>
+
+      <!-- Player Grid -->
+      <div class="row g-3">
+        {% for player in players %}
+        <div class="col-lg-3 col-md-4 col-sm-6">
+          <div class="card h-100 shadow-sm player-card" data-bs-toggle="modal" data-bs-target="#sessionModal" data-player-id="{{ player.id }}" data-player-name="{{ player.first_name }} {{ player.last_name }}" style="cursor: pointer; transition: transform 0.2s;">
+            <div class="card-body text-center p-4">
+              {% if player.photo_filename %}
+                <img src="{{ url_for('uploaded_file', filename=player.photo_filename) }}" class="rounded-circle mb-3" style="width: 80px; height: 80px; object-fit: cover;" alt="Photo">
+              {% else %}
+                <div class="rounded-circle mb-3 mx-auto d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; background-color: #f8f9fa; border: 2px solid #dee2e6;">
+                  <i class="fas fa-user fa-2x text-muted"></i>
+                </div>
+              {% endif %}
+
+              <h5 class="card-title mb-2">{{ player.first_name }} {{ player.last_name }}</h5>
+
+              <div class="mb-2">
+                <span class="badge" style="background-color: {{ belt_colors[player.id] }}; color: #000; font-size: 0.9rem;">
+                  {{ player.belt_rank or 'No Belt' }}
+                </span>
+              </div>
+
+              {% if player.grade_level %}
+                <div class="text-muted small mb-3">{{ player.grade_level }}</div>
+              {% endif %}
+
+              <div class="mt-3">
+                <button class="btn btn-success btn-lg w-100" style="font-size: 1.1rem; padding: 0.75rem;">
+                  <i class="fas fa-check-circle me-2"></i>{{ _('Record Session') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% if not players %}
+        <div class="text-center mt-5">
+          <div class="alert alert-info">
+            <h4><i class="fas fa-info-circle me-2"></i>{{ _('No players found') }}</h4>
+            <p>{{ _('Try adjusting your search criteria.') }}</p>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Custom backdrop for modal -->
+<div id="customBackdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 9997;"></div>
+
+<!-- Session Recording Modal -->
+<div class="modal fade" id="sessionModal" tabindex="-1" aria-labelledby="sessionModalLabel" aria-hidden="true" data-bs-backdrop="false" data-bs-keyboard="false" style="z-index: 9999;">
+  <div class="modal-dialog modal-dialog-centered" style="z-index: 10000;">
+    <div class="modal-content" style="z-index: 10001 !important;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="sessionModalLabel">{{ _('Kiosk Mode - Record Training Session') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{{ url_for('kiosk_record_session') }}">
+        <input type="hidden" id="expected_player_id" name="expected_player_id" value="">
+        <div class="modal-body">
+          <div id="playerInfo" class="mb-3">
+            <p class="mb-3">{{ _('Selected athlete:') }} <strong id="selectedPlayerName"></strong></p>
+          </div>
+
+          <div class="mb-3">
+            <label for="player_id" class="form-label">{{ _('Enter your Player Number') }}</label>
+            <input type="text" class="form-control form-control-lg" id="player_id" name="player_id" required pattern="[0-9]+" placeholder="123" style="font-size: 1.2rem; text-align: center;">
+            <div class="form-text">{{ _('Enter your player number to confirm and record the session.') }}</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-lg" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+          <button type="submit" class="btn btn-success btn-lg">{{ _('Record Session') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+.player-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+}
+
+.player-card .card-body {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .display-4 {
+    font-size: 2.5rem;
+  }
+
+  .player-card .card-body {
+    min-height: 200px;
+  }
+
+  .btn-lg {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+  }
+}
+
+/* Ensure modal is clickable and not blocked */
+.modal-backdrop {
+  z-index: 9998 !important;
+  background-color: transparent !important;
+}
+.modal {
+  z-index: 9999 !important;
+}
+.modal-content {
+  pointer-events: auto !important;
+  z-index: 10001 !important;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5) !important;
+}
+.modal-dialog {
+  pointer-events: none;
+  z-index: 10000 !important;
+}
+.modal-dialog .modal-content {
+  pointer-events: auto;
+  position: relative !important;
+}
+</style>
+
+<script>
+// Handle modal population when player card is clicked
+document.addEventListener('DOMContentLoaded', function() {
+  const playerCards = document.querySelectorAll('.player-card');
+  const selectedPlayerName = document.getElementById('selectedPlayerName');
+  const expectedPlayerId = document.getElementById('expected_player_id');
+  const customBackdrop = document.getElementById('customBackdrop');
+
+  playerCards.forEach(card => {
+    card.addEventListener('click', function() {
+      const playerName = this.dataset.playerName;
+      const playerId = this.dataset.playerId;
+      selectedPlayerName.textContent = playerName;
+      expectedPlayerId.value = playerId;
+      
+      // Show custom backdrop
+      if (customBackdrop) {
+        customBackdrop.style.display = 'block';
+      }
+    });
+  });
+
+  // Clear form when modal is hidden
+  const sessionModal = document.getElementById('sessionModal');
+  sessionModal.addEventListener('hidden.bs.modal', function() {
+    document.getElementById('player_id').value = '';
+    expectedPlayerId.value = '';
+    
+    // Hide custom backdrop
+    if (customBackdrop) {
+      customBackdrop.style.display = 'none';
+    }
+  });
+
+  // Auto-focus on Player Number input when modal is shown
+  sessionModal.addEventListener('shown.bs.modal', function() {
+    document.getElementById('player_id').focus();
+  });
+});
+</script>
+
+{% endblock %}

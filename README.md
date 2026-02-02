@@ -14,6 +14,7 @@ enso-catalog is a small single-file Flask application for managing a karate club
 - **Players**: List, search, filter, add, edit, delete. Each player can have a photo, contact info, medical/insurance data, and parent contacts.
  - **Players**: List, search, filter, add, edit, delete. `pn` (personal number / ЕГН) is mandatory and used as the stable UID for historical relations. Photos, contact info, medical/insurance data, and parent contacts are supported.
 - **Training Sessions**: Track attendance for all players (monthly and per-session payers). Interactive calendar view and detailed list view in player profiles. Record sessions with automatic payment status based on player type. Calendar shows both training sessions and event participations with clickable event details.
+- **Kiosk Mode**: Public interface (`/kiosk`) for athletes to record training sessions without admin login. Click on name, enter Player Number in modal to confirm and record session.
 - **Payments & Receipts**:
     - Track monthly and per-session training fees.
     - Mark payments as paid/unpaid; print or export receipts.

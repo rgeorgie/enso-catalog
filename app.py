@@ -700,6 +700,28 @@ translations = {
         "This application stores all data locally in SQLite. For production use, consider additional security measures and regular backups.": "This application stores all data locally in SQLite. For production use, consider additional security measures and regular backups.",
         "Overview": "Overview",
         "The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club's operations. It handles player registration, training session tracking, payment management, event organization, and reporting.": "The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club's operations. It handles player registration, training session tracking, payment management, event organization, and reporting.",
+        "Please enter your Personal Number (ЕГН).": "Please enter your Player Number.",
+        "Player with Personal Number {pn} not found.": "Player with number {id} not found.",
+        "Player account is not active.": "Player account is not active.",
+        "Session for today already recorded for {name}.": "Session for today already recorded for {name}.",
+        "Wrong Player Number! Please enter your own number.": "Wrong Player Number! Please enter your own number.",
+        "Welcome {name}! Your training session has been recorded successfully. Keep up the great work!": "Welcome {name}! 🎉 Your training session has been recorded successfully! You're doing amazing - keep pushing your limits and achieving greatness! 💪",
+        "Session recording failed. Please try again.": "Session recording failed. Please try again.",
+        "Kiosk Mode - Record Training Session": "Kiosk Mode - Record Training Session",
+        "Enter your Personal Number (ЕГН)": "Enter your Player Number",
+        "Record Session": "Record Session",
+        "Cancel": "Cancel",
+        "Click on your name to record a training session": "Click on your name to record a training session",
+        "Kiosk Mode": "Kiosk Mode",
+        "Search by name...": "Search by name...",
+        "All Belts": "All Belts",
+        "Search": "Search",
+        "Admin View": "Admin View",
+        "No players found": "No players found",
+        "Try adjusting your search criteria.": "Try adjusting your search criteria.",
+        "Selected athlete:": "Selected athlete:",
+        "Enter your 10-digit Bulgarian ID number to confirm and record the session.": "Enter your 10-digit Bulgarian ID number to confirm and record the session.",
+        "For quick session recording without admin login, use Kiosk Mode: athletes click their name and enter their Personal Number (ЕГН) to record training sessions.": "For quick session recording without admin login, use Kiosk Mode: athletes click their name and enter their Player Number to record training sessions.",
     },
     "bg": {
         # --- Grade/Belt labels ---
@@ -1273,6 +1295,28 @@ translations = {
         "This application stores all data locally in SQLite. For production use, consider additional security measures and regular backups.": "Това приложение съхранява всички данни локално в SQLite. За производствена употреба, обмислете допълнителни мерки за сигурност и редовни резервни копия.",
         "Overview": "Обзор",
         "The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club's operations. It handles player registration, training session tracking, payment management, event organization, and reporting.": "Системата за управление на клуб по karate е цялостно уеб приложение, предназначено да управлява всички аспекти на операциите на клуб по karate. То обработва регистрация на спортисти, проследяване на тренировъчни сесии, управление на плащания, организация на събития и отчитане.",
+        "Please enter your Personal Number (ЕГН).": "Моля, въведете вашия номер на спортист.",
+        "Player with Personal Number {pn} not found.": "Спортист с номер {id} не е намерен.",
+        "Player account is not active.": "Профилът на спортиста не е активен.",
+        "Session for today already recorded for {name}.": "Сесията за днес вече е записана за {name}.",
+        "Wrong Player Number! Please enter your own number.": "Грешен номер на спортист! Моля, въведете вашия собствен номер.",
+        "Welcome {name}! Your training session has been recorded successfully. Keep up the great work!": "Добре дошъл {name}! 🎉 Твоята тренировъчна сесия е записана успешно! Ти си невероятен - продължавай да се бориш и постигай велики неща! 💪",
+        "Session recording failed. Please try again.": "Записването на сесията е неуспешно. Моля, опитайте отново.",
+        "Kiosk Mode - Record Training Session": "Режим Кiosk - Записване на тренировъчна сесия",
+        "Enter your Personal Number (ЕГН)": "Въведете вашия номер на спортист",
+        "Record Session": "Запиши тренировка",
+        "Cancel": "Отказ",
+        "Click on your name to record a training session": "Кликнете върху името си, за да запишете тренировъчна сесия",
+        "Kiosk Mode": "Режим Kiosk",
+        "Search by name...": "Търсене по име...",
+        "All Belts": "Всички колани",
+        "Search": "Търсене",
+        "Admin View": "Админ изглед",
+        "No players found": "Няма намерени спортисти",
+        "Try adjusting your search criteria.": "Опитайте да коригирате критериите за търсене.",
+        "Selected athlete:": "Избран спортист:",
+        "Enter your 10-digit Bulgarian ID number to confirm and record the session.": "Въведете вашия номер на спортист, за да потвърдите и запишете сесията.",
+        "For quick session recording without admin login, use Kiosk Mode: athletes click their name and enter their Personal Number (ЕГН) to record training sessions.": "За бързо записване на сесии без администраторски вход, използвайте режим Kiosk: спортистите кликват върху името си и въвеждат своя номер на спортист, за да запишат тренировъчни сесии.",
     },
 }
 
@@ -2038,6 +2082,87 @@ def logout():
 @app.route("/help")
 def help_page():
     return render_template("help.html", _=_ , current_lang=get_lang())
+
+@app.route("/kiosk")
+def kiosk():
+    """Kiosk mode: Public player list for session recording without admin login."""
+    q = request.args.get("q", "").strip()
+    belt = request.args.get("belt", "")
+    active = request.args.get("active", "")
+
+    query = Player.query.filter_by(active_member=True)  # Only show active members
+
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(Player.first_name.ilike(like), Player.last_name.ilike(like)))
+
+    if belt:
+        query = query.filter_by(belt_rank=belt)
+
+    players = query.order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+
+    # Get belt colors for display
+    belt_colors = {}
+    for p in players:
+        belt_colors[p.id] = BELT_PALETTE.get(p.belt_rank, "#f8f9fa")
+
+    return render_template("kiosk.html", players=players, belt_colors=belt_colors, q=q, belt=belt, active=active)
+
+@app.route("/kiosk/record_session", methods=["POST"])
+def kiosk_record_session():
+    """Kiosk mode: Record session by player ID."""
+    player_id_str = request.form.get("player_id", "").strip()
+    expected_player_id_str = request.form.get("expected_player_id", "").strip()
+    
+    if not player_id_str:
+        flash(_("Please enter your Player Number."), "warning")
+        return redirect(url_for("kiosk"))
+    
+    try:
+        player_id = int(player_id_str)
+        expected_player_id = int(expected_player_id_str)
+    except ValueError:
+        flash(_("Player Number must be a valid number."), "danger")
+        return redirect(url_for("kiosk"))
+    
+    # Verify the entered ID matches the expected player
+    if player_id != expected_player_id:
+        flash(_("Wrong Player Number! Please enter your own number."), "danger")
+        return redirect(url_for("kiosk"))
+    
+    # Find player by ID
+    player = Player.query.get(player_id)
+    if not player:
+        flash(_("Player with number {id} not found.").format(id=player_id), "danger")
+        return redirect(url_for("kiosk"))
+    
+    if not player.active_member:
+        flash(_("Player account is not active."), "warning")
+        return redirect(url_for("kiosk"))
+    
+    # Check if session already recorded today
+    today = date.today()
+    existing = TrainingSession.query.filter_by(player_pn=player.pn, date=today).first()
+    if existing:
+        flash(_("Session for today already recorded for {name}.").format(name=f"{player.first_name} {player.last_name}"), "info")
+        return redirect(url_for("kiosk"))
+    
+    # For monthly payers, mark as paid since they pay monthly
+    is_paid = player.monthly_fee_is_monthly
+    
+    session_id = f"{player.id}_{today.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S%f')}"
+    ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=today, session_id=session_id, paid=is_paid, created_at=datetime.now())
+    db.session.add(ts)
+    
+    try:
+        db.session.commit()
+        flash(_("Welcome {name}! Your training session has been recorded successfully. Keep up the great work!").format(name=player.first_name), "success")
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to record TrainingSession from kiosk')
+        flash(_("Session recording failed. Please try again."), "danger")
+    
+    return redirect(url_for("kiosk"))
 
 # -------- CRUD Players ----------
 @app.route("/admin/players/import_csv", methods=["POST"], endpoint='admin_players_import_csv')
