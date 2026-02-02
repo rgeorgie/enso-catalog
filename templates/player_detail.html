@@ -186,7 +186,9 @@
               document.querySelectorAll('.pay-due-modal-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                   currentPayDuePlayerId = this.getAttribute('data-player-id');
-                  const payDueModal = new bootstrap.Modal(document.getElementById('payDueModal'));
+                  const payDueModalEl = document.getElementById('payDueModal');
+                  try { if (payDueModalEl && payDueModalEl.parentNode !== document.body) document.body.appendChild(payDueModalEl); } catch(e){}
+                  const payDueModal = new bootstrap.Modal(payDueModalEl);
                   document.getElementById('duesList').innerHTML = '<div class="text-center text-muted py-3">Loading...</div>';
                   payDueModal.show();
                   fetch(`/admin/players/${currentPayDuePlayerId}/dues_json`)
@@ -248,8 +250,11 @@
                 })
                 .then(response => response.json())
                 .then(data => {
+                  // hide modal and cleanup backdrops, then open receipt in a new tab
+                  try { document.querySelectorAll('.modal-backdrop').forEach(el=>el.remove()); document.body.classList.remove('modal-open'); } catch(e){}
+                  try { document.querySelectorAll('#payDueModal.modal.show').forEach(m=>{ m.classList.remove('show'); m.style.display='none'; m.removeAttribute('aria-modal'); m.removeAttribute('role'); }); } catch(e){}
                   if (data.redirect) {
-                    window.location.href = data.redirect;
+                    window.open(data.redirect, '_blank');
                   }
                 });
               });
