@@ -160,12 +160,25 @@ translations = {
         "Edit": "Edit",
         "Run DB migration": "Run DB migration",
         "Admin Login": "Admin Login",
+        "Admin exports": "Admin exports",
+        "Admin imports": "Admin imports",
+        "Imports": "Imports",
+        "Exports": "Exports",
+        "Export All Payments (CSV)": "Export All Payments (CSV)",
+        "Export Players (ZIP)": "Export Players (ZIP)",
+        "Export Events (ZIP)": "Export Events (ZIP)",
+        "Import Players (ZIP)": "Import Players (ZIP)",
+        "Import Players (CSV)": "Import Players (CSV)",
+        "Import Payments (CSV)": "Import Payments (CSV)",
+        "Export All Profiles (ZIP)": "Export All Profiles (ZIP)",
+        "Delete": "Delete",
         "Logout": "Logout",
         "Language": "Language",
         "BG": "BG", "EN": "EN",
         "All": "All",
 
         # --- Filters / Table headers ---
+        "Category Fees": "Category Fees",
         "Search": "Search",
         "Belt": "Belt",
         "Belt Color": "Belt Color",
@@ -186,6 +199,7 @@ translations = {
         "Birthdate": "Birthdate",
         "PN#": "PN#",
         "Belt Rank": "Belt Rank",
+        "Grade Level": "Grade Level",
         "Grade": "Grade",
         "Grade Date": "Grade Date",
         "Weight (kg)": "Weight (kg)",
@@ -205,6 +219,7 @@ translations = {
         "Contacts": "Contacts",
         "Fee": "Fee",
         "Fee (EUR)": "Fee (EUR)",
+        "Categories & Medals": "Categories & Medals",
 
         # --- Health / Insurance ---
         "Medical Examination": "Medical Examination",
@@ -225,10 +240,12 @@ translations = {
         "per session": "per session",
         "Month": "Month",
         "Session": "Session",
+        "Monthly": "Monthly",
         "Due date": "Due date",
         "Amount": "Amount",
         "Paid": "Paid",
         "Unpaid": "Unpaid",
+        "Owed": "Owed",
         "Toggle Paid": "Toggle Paid",
         "Nothing to show.": "Nothing to show.",
         "Payment toggled.": "Payment toggled.",
@@ -270,6 +287,8 @@ translations = {
         "Event": "Event",
         "Record payment": "Record payment",
         "Record payment for this debt": "Record payment for this debt",
+        "Record Session": "Record Session",
+        "Pay Due": "Pay Due",
         "Open payment form": "Open payment form",
         "Receipt": "Receipt",
         "Amount (EUR)": "Amount (EUR)",
@@ -305,6 +324,7 @@ translations = {
         "Paste/Import Categories": "Paste/Import Categories",
         "Paste tabular data (one row per category, columns: Name, Age from, Age to, Sex, Fee, Team size, KYU, DAN, Other cut-off date, Limit, Team Limit)": "Paste tabular data (one row per category, columns: Name, Age from, Age to, Sex, Fee, Team size, KYU, DAN, Other cut-off date, Limit, Team Limit)",
         "Import": "Import",
+        "Import Event (ZIP)": "Import Event (ZIP)",
         "Sports Calendar": "Sports Calendar",
         "New Event": "New Event",
         "Edit Event": "Edit Event",
@@ -368,6 +388,22 @@ translations = {
         "ENSO Profile URL": "ENSO Profile URL",
         "Open": "Open",
 
+        # --- Player Detail Page ---
+        "No photo uploaded": "No photo uploaded",
+        "Export Profile (CSV)": "Export Profile (CSV)",
+        "Permanently delete": "Permanently delete",
+        "Permanently delete (PURGE)": "Permanently delete (PURGE)",
+        "Permanently delete player": "Permanently delete player",
+        "This is irreversible. All player data will be removed but related historical rows will keep the PN#.": "This is irreversible. All player data will be removed but related historical rows will keep the PN#.",
+        "To confirm, type the word": "To confirm, type the word",
+        "in the box below": "in the box below",
+        "Total medals": "Total medals",
+        "No categories for this registration.": "No categories for this registration.",
+        "month (optional)": "month (optional)",
+        "Delete Player": "Delete Player",
+        "Back to Players List": "Back to Players List",
+        "Player Details": "Player Details",
+
         # --- Auth / Flash ---
         "Username": "Username",
         "Password": "Password",
@@ -378,9 +414,46 @@ translations = {
         "Player created.": "Player created.",
         "Player updated.": "Player updated.",
         "Player deleted.": "Player deleted.",
+        "Failed to fully delete player and related records.": "Failed to fully delete player and related records.",
+        "Player deleted (soft). Related registrations and payments preserved and linked by PN#.": "Player deleted (soft). Related registrations and payments preserved and linked by PN#.",
+        "Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE": "Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE",
+        "Purge failed: {e}": "Purge failed: {e}",
+        "Player permanently deleted and related rows backfilled with PN.": "Player permanently deleted and related rows backfilled with PN.",
+        "Backfilled {created_total} missing TrainingSession records.": "Backfilled {created_total} missing TrainingSession records.",
+        "No file uploaded": "No file uploaded",
+        "No file selected": "No file selected",
+        "Close": "Close",
         "DB migration: added columns: {cols}": "DB migration: added columns: {cols}",
         "DB migration: nothing to do.": "DB migration: nothing to do.",
         "DB migration failed: {err}": "DB migration failed: {err}",
+
+        # --- Player Deletion Confirmation ---
+        "Confirm Player Deletion": "Confirm Player Deletion",
+        "Warning!": "Warning!",
+        "This player has outstanding debts. Deleting them may result in lost revenue.": "This player has outstanding debts. Deleting them may result in lost revenue.",
+        "Player Information": "Player Information",
+        "Name:": "Name:",
+        "PN#:": "PN#:",
+        "Active Member:": "Active Member:",
+        "Outstanding Debts": "Outstanding Debts",
+        "Type": "Type",
+        "Description": "Description",
+        "Total Outstanding": "Total Outstanding",
+        "Note:": "Note:",
+        "Deleting this player will perform a soft delete - the player record will be deactivated but preserved for historical records. All related payments and registrations will be maintained.": "Deleting this player will perform a soft delete - the player record will be deactivated but preserved for historical records. All related payments and registrations will be maintained.",
+        "Purging this player will permanently remove their record from the database. This action cannot be undone. Make sure you have a backup.": "Purging this player will permanently remove their record from the database. This action cannot be undone. Make sure you have a backup.",
+        "Delete Player Anyway": "Delete Player Anyway",
+        "Purge Player Anyway": "Purge Player Anyway",
+        "Are you absolutely sure you want to delete this player despite outstanding debts?": "Are you absolutely sure you want to delete this player despite outstanding debts?",
+
+        # --- Common UI ---
+        "yes": "yes",
+        "no": "no",
+
+        # --- Debt Types ---
+        "monthly": "monthly",
+        "sessions": "sessions",
+        "event": "event",
 
         # --- Enums / Days ---
         "—": "—",
@@ -433,6 +506,18 @@ translations = {
         "Edit": "Редакция",
         "Run DB migration": "Стартирай миграция",
         "Admin Login": "Админ вход",
+        "Admin exports": "Админ експорти",
+        "Admin imports": "Админ импорти",
+        "Imports": "Импорти",
+        "Exports": "Експорти",
+        "Export All Payments (CSV)": "Експорт всички плащания (CSV)",
+        "Export Players (ZIP)": "Експорт спортисти (ZIP)",
+        "Export Events (ZIP)": "Експорт събития (ZIP)",
+        "Import Players (ZIP)": "Импорт спортисти (ZIP)",
+        "Import Players (CSV)": "Импорт спортисти (CSV)",
+        "Import Payments (CSV)": "Импорт плащания (CSV)",
+        "Export All Profiles (ZIP)": "Експорт всички профили (ZIP)",
+        "Delete": "Изтрий",
         "Logout": "Изход",
         "Language": "Език",
         "BG": "BG", "EN": "EN",
@@ -502,10 +587,12 @@ translations = {
         "per session": "на тренировка",
         "Month": "Месец",
         "Session": "Сесия",
+        "Monthly": "Месечни",
         "Due date": "Падеж",
         "Amount": "Сума",
         "Paid": "Платено",
         "Unpaid": "Неплатено",
+        "Owed": "Дължими",
         "Toggle Paid": "Смени статус",
         "Nothing to show.": "Няма данни.",
         "Payment toggled.": "Плащането е променено.",
@@ -547,12 +634,15 @@ translations = {
         "Event": "Събитие",
         "Record payment": "Запиши плащане",
         "Record payment for this debt": "Запиши плащане за този дълг",
+        "Record Session": "Запиши тренировка",
+        "Pay Due": "Плати дължимото",
         "Open payment form": "Отвори форма за плащане",
         "Receipt": "Квитанция",
         "Amount (EUR)": "Сума (EUR)",
         "Note": "Бележка",
         "Created": "Създадено",
         "Quick actions": "Бързи действия",
+        "Training sessions": "Тренировки",
         "New Training Receipt (per month)": "Нова квитанция за тренировка (месечно)",
         "New Training Receipt (per session)": "Нова квитанция за тренировка (на тренировка)",
         "New Event Receipt": "Нова квитанция за събитие",
@@ -580,6 +670,7 @@ translations = {
         "Paste/Import Categories": "Постави/Импортирай категории",
         "Paste tabular data (one row per category, columns: Name, Age from, Age to, Sex, Fee, Team size, KYU, DAN, Other cut-off date, Limit, Team Limit)": "Поставете таблични данни (по един ред за категория, колони: Име, Възраст от, Възраст до, Пол, Такса, Отбор, KYU, DAN, Друга дата, Лимит, Лимит отбор)",
         "Import": "Импортирай",
+        "Import Event (ZIP)": "Импортирай събитие (ZIP)",
         "Sports Calendar": "Спортен календар",
         "New Event": "Ново събитие",
         "Edit Event": "Редакция на събитие",
@@ -643,6 +734,22 @@ translations = {
         "ENSO Profile URL": "ENSO профил (URL)",
         "Open": "Отвори",
 
+        # --- Player Detail Page ---
+        "No photo uploaded": "Няма качена снимка",
+        "Export Profile (CSV)": "Експорт профил (CSV)",
+        "Permanently delete": "Изтрий завинаги",
+        "Permanently delete (PURGE)": "Изтрий завинаги (ИЗЧИСТИ)",
+        "Permanently delete player": "Изтрий спортист завинаги",
+        "This is irreversible. All player data will be removed but related historical rows will keep the PN#.": "Това е необратимо. Всички данни за спортиста ще бъдат премахнати, но свързаните исторически редове ще запазят ЕГН.",
+        "To confirm, type the word": "За потвърждение, напишете думата",
+        "in the box below": "в полето по-долу",
+        "Total medals": "Общо медали",
+        "No categories for this registration.": "Няма категории за това записване.",
+        "month (optional)": "месец (по избор)",
+        "Delete Player": "Изтрий Спортист",
+        "Back to Players List": "Обратно към списъка със спортисти",
+        "Player Details": "Детайли за Спортист",
+
         # --- Auth / Flash ---
         "Username": "Потребител",
         "Password": "Парола",
@@ -653,9 +760,46 @@ translations = {
         "Player created.": "Спортистът е създаден.",
         "Player updated.": "Спортистът е обновен.",
         "Player deleted.": "Спортистът е изтрит.",
+        "Failed to fully delete player and related records.": "Неуспешно пълно изтриване на спортист и свързаните записи.",
+        "Player deleted (soft). Related registrations and payments preserved and linked by PN#.": "Спортистът е изтрит (меко). Свързаните регистрации и плащания са запазени и свързани по ЕГН.",
+        "Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE": "Липсващ или неправилен токен за потвърждение. За постоянно изтриване, изпратете POST с confirm=PURGE",
+        "Purge failed: {e}": "Изчистването неуспешно: {e}",
+        "Player permanently deleted and related rows backfilled with PN.": "Спортистът е постоянно изтрит и свързаните редове са попълнени с ЕГН.",
+        "Backfilled {created_total} missing TrainingSession records.": "Попълнени {created_total} липсващи записи за тренировъчни сесии.",
+        "No file uploaded": "Няма качен файл",
+        "No file selected": "Няма избран файл",
+        "Close": "Затвори",
         "DB migration: added columns: {cols}": "Миграция: добавени колони: {cols}",
         "DB migration: nothing to do.": "Миграция: няма какво да се прави.",
         "DB migration failed: {err}": "Миграция: грешка: {err}",
+
+        # --- Player Deletion Confirmation ---
+        "Confirm Player Deletion": "Потвърждение за изтриване на спортист",
+        "Warning!": "Внимание!",
+        "This player has outstanding debts. Deleting them may result in lost revenue.": "Този спортист има неплатени задължения. Изтриването му може да доведе до загуба на приходи.",
+        "Player Information": "Информация за спортист",
+        "Name:": "Име:",
+        "PN#:": "ЕГН:",
+        "Active Member:": "Активен член:",
+        "Outstanding Debts": "Неплатени задължения",
+        "Type": "Тип",
+        "Description": "Описание",
+        "Total Outstanding": "Общо неплатено",
+        "Note:": "Бележка:",
+        "Deleting this player will perform a soft delete - the player record will be deactivated but preserved for historical records. All related payments and registrations will be maintained.": "Изтриването на този спортист ще извърши меко изтриване - записът ще бъде деактивиран, но запазен за исторически данни. Всички свързани плащания и записвания ще бъдат запазени.",
+        "Purging this player will permanently remove their record from the database. This action cannot be undone. Make sure you have a backup.": "Изчистването на този спортист ще премахне завинаги записа му от базата данни. Това действие не може да бъде отменено. Уверете се, че имате резервно копие.",
+        "Delete Player Anyway": "Изтрий спортиста въпреки това",
+        "Purge Player Anyway": "Изчисти спортиста въпреки това",
+        "Are you absolutely sure you want to delete this player despite outstanding debts?": "Сигурни ли сте, че искате да изтриете този спортист въпреки неплатените задължения?",
+
+        # --- Common UI ---
+        "yes": "да",
+        "no": "не",
+
+        # --- Debt Types ---
+        "monthly": "месечна",
+        "sessions": "тренировки",
+        "event": "събитие",
 
         # --- Enums / Days ---
         "—": "—",
@@ -1653,10 +1797,86 @@ def edit_player(player_id: int):
         player=player,
     )
 
+# Helper functions for debt checking
+def player_has_outstanding_debts(player: Player) -> bool:
+    """Check if a player has any outstanding debts."""
+    today = date.today()
+    
+    # Check for unpaid monthly fees
+    pay_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    unpaid_monthly = Payment.query.filter_by(**pay_filter, year=today.year, month=today.month, paid=False).first()
+    if unpaid_monthly:
+        return True
+    
+    # Check for unpaid training sessions
+    if player.monthly_fee_is_monthly is False and player.monthly_fee_amount:
+        sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+        unpaid_sessions = TrainingSession.query.filter_by(**sess_filter, paid=False).count()
+        if unpaid_sessions > 0:
+            return True
+    
+    # Check for unpaid event registrations
+    reg_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    unpaid_regs = EventRegistration.query.filter_by(**reg_filter, paid=False).count()
+    if unpaid_regs > 0:
+        return True
+    
+    return False
+
+def get_player_debts(player: Player) -> list:
+    """Get detailed list of player's outstanding debts."""
+    today = date.today()
+    debts = []
+    
+    # Monthly due
+    pay_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    pay = Payment.query.filter_by(**pay_filter, year=today.year, month=today.month, paid=False).first()
+    if pay:
+        debts.append({
+            "type": "monthly",
+            "label": f"Monthly fee ({today.year}-{today.month:02d})",
+            "amount": pay.amount or 0
+        })
+    
+    # Owed session payments
+    if player.monthly_fee_is_monthly is False and player.monthly_fee_amount:
+        sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+        unpaid_sessions = TrainingSession.query.filter_by(**sess_filter, paid=False).count()
+        if unpaid_sessions > 0:
+            per_session_amount = player.monthly_fee_amount
+            debts.append({
+                "type": "sessions",
+                "label": f"Owed sessions ({unpaid_sessions} x {per_session_amount} EUR)",
+                "amount": unpaid_sessions * per_session_amount
+            })
+    
+    # Unpaid event registrations
+    reg_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+    regs = EventRegistration.query.filter_by(**reg_filter, paid=False).all()
+    for r in regs:
+        debts.append({
+            "type": "event",
+            "label": f"Event: {r.event.title if r.event else 'Event'}",
+            "amount": r.computed_fee() or 0
+        })
+    
+    return debts
+
 @app.route("/admin/players/<int:player_id>/delete", methods=["POST"])
 @admin_required
 def delete_player(player_id: int):
     player = Player.query.get_or_404(player_id)
+    
+    # Check for outstanding debts
+    has_debts = player_has_outstanding_debts(player)
+    confirm_delete = request.form.get('confirm_delete_with_debts') == 'yes'
+    
+    if has_debts and not confirm_delete:
+        # Show confirmation modal instead of deleting
+        return render_template('player_delete_confirm.html', 
+                             player=player, 
+                             debts=get_player_debts(player))
+    
     if player.photo_filename:
         try:
             os.remove(os.path.join(UPLOAD_FOLDER, player.photo_filename))
@@ -1683,7 +1903,7 @@ def delete_player(player_id: int):
         db.session.commit()
     except Exception:
         db.session.rollback()
-        flash("Failed to fully delete player and related records.", "danger")
+        flash(_("Failed to fully delete player and related records."), "danger")
         return redirect(url_for("player_detail", player_id=player.id))
     flash(_("Player deleted (soft). Related registrations and payments preserved and linked by PN#."), "info")
     return redirect(url_for("list_players"))
@@ -1698,9 +1918,21 @@ def purge_player(player_id: int):
     with the literal value 'PURGE' to proceed. Make a DB backup before running.
     """
     player = Player.query.get_or_404(player_id)
+    
+    # Check for outstanding debts
+    has_debts = player_has_outstanding_debts(player)
+    confirm_delete = request.form.get('confirm_delete_with_debts') == 'yes'
+    
+    if has_debts and not confirm_delete:
+        # Show confirmation modal instead of purging
+        return render_template('player_delete_confirm.html', 
+                             player=player, 
+                             debts=get_player_debts(player),
+                             is_purge=True)
+    
     confirm = (request.form.get('confirm') or '').strip()
     if confirm != 'PURGE':
-        flash('Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE', 'danger')
+        flash(_('Missing or incorrect confirmation token. To permanently delete, POST with confirm=PURGE'), 'danger')
         return redirect(url_for('player_detail', player_id=player.id))
 
     pn_val = player.pn
@@ -1725,10 +1957,10 @@ def purge_player(player_id: int):
     except Exception as e:
         db.session.rollback()
         app.logger.exception('Failed to purge player')
-        flash(f'Purge failed: {e}', 'danger')
+        flash(_(f'Purge failed: {e}'), 'danger')
         return redirect(url_for('player_detail', player_id=player.id))
 
-    flash('Player permanently deleted and related rows backfilled with PN.', 'success')
+    flash(_('Player permanently deleted and related rows backfilled with PN.'), 'success')
     return redirect(url_for('list_players'))
 
 # --- Modal Dues Payment Backend ---
@@ -1951,7 +2183,7 @@ def backfill_training_sessions():
                 db.session.add(ts)
                 created_total += 1
     db.session.commit()
-    flash(f"Backfilled {created_total} missing TrainingSession records.", "success")
+    flash(_(f"Backfilled {created_total} missing TrainingSession records."), "success")
     return redirect(request.referrer or url_for('list_players'))
 # -------- Fees Report + Toggle + CSV ----------
 @app.route("/reports/fees")
@@ -2300,11 +2532,11 @@ def export_events_zip_all():
 def admin_payments_import_csv():
     """Import payment/receipt rows from CSV into PaymentRecord."""
     if 'csv_file' not in request.files:
-        flash('No file uploaded', 'danger')
+        flash(_('No file uploaded'), 'danger')
         return redirect(request.referrer or url_for('admin_imports'))
     file = request.files.get('csv_file')
     if not file or not file.filename:
-        flash('No file uploaded', 'danger')
+        flash(_('No file uploaded'), 'danger')
         return redirect(request.referrer or url_for('admin_imports'))
     import io
     import csv
@@ -3086,11 +3318,11 @@ def event_export_full(event_id: int):
 def import_event_zip():
     # Handle uploaded ZIP exported by the full-event export
     if 'zipfile' not in request.files:
-        flash('No file uploaded', 'danger')
+        flash(_('No file uploaded'), 'danger')
         return redirect(request.referrer or url_for('events_calendar'))
     f = request.files['zipfile']
     if f.filename == '':
-        flash('No file selected', 'danger')
+        flash(_('No file selected'), 'danger')
         return redirect(request.referrer or url_for('events_calendar'))
     try:
         import io
@@ -3267,11 +3499,11 @@ def import_event_zip():
 @admin_required
 def import_players_zip():
     if 'zipfile' not in request.files:
-        flash('No file uploaded', 'danger')
+        flash(_('No file uploaded'), 'danger')
         return redirect(request.referrer or url_for('list_players'))
     f = request.files['zipfile']
     if f.filename == '':
-        flash('No file selected', 'danger')
+        flash(_('No file selected'), 'danger')
         return redirect(request.referrer or url_for('list_players'))
     try:
         import io

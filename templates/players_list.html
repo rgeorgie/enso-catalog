@@ -140,10 +140,10 @@
             <div class="d-flex flex-row justify-content-end gap-2">
               {% if not p.monthly_fee_is_monthly %}
                 <form class="m-0" method="post" action="{{ url_for('record_session', player_id=p.id) }}">
-                  <button class="btn btn-sm btn-outline-secondary" type="submit">Record Session</button>
+                  <button class="btn btn-sm btn-outline-secondary" type="submit">{{ _('Record Session') }}</button>
                 </form>
               {% endif %}
-              <button class="btn btn-sm {% if p.has_debt %}btn-danger{% else %}btn-outline-success{% endif %} pay-due-modal-btn ms-auto" type="button" data-player-id="{{ p.id }}">Pay Due</button>
+              <button class="btn btn-sm {% if p.has_debt %}btn-danger{% else %}btn-outline-success{% endif %} pay-due-modal-btn ms-auto" type="button" data-player-id="{{ p.id }}">{{ _('Pay Due') }}</button>
             </div>
           </td>
         </tr>
