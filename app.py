@@ -1416,7 +1416,7 @@ def player_detail(player_id: int):
 
     # Use TrainingSession for session logic (unified with player list)
     sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
-    all_sessions = TrainingSession.query.filter_by(**sess_filter).all()
+    all_sessions = TrainingSession.query.filter_by(**sess_filter).order_by(TrainingSession.date.desc()).all()
     paid_sessions = [s for s in all_sessions if s.paid]
     unpaid_sessions = [s for s in all_sessions if not s.paid]
     total_sessions_taken = len(all_sessions)
@@ -1429,11 +1429,22 @@ def player_detail(player_id: int):
     rec_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
     all_receipts = PaymentRecord.query.filter_by(**rec_filter, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
     sess_records = all_receipts[:total_sessions_paid]
+    
+    # Prepare sessions data for calendar
+    sessions_data = [{
+        'id': s.id,
+        'session_id': s.session_id,
+        'date': s.date.isoformat() if s.date else None,
+        'paid': s.paid,
+        'created_at': s.created_at.isoformat() if s.created_at else None
+    } for s in all_sessions]
+    
     return render_template(
         "player_detail.html",
         player=player,
         current_payment=current_payment,
         regs=regs,
+        all_sessions=sessions_data,
         total_sessions_paid=total_sessions_paid,
         total_sessions_taken=total_sessions_taken,
         total_sessions_unpaid=total_sessions_unpaid,
@@ -4124,9 +4135,6 @@ def receipt_tick_session(rid: int):
 @admin_required
 def record_session(player_id: int):
     player = Player.query.get_or_404(player_id)
-    if player.monthly_fee_is_monthly:
-        flash('Player is not a per-session payer.', 'warning')
-        return redirect(request.referrer or url_for('player_detail', player_id=player.id))
 
     # Always create a new TrainingSession row for this player
     today = date.today()
@@ -4135,8 +4143,12 @@ def record_session(player_id: int):
     if existing:
         flash('Session for today already recorded.', 'info')
         return redirect(request.referrer or url_for('player_detail', player_id=player.id))
+    
+    # For monthly payers, mark as paid since they pay monthly
+    is_paid = player.monthly_fee_is_monthly
+    
     session_id = f"{player.id}_{today.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S%f')}"
-    ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=today, session_id=session_id, paid=False, created_at=datetime.now())
+    ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=today, session_id=session_id, paid=is_paid, created_at=datetime.now())
     db.session.add(ts)
     try:
         db.session.commit()
