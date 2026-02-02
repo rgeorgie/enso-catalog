@@ -287,7 +287,7 @@
               <div class="btn-group" role="group">
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="prev-month">← {{ _('Previous') }}</button>
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="current-month">{{ _('Current Month') }}</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="next-month">{{ _('Next') }}</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="next-month">{{ _('Next') }} →</button>
               </div>
             </div>
             <div id="training-calendar"></div>
@@ -507,7 +507,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Month/Year header
     const header = document.createElement('h6');
     header.className = 'text-center mb-3';
-    header.textContent = date.toLocaleDateString('{{ current_lang }}', { year: 'numeric', month: 'long' });
+    const locale = '{{ current_lang }}' === 'bg' ? 'bg-BG' : 'en-US';
+    header.textContent = date.toLocaleDateString(locale, { year: 'numeric', month: 'long' });
     calendar.appendChild(header);
 
     // Days of week header
@@ -523,52 +524,54 @@ document.addEventListener('DOMContentLoaded', function() {
     calendar.appendChild(weekHeader);
 
     // Calendar grid
-    let currentWeek = document.createElement('div');
-    currentWeek.className = 'row g-1 mb-1';
+    let currentDate = new Date(startDate);
 
-    for (let d = new Date(startDate); d <= lastDay || currentWeek.children.length < 7; d.setDate(d.getDate() + 1)) {
-      if (currentWeek.children.length === 7) {
-        calendar.appendChild(currentWeek);
-        currentWeek = document.createElement('div');
-        currentWeek.className = 'row g-1 mb-1';
+    for (let week = 0; week < 6; week++) {  // Max 6 weeks in a month
+      const weekRow = document.createElement('div');
+      weekRow.className = 'row g-1 mb-1';
+
+      for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+        const dayCell = document.createElement('div');
+        dayCell.className = 'col';
+
+        const dayButton = document.createElement('button');
+        dayButton.className = 'btn btn-sm w-100 position-relative';
+        dayButton.textContent = currentDate.getDate();
+
+        // Check if this date has sessions
+        const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+        const daySessions = sessions.filter(s => s.date === dateStr);
+
+        if (daySessions.length > 0) {
+          dayButton.classList.add('btn-success');
+          const badge = document.createElement('span');
+          badge.className = 'badge bg-light text-dark position-absolute top-0 end-0';
+          badge.style.fontSize = '0.7em';
+          badge.textContent = daySessions.length;
+          dayButton.appendChild(badge);
+
+          // Add tooltip with session details
+          const paidText = '{{ _('Paid') }}';
+          const unpaidText = '{{ _('Unpaid') }}';
+          dayButton.title = daySessions.map(s => `${s.session_id} (${s.paid ? paidText : unpaidText})`).join('\n');
+        } else if (currentDate.getMonth() === month) {
+          dayButton.classList.add('btn-outline-secondary');
+        } else {
+          dayButton.classList.add('btn-light');
+          dayButton.disabled = true;
+        }
+
+        dayCell.appendChild(dayButton);
+        weekRow.appendChild(dayCell);
+        currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      const dayCell = document.createElement('div');
-      dayCell.className = 'col';
+      calendar.appendChild(weekRow);
 
-      const dayButton = document.createElement('button');
-      dayButton.className = 'btn btn-sm w-100 position-relative';
-      dayButton.textContent = d.getDate();
-
-      // Check if this date has sessions
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const daySessions = sessions.filter(s => s.date === dateStr);
-
-      if (daySessions.length > 0) {
-        dayButton.classList.add('btn-success');
-        const badge = document.createElement('span');
-        badge.className = 'badge bg-light text-dark position-absolute top-0 end-0';
-        badge.style.fontSize = '0.7em';
-        badge.textContent = daySessions.length;
-        dayButton.appendChild(badge);
-
-        // Add tooltip with session details
-        const paidText = '{{ _('Paid') }}';
-        const unpaidText = '{{ _('Unpaid') }}';
-        dayButton.title = daySessions.map(s => `${s.session_id} (${s.paid ? paidText : unpaidText})`).join('\n');
-      } else if (d.getMonth() === month) {
-        dayButton.classList.add('btn-outline-secondary');
-      } else {
-        dayButton.classList.add('btn-light');
-        dayButton.disabled = true;
+      // Stop if we've moved to the next month and the week is mostly empty
+      if (currentDate.getMonth() !== month && currentDate.getDay() === 0) {
+        break;
       }
-
-      dayCell.appendChild(dayButton);
-      currentWeek.appendChild(dayCell);
-    }
-
-    if (currentWeek.children.length > 0) {
-      calendar.appendChild(currentWeek);
     }
   }
 
