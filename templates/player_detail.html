@@ -489,8 +489,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // Training sessions calendar
+  // Training sessions and events calendar
   const sessions = {{ all_sessions|tojson }};
+  const events = {{ events_data|tojson }};
   let currentDate = new Date();
 
   function renderCalendar(date) {
@@ -499,7 +500,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    // Adjust for Monday-first calendar
+    const dayOfWeek = firstDay.getDay();
+    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert Sunday (0) to 6, Monday (1) to 0, etc.
+    startDate.setDate(startDate.getDate() - mondayOffset);
 
     const calendar = document.getElementById('training-calendar');
     calendar.innerHTML = '';
@@ -511,8 +516,8 @@ document.addEventListener('DOMContentLoaded', function() {
     header.textContent = date.toLocaleDateString(locale, { year: 'numeric', month: 'long' });
     calendar.appendChild(header);
 
-    // Days of week header
-    const daysOfWeek = ['{{ _('Sun') }}', '{{ _('Mon') }}', '{{ _('Tue') }}', '{{ _('Wed') }}', '{{ _('Thu') }}', '{{ _('Fri') }}', '{{ _('Sat') }}'];
+    // Days of week header (Monday first)
+    const daysOfWeek = ['{{ _('Mon') }}', '{{ _('Tue') }}', '{{ _('Wed') }}', '{{ _('Thu') }}', '{{ _('Fri') }}', '{{ _('Sat') }}', '{{ _('Sun') }}'];
     const weekHeader = document.createElement('div');
     weekHeader.className = 'row g-1 mb-2';
     daysOfWeek.forEach(day => {
@@ -538,11 +543,33 @@ document.addEventListener('DOMContentLoaded', function() {
         dayButton.className = 'btn btn-sm w-100 position-relative';
         dayButton.textContent = currentDate.getDate();
 
-        // Check if this date has sessions
+        // Check if this date has sessions or events
         const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
         const daySessions = sessions.filter(s => s.date === dateStr);
+        const dayEvents = events.filter(e => {
+          const startDate = new Date(e.start_date);
+          const endDate = new Date(e.end_date);
+          const checkDate = new Date(dateStr);
+          return checkDate >= startDate && checkDate <= endDate;
+        });
 
-        if (daySessions.length > 0) {
+        if (dayEvents.length > 0) {
+          // Show events (higher priority than sessions)
+          dayButton.classList.add('btn-primary');
+          const badge = document.createElement('span');
+          badge.className = 'badge bg-light text-dark position-absolute top-0 end-0';
+          badge.style.fontSize = '0.7em';
+          badge.textContent = 'E' + (dayEvents.length > 1 ? dayEvents.length : '');
+          dayButton.appendChild(badge);
+
+          // Add click handler to show event details
+          dayButton.addEventListener('click', function() {
+            showEventDetails(dayEvents, dateStr);
+          });
+
+          // Add tooltip with event titles
+          dayButton.title = dayEvents.map(e => `${e.title} (${e.location || ''})`).join('\n');
+        } else if (daySessions.length > 0) {
           dayButton.classList.add('btn-success');
           const badge = document.createElement('span');
           badge.className = 'badge bg-light text-dark position-absolute top-0 end-0';
@@ -568,11 +595,70 @@ document.addEventListener('DOMContentLoaded', function() {
 
       calendar.appendChild(weekRow);
 
-      // Stop if we've moved to the next month and the week is mostly empty
-      if (currentDate.getMonth() !== month && currentDate.getDay() === 0) {
+      // Stop if we've moved to the next month and the week starts on Monday
+      if (currentDate.getMonth() !== month && currentDate.getDay() === 1) {
         break;
       }
     }
+  }
+
+  function showEventDetails(dayEvents, dateStr) {
+    // Create modal for event details
+    const modalHtml = `
+      <div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="eventModalLabel">{{ _('Events on') }} ${new Date(dateStr).toLocaleDateString()}</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              ${dayEvents.map(event => `
+                <div class="card mb-3">
+                  <div class="card-body">
+                    <h6 class="card-title">${event.title}</h6>
+                    <div class="row">
+                      <div class="col-sm-6">
+                        <p class="mb-1"><strong>{{ _('Date') }}:</strong> ${new Date(event.start_date).toLocaleDateString()}${event.end_date !== event.start_date ? ' - ' + new Date(event.end_date).toLocaleDateString() : ''}</p>
+                        <p class="mb-1"><strong>{{ _('Location') }}:</strong> ${event.location || '{{ _('Not specified') }}'}</p>
+                      </div>
+                      <div class="col-sm-6">
+                        <p class="mb-1"><strong>{{ _('Fee') }}:</strong> ${event.fee ? event.fee + ' EUR' : '{{ _('Not set') }}'}</p>
+                        <p class="mb-1"><strong>{{ _('Payment Status') }}:</strong> <span class="badge ${event.paid ? 'bg-success' : 'bg-warning'}">${event.paid ? '{{ _('Paid') }}' : '{{ _('Unpaid') }}'}</span></p>
+                      </div>
+                    </div>
+                    <div class="mt-2">
+                      <a href="/events/${event.id}" class="btn btn-sm btn-outline-primary" target="_blank">{{ _('View Event Details') }}</a>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Close') }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Remove existing modal if present
+    const existingModal = document.getElementById('eventModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+    modal.show();
+
+    // Clean up modal when hidden
+    document.getElementById('eventModal').addEventListener('hidden.bs.modal', function() {
+      this.remove();
+    });
   }
 
   // Initial render

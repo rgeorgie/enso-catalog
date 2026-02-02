@@ -13,7 +13,7 @@ enso-catalog is a small single-file Flask application for managing a karate club
 
 - **Players**: List, search, filter, add, edit, delete. Each player can have a photo, contact info, medical/insurance data, and parent contacts.
  - **Players**: List, search, filter, add, edit, delete. `pn` (personal number / ЕГН) is mandatory and used as the stable UID for historical relations. Photos, contact info, medical/insurance data, and parent contacts are supported.
-- **Training Sessions**: Track attendance for all players (monthly and per-session payers). Interactive calendar view and detailed list view in player profiles. Record sessions with automatic payment status based on player type.
+- **Training Sessions**: Track attendance for all players (monthly and per-session payers). Interactive calendar view and detailed list view in player profiles. Record sessions with automatic payment status based on player type. Calendar shows both training sessions and event participations with clickable event details.
 - **Payments & Receipts**:
     - Track monthly and per-session training fees.
     - Mark payments as paid/unpaid; print or export receipts.
@@ -104,7 +104,7 @@ python app.py
 - All data is stored locally in `karate_club.db`.
 - To reset, delete the DB and uploads folder.
 - Training sessions are tracked for all players regardless of payment type - monthly payers have sessions automatically marked as paid, while per-session payers can have paid or unpaid sessions.
-- The calendar widget in player profiles provides an intuitive view of training attendance over time.
+- The calendar widget in player profiles provides an intuitive view of training attendance and event participations over time, with clickable event details.
 - For more, see comments in `app.py` and the `.github/copilot-instructions.md` file.
 
 Important operational notes

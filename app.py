@@ -2,7 +2,7 @@ import os
 import re
 import json
 import calendar
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 from typing import Optional, Tuple
 
@@ -157,6 +157,8 @@ translations = {
         "Add Player": "Add Player",
         "Edit Player": "Edit Player",
         "Back": "Back",
+        "Previous": "Previous",
+        "Next": "Next",
         "Edit": "Edit",
         "Run DB migration": "Run DB migration",
         "Admin Login": "Admin Login",
@@ -326,6 +328,7 @@ translations = {
         "Import": "Import",
         "Import Event (ZIP)": "Import Event (ZIP)",
         "Sports Calendar": "Sports Calendar",
+        "Athletes participated:": "Athletes participated:",
         "New Event": "New Event",
         "Edit Event": "Edit Event",
         "Event": "Event",
@@ -503,6 +506,8 @@ translations = {
         "Add Player": "Добави Спортист",
         "Edit Player": "Редакция на Спортист",
         "Back": "Назад",
+        "Previous": "Предишна",
+        "Next": "Следваща",
         "Edit": "Редакция",
         "Run DB migration": "Стартирай миграция",
         "Admin Login": "Админ вход",
@@ -672,6 +677,7 @@ translations = {
         "Import": "Импортирай",
         "Import Event (ZIP)": "Импортирай събитие (ZIP)",
         "Sports Calendar": "Спортен календар",
+        "Athletes participated:": "Участвали спортисти:",
         "New Event": "Ново събитие",
         "Edit Event": "Редакция на събитие",
         "Event": "Събитие",
@@ -1439,12 +1445,28 @@ def player_detail(player_id: int):
         'created_at': s.created_at.isoformat() if s.created_at else None
     } for s in all_sessions]
     
+    # Prepare events data for calendar
+    events_data = []
+    for reg in regs:
+        event = reg.event
+        if event.start_date:
+            events_data.append({
+                'id': event.id,
+                'title': event.title,
+                'start_date': event.start_date.isoformat(),
+                'end_date': event.end_date.isoformat() if event.end_date else event.start_date.isoformat(),
+                'location': event.location,
+                'paid': reg.paid,
+                'fee': reg.computed_fee()
+            })
+    
     return render_template(
         "player_detail.html",
         player=player,
         current_payment=current_payment,
         regs=regs,
         all_sessions=sessions_data,
+        events_data=events_data,
         total_sessions_paid=total_sessions_paid,
         total_sessions_taken=total_sessions_taken,
         total_sessions_unpaid=total_sessions_unpaid,
@@ -2723,14 +2745,53 @@ def events_calendar():
 
     cal = calendar.monthcalendar(y, m)
     weeks = []
+    
+    # Get attendance data for the month
+    first = date(y, m, 1)
+    last = date(y, m, last_day)
+    attendance_data = {}
+    
+    # Query all training sessions for this month
+    sessions = TrainingSession.query.filter(
+        TrainingSession.date >= first,
+        TrainingSession.date <= last
+    ).all()
+    
+    # Count sessions per day
+    for session in sessions:
+        date_key = session.date.isoformat()
+        if date_key not in attendance_data:
+            attendance_data[date_key] = 0
+        attendance_data[date_key] += 1
+    
+    # Prepare events by date for JavaScript
+    events_by_date = {}
+    for e in events:
+        # For events spanning multiple days, add to each day
+        event_start = e.start_date
+        event_end = e.end_date or e.start_date
+        current_date = event_start
+        while current_date <= event_end:
+            if first <= current_date <= last:
+                date_key = current_date.isoformat()
+                if date_key not in events_by_date:
+                    events_by_date[date_key] = []
+                events_by_date[date_key].append({
+                    'title': e.title,
+                    'url': url_for('event_detail', event_id=e.id)
+                })
+            current_date += timedelta(days=1)
+    
     for wk in cal:
         row = []
         for d in wk:
             if d == 0:
-                row.append({"day": None, "events": []})
+                row.append({"day": None, "events": [], "attendance": 0})
             else:
                 dt = date(y, m, d)
-                row.append({"day": dt, "events": [e for e in events if e.spans(dt)]})
+                day_events = [e for e in events if e.spans(dt)]
+                day_attendance = attendance_data.get(dt, 0)
+                row.append({"day": dt, "events": day_events, "attendance": day_attendance})
         weeks.append(row)
 
     prev_y, prev_m = (y - 1, 12) if m == 1 else (y, m - 1)
@@ -2740,8 +2801,12 @@ def events_calendar():
         "events_calendar.html",
         year=y, month=m, month_name=calendar.month_name[m],
         weeks=weeks,
+        events_by_date=events_by_date,
+        attendance_by_date=attendance_data,
         prev_str=f"{prev_y:04d}-{prev_m:02d}",
         next_str=f"{next_y:04d}-{next_m:02d}",
+        _=_,
+        current_lang=get_lang(),
     )
 
 @app.route("/event-list")
