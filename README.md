@@ -13,8 +13,9 @@ enso-catalog is a small single-file Flask application for managing a karate club
 
 - **Players**: List, search, filter, add, edit, delete. Each player can have a photo, contact info, medical/insurance data, and parent contacts.
  - **Players**: List, search, filter, add, edit, delete. `pn` (personal number / ЕГН) is mandatory and used as the stable UID for historical relations. Photos, contact info, medical/insurance data, and parent contacts are supported.
-- **Training Sessions**: Track attendance for all players (monthly and per-session payers). Interactive calendar view and detailed list view in player profiles. Record sessions with automatic payment status based on player type. Calendar shows both training sessions, event participations, and external BNFK federation events (informational only, cached daily) with clickable event details.
+- **Training Sessions**: Track attendance for all players (monthly and per-session payers). Interactive calendar view and detailed list view in player profiles. Record sessions with automatic payment status based on player type. Calendar shows both training sessions, event participations, and external BNFK federation events (informational only, cached daily) with clickable event details. **Events with registered players display a club logo and participant count for better visibility.**
 - **Kiosk Mode**: Public interface (`/kiosk`) for athletes to record training sessions without admin login. Click on name, enter Player Number in modal to confirm and record session.
+- **Payments & Receipts**:
 - **Payments & Receipts**:
     - Track monthly and per-session training fees.
     - Mark payments as paid/unpaid; print or export receipts.
@@ -34,8 +35,7 @@ enso-catalog is a small single-file Flask application for managing a karate club
     - Export players (ZIP/CSV), events (ZIP without photos), registrations and full payment backups as CSV.
 - **Photo Uploads**: Store player photos in `uploads/` (max 2MB, jpg/png/gif/webp).
 - **Localization**: Simple i18n (BG/EN) with in-app language switch.
-- **Admin UI**: All CRUD and sensitive actions require admin login (credentials via env vars).
- - **Localization**: Simple i18n (BG/EN) with in-app language switch.
+- **Admin UI**: All CRUD and sensitive actions require admin login (credentials via env vars).- **Admin Settings**: Customize app appearance and security via `/admin/settings` - upload custom logo, background image, set primary/secondary colors, and change admin password (stored securely as hash). - **Localization**: Simple i18n (BG/EN) with in-app language switch.
  - **Admin UI**: All CRUD and sensitive actions require admin login (`ADMIN_USER`/`ADMIN_PASS` environment variables).
 
 ## Security
@@ -63,6 +63,7 @@ enso-catalog/
 │   ├─ payment_new.html
 │   ├─ report_fees.html
 │   ├─ report_medals.html
+│   ├─ admin_settings.html
 │   └─ login.html
 └─ karate_club.db        # SQLite database (auto-created)
 ```
@@ -106,6 +107,7 @@ python app.py
 - To reset, delete the DB and uploads folder.
 - Training sessions are tracked for all players regardless of payment type - monthly payers have sessions automatically marked as paid, while per-session payers can have paid or unpaid sessions.
 - The calendar widget in player profiles provides an intuitive view of training attendance and event participations over time, with clickable event details.
+- **Admin settings allow customization of the app's appearance (logo, background, colors) and security (admin password).**
 - For more, see comments in `app.py` and the `.github/copilot-instructions.md` file.
 
 Important operational notes

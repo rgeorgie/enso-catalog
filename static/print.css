@@ -19,4 +19,63 @@
   .form-error, .form-messages, .alert, .error, .invalid-feedback {
     display: none !important;
   }
+
+  /* Force each receipt to be on its own page */
+  .receipt {
+    page-break-after: always !important;
+    break-after: page !important;
+    break-inside: avoid !important;
+    min-height: 27cm !important; /* A4 height minus margins */
+    max-height: 27cm !important;
+    height: 27cm !important;
+    margin: 0 !important;
+    padding: 2rem !important;
+    display: block !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Page setup for A4 portrait */
+  @page {
+    size: A4 portrait;
+    margin: 1cm;
+  }
+}
+
+/* Page break utilities for receipts */
+.page-break-after-always {
+  page-break-after: always;
+  break-after: page;
+}
+
+.page-break-before-always {
+  page-break-before: always;
+  break-before: page;
+}
+
+.page-break-before-avoid {
+  page-break-before: avoid;
+}
+
+.break-after-page {
+  break-after: page !important;
+  page-break-after: always !important;
+}
+
+/* Ensure receipts take up more space for better page separation */
+.receipt {
+  min-height: 60vh; /* Reasonable height on screen */
+  display: block;
+  margin-bottom: 2rem;
+  padding: 2rem;
+  border: 1px solid #ddd;
+}
+
+/* Force page breaks between receipts */
+.page-break-spacer {
+  height: 50vh; /* Large empty space to force page break */
+  page-break-before: always;
+  break-before: page;
+  margin: 0;
+  padding: 0;
 }

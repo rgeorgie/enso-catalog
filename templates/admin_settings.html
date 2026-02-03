@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4">{{ _('Admin Settings') }}</h1>
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data">
+            {{ form.hidden_tag() }}
+
+            <div class="mb-3">
+              <label class="form-label">{{ _('Logo') }}</label>
+              <div class="mb-2">
+                <img src="{{ current_logo }}" alt="Current Logo" style="height: 40px;">
+              </div>
+              {{ form.logo(class="form-control") }}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">{{ _('Background Image') }}</label>
+              {% if current_background %}
+                <div class="mb-2">
+                  <img src="{{ current_background }}" alt="Current Background" style="height: 40px;">
+                </div>
+              {% endif %}
+              {{ form.background(class="form-control") }}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">{{ _('Admin Password') }}</label>
+              {{ form.admin_password(class="form-control") }}
+              <div class="form-text">{{ _('Leave blank to keep current password') }}</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">{{ _('Primary Color') }}</label>
+              {{ form.primary_color(class="form-control", type="color", value=current_primary) }}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">{{ _('Secondary Color') }}</label>
+              {{ form.secondary_color(class="form-control", type="color", value=current_secondary) }}
+            </div>
+
+            <button type="submit" class="btn btn-primary">{{ _('Save Settings') }}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

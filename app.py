@@ -15,7 +15,7 @@ from flask_wtf import FlaskForm
 from werkzeug.utils import secure_filename
 from wtforms import (
     StringField, SelectField, DateField, IntegerField,
-    TextAreaField, SubmitField, BooleanField, SelectMultipleField
+    TextAreaField, SubmitField, BooleanField, SelectMultipleField, FileField, PasswordField
 )
 from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL, Regexp
 from sqlalchemy import or_, and_, text
@@ -1807,6 +1807,10 @@ class PaymentRecord(db.Model):
         if do_commit:
             db.session.commit()
 
+class Setting(db.Model):
+    key = db.Column(db.String(50), primary_key=True)
+    value = db.Column(db.String(500), nullable=True)
+
 # -----------------------------
 # Forms
 # -----------------------------
@@ -1870,6 +1874,14 @@ class EventRegistrationForm(FlaskForm):
     paid = BooleanField("Paid", default=False)
     submit = SubmitField("Add Registration")
 
+class SettingsForm(FlaskForm):
+    logo = FileField("Logo", validators=[VOptional()])
+    admin_password = PasswordField("Admin Password", validators=[VOptional(), Length(min=6)])
+    background = FileField("Background Image", validators=[VOptional()])
+    primary_color = StringField("Primary Color", validators=[VOptional(), Regexp(r'^#[0-9a-fA-F]{6}$', message="Invalid hex color")])
+    secondary_color = StringField("Secondary Color", validators=[VOptional(), Regexp(r'^#[0-9a-fA-F]{6}$', message="Invalid hex color")])
+    submit = SubmitField("Save Settings")
+
 def set_localized_choices(form: PlayerForm):
     form.grade_level.choices = [(g, g) for g in GRADING_SCHEME["grades"]]
     # Display localized label, store short key in DB
@@ -1877,8 +1889,15 @@ def set_localized_choices(form: PlayerForm):
     form.gender.choices = [("", _("—"))] + [(v, _(v)) for v in GENDER_VALUES]
 
 # -----------------------------
-# Context processors
-# -----------------------------
+@app.context_processor
+def inject_settings():
+    settings = {s.key: s.value for s in Setting.query.all()}
+    return dict(
+        app_logo=settings.get('logo_path', '/static/img/enso-logo.webp'),
+        app_background=settings.get('background_image'),
+        app_primary_color=settings.get('primary_color', '#007bff'),
+        app_secondary_color=settings.get('secondary_color', '#6c757d'),
+    )
 @app.context_processor
 def inject_i18n():
     return dict(_=_, current_lang=get_lang())
@@ -2201,7 +2220,19 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
-        if username == ADMIN_USER and password == ADMIN_PASS:
+        # Check settings first
+        setting = Setting.query.filter_by(key='admin_password_hash').first()
+        if setting:
+            import hashlib
+            hashed = hashlib.sha256(password.encode()).hexdigest()
+            if username == ADMIN_USER and hashed == setting.value:
+                session["is_admin"] = True
+                flash(_("Logged in as admin."), "success")
+                if next_url.endswith("/login") or next_url.startswith("/login?"):
+                    next_url = url_for("list_players")
+                return redirect(next_url)
+        # Fallback to env
+        elif username == ADMIN_USER and password == ADMIN_PASS:
             session["is_admin"] = True
             flash(_("Logged in as admin."), "success")
             if next_url.endswith("/login") or next_url.startswith("/login?"):
@@ -4699,6 +4730,84 @@ with app.app_context():
         app.logger.exception("Auto-migrate failed: %s", e)
 
 # -----------------------------
+# Admin Settings
+# -----------------------------
+@app.route("/admin/settings", methods=["GET", "POST"])
+@admin_required
+def admin_settings():
+    form = SettingsForm()
+    if form.validate_on_submit():
+        # Handle logo upload
+        if form.logo.data:
+            filename = secure_filename(form.logo.data.filename)
+            if allowed_file(filename):
+                filepath = os.path.join(app.root_path, 'static/img', filename)
+                form.logo.data.save(filepath)
+                setting = Setting.query.filter_by(key='logo_path').first()
+                if not setting:
+                    setting = Setting(key='logo_path')
+                setting.value = f'/static/img/{filename}'
+                db.session.add(setting)
+
+        # Handle background upload
+        if form.background.data:
+            filename = secure_filename(form.background.data.filename)
+            if allowed_file(filename):
+                filepath = os.path.join(app.root_path, 'static/img', filename)
+                form.background.data.save(filepath)
+                setting = Setting.query.filter_by(key='background_image').first()
+                if not setting:
+                    setting = Setting(key='background_image')
+                setting.value = f'/static/img/{filename}'
+                db.session.add(setting)
+
+        # Admin password
+        if form.admin_password.data:
+            import hashlib
+            hashed = hashlib.sha256(form.admin_password.data.encode()).hexdigest()
+            setting = Setting.query.filter_by(key='admin_password_hash').first()
+            if not setting:
+                setting = Setting(key='admin_password_hash')
+            setting.value = hashed
+            db.session.add(setting)
+
+        # Colors
+        if form.primary_color.data:
+            setting = Setting.query.filter_by(key='primary_color').first()
+            if not setting:
+                setting = Setting(key='primary_color')
+            setting.value = form.primary_color.data
+            db.session.add(setting)
+
+        if form.secondary_color.data:
+            setting = Setting.query.filter_by(key='secondary_color').first()
+            if not setting:
+                setting = Setting(key='secondary_color')
+            setting.value = form.secondary_color.data
+            db.session.add(setting)
+
+        db.session.commit()
+        flash("Settings saved successfully.", "success")
+        return redirect(url_for('admin_settings'))
+
+    # Load current values
+    logo_setting = Setting.query.filter_by(key='logo_path').first()
+    background_setting = Setting.query.filter_by(key='background_image').first()
+    primary_setting = Setting.query.filter_by(key='primary_color').first()
+    secondary_setting = Setting.query.filter_by(key='secondary_color').first()
+
+    return render_template(
+        "admin_settings.html",
+        form=form,
+        current_logo=logo_setting.value if logo_setting else '/static/img/enso-logo.webp',
+        current_background=background_setting.value if background_setting else None,
+        current_primary=primary_setting.value if primary_setting else '#007bff',
+        current_secondary=secondary_setting.value if secondary_setting else '#6c757d',
+        _=_,
+        current_lang=get_lang(),
+    )
+
+# -----------------------------
 # Payments & Receipts (admin-only)
 # -----------------------------
 @app.route("/admin/payments/new", methods=["GET", "POST"])
@@ -4903,11 +5012,31 @@ def receipts_print_batch():
         flash('No receipts selected for printing.', 'info')
         return redirect(request.referrer or url_for('list_players'))
     id_list = [int(x) for x in ids.split(',') if x.strip().isdigit()]
-    recs = PaymentRecord.query.filter(PaymentRecord.id.in_(id_list)).order_by(PaymentRecord.paid_at.asc()).all()
+    recs = (PaymentRecord.query
+            .filter(PaymentRecord.id.in_(id_list))
+            .order_by(PaymentRecord.paid_at.asc())
+            .all())
     if not recs:
         flash('No receipts found.', 'info')
         return redirect(request.referrer or url_for('list_players'))
     return render_template('receipts_print_batch.html', recs=recs)
+
+@app.route("/admin/receipts/print_batch_clean")
+@admin_required
+def receipts_print_batch_clean():
+    ids = request.args.get('ids', '')
+    if not ids:
+        flash('No receipts selected for printing.', 'info')
+        return redirect(request.referrer or url_for('list_players'))
+    id_list = [int(x) for x in ids.split(',') if x.strip().isdigit()]
+    recs = (PaymentRecord.query
+            .filter(PaymentRecord.id.in_(id_list))
+            .order_by(PaymentRecord.paid_at.asc())
+            .all())
+    if not recs:
+        flash('No receipts found.', 'info')
+        return redirect(request.referrer or url_for('list_players'))
+    return render_template('receipts_print_batch_clean.html', recs=recs)
 
 @app.route("/admin/receipts/<int:rid>/tick", methods=["POST"])
 @admin_required
