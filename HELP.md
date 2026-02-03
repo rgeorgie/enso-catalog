@@ -143,6 +143,7 @@ The application supports Bulgarian (default) and English. Use the language switc
 #### Event Reporting
 - **Registration Lists**: View all registered athletes
 - **Payment Tracking**: Monitor paid/unpaid registrations
+- **Grouped Payment Report**: View payments grouped by player, showing all categories and total fees per athlete
 - **Export Data**: CSV exports for external systems
 - **Medal Tracking**: Record competition results
 
@@ -151,6 +152,7 @@ The application supports Bulgarian (default) and English. Use the language switc
 #### Available Reports
 - **Fee Reports**: Monthly payment summaries
 - **Medal Reports**: Competition results by year
+- **Event Payment Reports**: Grouped payments by player with categories and totals
 - **Player Lists**: Filtered player directories
 - **Payment Exports**: Complete transaction history
 
