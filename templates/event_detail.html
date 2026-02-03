@@ -9,6 +9,7 @@
     {% if session.get('is_admin') %}
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('event_export_csv', event_id=ev.id) }}">{{ _('Export Registrations CSV') }}</a>
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('event_export_full', event_id=ev.id) }}">{{ _('Export Event (full ZIP)') }}</a>
+      <a class="btn btn-outline-primary btn-sm" href="{{ url_for('event_payment_report', event_id=ev.id) }}" target="_blank">{{ _('Payment Report') }}</a>
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('event_edit', event_id=ev.id) }}">{{ _('Edit Event') }}</a>
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('event_categories', event_id=ev.id) }}">{{ _('Categories') }}</a>
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('event_registrations', event_id=ev.id) }}">{{ _('Registrations') }}</a>

@@ -3850,6 +3850,76 @@ def event_detail(event_id: int):
         medal_gold=gold, medal_silver=silver, medal_bronze=bronze
     )
 
+@app.route("/admin/events/<int:event_id>/payment_report")
+@admin_required
+def event_payment_report(event_id: int):
+    ev = Event.query.get_or_404(event_id)
+    regs = (EventRegistration.query
+            .filter_by(event_id=ev.id)
+            .join(Player, Player.id == EventRegistration.player_id)
+            .order_by(Player.last_name.asc(), Player.first_name.asc())
+            .all())
+
+    def expected_fee(r: EventRegistration) -> Optional[int]:
+        if r.fee_override is not None:
+            return r.fee_override
+        total = 0
+        counted = False
+        for rc in r.reg_categories or []:
+            if rc.category and rc.category.fee is not None:
+                total += int(rc.category.fee)
+                counted = True
+        return total if counted else None
+
+    # Group registrations by player
+    player_groups = {}
+    for reg in regs:
+        player_id = reg.player.id
+        if player_id not in player_groups:
+            player_groups[player_id] = {
+                'player': reg.player,
+                'regs': [],
+                'categories': [],
+                'total_fee': 0,
+                'paid_count': 0,
+                'total_count': 0
+            }
+        player_groups[player_id]['regs'].append(reg)
+        fee = expected_fee(reg)
+        if fee is not None:
+            player_groups[player_id]['total_fee'] += fee
+        player_groups[player_id]['total_count'] += 1
+        if reg.paid:
+            player_groups[player_id]['paid_count'] += 1
+        # Collect categories
+        for rc in reg.reg_categories or []:
+            if rc.category and rc.category.name not in player_groups[player_id]['categories']:
+                player_groups[player_id]['categories'].append(rc.category.name)
+
+    # Convert to list and determine if fully paid
+    grouped_regs = []
+    for pg in player_groups.values():
+        pg['fully_paid'] = pg['paid_count'] == pg['total_count']
+        grouped_regs.append(pg)
+
+    # Sort by player name
+    grouped_regs.sort(key=lambda x: (x['player'].last_name.lower(), x['player'].first_name.lower()))
+
+    # Calculate totals
+    total_expected = sum(pg['total_fee'] for pg in grouped_regs)
+    total_paid = sum(pg['total_fee'] for pg in grouped_regs if pg['fully_paid'])
+    total_unpaid = total_expected - total_paid
+
+    return render_template(
+        "event_payment_report.html",
+        ev=ev, grouped_regs=grouped_regs,
+        expected_fee=expected_fee,
+        total_expected=total_expected,
+        total_paid=total_paid,
+        total_unpaid=total_unpaid,
+        now=datetime.utcnow()
+    )
+
 @app.route("/admin/events/new", methods=["GET", "POST"])
 @admin_required
 def event_new():
