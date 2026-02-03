@@ -24,6 +24,9 @@
     <a class="btn btn-outline-secondary" href="{{ url_for('payments_export_all_csv') }}">
       {{ _('Export All Payments (CSV)') }}
     </a>
+    <a class="btn btn-outline-success" href="{{ url_for('fees_report_print', year=year, month=month) }}" target="_blank">
+      <i class="bi bi-printer"></i> {{ _('Print') }}
+    </a>
   </div>
 
   <a class="btn btn-secondary ms-2" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>

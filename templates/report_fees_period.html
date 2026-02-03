@@ -5,11 +5,8 @@
   <h2 class="m-0">{{ _('Period Fees Report') }}</h2>
 
   <div class="d-flex align-items-center gap-2">
-    <a class="btn btn-outline-primary" href="{{ url_for('fees_period_report', start_date=start_date.isoformat(), end_date=end_date.isoformat(), print='1') }}" target="_blank">
-      <i class="bi bi-printer"></i> {{ _('Print') }}
-    </a>
-
     <a class="btn btn-outline-secondary" href="{{ url_for('fees_report') }}">{{ _('Back to Monthly Report') }}</a>
+    <a class="btn btn-primary" href="{{ url_for('fees_period_report', start_date=start_date.strftime('%Y-%m-%d'), end_date=end_date.strftime('%Y-%m-%d'), print=1) }}" target="_blank">{{ _('Print Version') }}</a>
   </div>
 </div>
 

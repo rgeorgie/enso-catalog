@@ -3135,6 +3135,168 @@ def fees_report():
         today=date.today()
     )
 
+@app.route("/admin/reports/fees/print/<int:year>/<int:month>")
+@admin_required
+def fees_report_print(year: int, month: int):
+    """Print-friendly version of the monthly fees report."""
+    month_str = f"{year:04d}-{month:02d}"
+    ensure_payments_for_month(year, month)
+
+    # Get all active players
+    players = Player.query.filter_by(active_member=True).order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+    payments = {p.player_id: p for p in Payment.query.filter_by(year=year, month=month).all()}
+
+    # Consolidate all payments per athlete (same logic as fees_report)
+    from sqlalchemy import extract
+    report_rows = []
+    for player in players:
+        # Monthly
+        payment = payments.get(player.id)
+        monthly_amount = payment.amount if payment else 0
+        monthly_paid = payment.paid if payment else False
+        monthly_id = payment.id if payment else None
+        # Per-session
+        per_session_amount = player.monthly_fee_amount if player.monthly_fee_is_monthly is False else None
+        sessions_taken = 0
+        sessions_paid = 0
+        prepaid_amount = 0
+        sessions_in_month = []
+        sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+        if per_session_amount is not None:
+            from calendar import monthrange
+            month_start = date(year, month, 1)
+            month_end = date(year, month, monthrange(year, month)[1])
+            sessions_in_month = TrainingSession.query.filter_by(**sess_filter).filter(TrainingSession.date >= month_start, TrainingSession.date <= month_end).all()
+            sessions_taken = len(sessions_in_month)
+            sessions_paid = sum(1 for s in sessions_in_month if getattr(s, 'paid', False))
+            session_pay_recs = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').filter(
+                db.func.strftime('%Y', PaymentRecord.paid_at) == str(year),
+                db.func.strftime('%m', PaymentRecord.paid_at) == f"{month:02d}"
+            ).all()
+            prepaid_amount = sum(r.amount or 0 for r in session_pay_recs)
+            owed_amount = max(0, (sessions_taken - sessions_paid) * per_session_amount)
+        else:
+            owed_amount = 0
+        
+        session_list = [
+            {
+                'session_id': s.session_id,
+                'date': s.date.isoformat() if s.date else None,
+                'paid': bool(getattr(s, 'paid', False)),
+                'amount': per_session_amount if per_session_amount is not None else None
+            }
+            for s in (locals().get('sessions_in_month') or [])
+        ]
+        
+        # Events
+        event_payments = PaymentRecord.query.filter_by(player_pn=player.pn, kind='event').filter(
+            extract('year', PaymentRecord.paid_at) == year,
+            extract('month', PaymentRecord.paid_at) == month
+        ).all()
+        event_total = sum(ep.amount or 0 for ep in event_payments)
+        
+        # Bulk payments
+        bulk_payments = PaymentRecord.query.filter_by(player_pn=player.pn, kind='bulk_payment').filter(
+            extract('year', PaymentRecord.paid_at) == year,
+            extract('month', PaymentRecord.paid_at) == month
+        ).all()
+        bulk_total = sum(bp.amount or 0 for bp in bulk_payments)
+        
+        # Event owed calculation (same as main report)
+        event_owed = 0
+        category_fees = 0
+        unpaid_regs = EventRegistration.query.filter_by(player_pn=player.pn, paid=False).all()
+        for reg in unpaid_regs:
+            for rc in reg.reg_categories:
+                if rc.category and rc.category.fee is not None:
+                    category_fees += int(rc.category.fee)
+            for rc in reg.reg_categories:
+                if rc.category and rc.category.fee is not None:
+                    event_owed += int(rc.category.fee)
+            if not reg.reg_categories and reg.computed_fee():
+                event_owed += reg.computed_fee()
+        
+        # Event and bulk details for expandable sections
+        event_details = []
+        for ep in event_payments:
+            event_name = ep.event_registration.event.title if ep.event_registration and ep.event_registration.event else None
+            event_details.append({
+                'amount': ep.amount,
+                'event_name': event_name,
+                'receipt_no': ep.receipt_no,
+                'paid_on': ep.paid_at.date() if ep.paid_at else None,
+                'id': ep.id,
+            })
+        
+        bulk_details = []
+        for bp in bulk_payments:
+            bulk_details.append({
+                'amount': bp.amount,
+                'receipt_no': bp.receipt_no,
+                'paid_on': bp.paid_at.date() if bp.paid_at else None,
+                'id': bp.id,
+                'note': bp.note,
+            })
+        
+        # Find monthly receipt
+        monthly_receipt = None
+        if payment:
+            monthly_receipt = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_month', year=year, month=month).first()
+        monthly_receipt_no = monthly_receipt.receipt_no if monthly_receipt else None
+        
+        # Session receipts
+        session_receipt_nos = [r.receipt_no for r in (locals().get('session_receipts') or []) if r.receipt_no]
+        
+        report_rows.append({
+            'player': player,
+            'player_id': player.id,
+            'monthly_amount': monthly_amount,
+            'monthly_paid': monthly_paid,
+            'monthly_receipt_no': monthly_receipt_no,
+            'sessions_paid': sessions_paid,
+            'sessions_taken': sessions_taken,
+            'prepaid_amount': prepaid_amount,
+            'per_session_amount': per_session_amount,
+            'session_receipt_nos': session_receipt_nos,
+            'owed_amount': (owed_amount or 0) + (event_owed or 0),
+            'event_total': event_total,
+            'event_owed': event_owed,
+            'category_fees': category_fees,
+            'bulk_total': bulk_total,
+            'year': year,
+            'month': month,
+        })
+
+    # Calculate totals
+    total_monthly = sum(p['monthly_amount'] for p in report_rows)
+    total_session = sum(p['prepaid_amount'] for p in report_rows)
+    total_event = sum(p['event_total'] for p in report_rows)
+    total_bulk = sum(p['bulk_total'] for p in report_rows)
+    total_category = sum(p['category_fees'] for p in report_rows)
+    total_owed = sum(p['owed_amount'] for p in report_rows)
+    
+    # Show due date as today if today is in the target month, else use first working day
+    today_dt = date.today()
+    if today_dt.year == year and today_dt.month == month:
+        due = today_dt
+    else:
+        due = first_working_day(year, month)
+    
+    return render_template(
+        "report_fees_print.html",
+        payments=report_rows,
+        year=year,
+        month=month,
+        total_monthly=total_monthly,
+        total_session=total_session,
+        total_event=total_event,
+        total_bulk=total_bulk,
+        total_category=total_category,
+        total_owed=total_owed,
+        due_date=due,
+        generated_at=datetime.now()
+    )
+
 @app.route("/admin/fees/<int:payment_id>/toggle", methods=["POST"])
 @admin_required
 def toggle_payment(payment_id: int):
@@ -5144,7 +5306,7 @@ def fees_period_report():
     # Check if this is a print request
     if request.args.get('print') == '1':
         return render_template(
-            "report_fees_print.html",
+            "report_fees_period_print.html",
             report_data=report_data,
             start_date=start_date,
             end_date=end_date,
@@ -5154,6 +5316,7 @@ def fees_period_report():
             generated_at=datetime.now()
         )
 
+    # Default: render interactive version
     return render_template(
         "report_fees_period.html",
         report_data=report_data,

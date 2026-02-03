@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fees Report - {{ start_date.strftime('%d.%m.%Y') }} to {{ end_date.strftime('%d.%m.%Y') }}</title>
+    <title>Fees Report - {{ year }}-{{ "%02d"|format(month) }}</title>
     <link href="{{ url_for('static', filename='print.css') }}" rel="stylesheet">
     <style>
         body {
@@ -27,22 +27,6 @@
             margin: 5px 0;
             color: #666;
         }
-        .summary {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
-        }
-        .summary div {
-            text-align: center;
-            flex: 1;
-        }
-        .summary .total {
-            font-weight: bold;
-            font-size: 14px;
-        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -50,188 +34,124 @@
         }
         th, td {
             border: 1px solid #ddd;
-            padding: 6px;
+            padding: 8px;
             text-align: left;
         }
         th {
-            background-color: #f5f5f5;
-            font-weight: bold;
-            font-size: 11px;
-        }
-        .player-name {
+            background-color: #f2f2f2;
             font-weight: bold;
         }
-        .section-header {
-            background-color: #e9ecef;
-            font-weight: bold;
-            font-size: 14px;
-            padding: 8px;
-            margin: 15px 0 5px 0;
-            border-left: 4px solid #007bff;
+        .text-end {
+            text-align: right;
         }
-        .totals-row {
-            background-color: #fff3cd;
-            font-weight: bold;
-        }
-        .grand-total {
-            background-color: #d4edda;
-            font-weight: bold;
-            font-size: 13px;
-        }
-        .no-data {
+        .text-center {
             text-align: center;
-            color: #666;
-            font-style: italic;
-            padding: 20px;
         }
-        @media print {
-            body { margin: 0; }
-            .page-break { page-break-before: always; }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 3px;
+            border: 1px solid #000;
+        }
+        .text-bg-success {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .bg-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .bg-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .bg-light {
+            background-color: #f8f9fa;
+        }
+        .fw-bold {
+            font-weight: bold;
+        }
+        .alert {
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-color: #ffeaa7;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>{{ _('Fees Report') }}</h1>
-        <p>Period: {{ start_date.strftime('%d.%m.%Y') }} - {{ end_date.strftime('%d.%m.%Y') }}</p>
-        <p>{{ _('Generated on:') }} {{ generated_at.strftime('%d.%m.%Y %H:%M') }}</p>
+        <h1>Fees Report – {{ year }}-{{ "%02d"|format(month) }}</h1>
+        <p>Generated on: {{ generated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        <p>Due date: {{ due_date.strftime('%Y-%m-%d') if due_date else 'Not set' }}</p>
     </div>
 
-    <div class="summary">
-        <div>
-            <div class="total">{{ _('Total Income') }}</div>
-            <div>{{ "%.2f"|format(total_income) }} BGN</div>
-        </div>
-        <div>
-            <div class="total">{{ _('Total Due') }}</div>
-            <div>{{ "%.2f"|format(total_due) }} BGN</div>
-        </div>
-        <div>
-            <div class="total">{{ _('Net Income') }}</div>
-            <div>{{ "%.2f"|format(net_income) }} BGN</div>
-        </div>
-    </div>
-
-    {% if report_data.players %}
-        <div class="section-header">{{ _('Monthly Fees') }}</div>
+    {% if payments %}
         <table>
             <thead>
                 <tr>
-                    <th>{{ _('Player') }}</th>
-                    <th>{{ _('Income') }}</th>
-                    <th>{{ _('Due') }}</th>
-                    <th>{{ _('Net Income') }}</th>
+                    <th>#</th>
+                    <th>Player</th>
+                    <th class="text-end">Monthly</th>
+                    <th class="text-end">Session</th>
+                    <th class="text-end">Event</th>
+                    <th class="text-end">Bulk</th>
+                    <th class="text-end">Category Fees</th>
+                    <th class="text-center">Paid</th>
+                    <th class="text-end">Owed</th>
                 </tr>
             </thead>
             <tbody>
-                {% for player_data in report_data.players %}
-                    {% if player_data.monthly_income > 0 or player_data.monthly_due > 0 %}
-                    <tr>
-                        <td class="player-name">{{ player_data.player.first_name }} {{ player_data.player.last_name }}</td>
-                        <td>{{ "%.2f"|format(player_data.monthly_income) }}</td>
-                        <td>{{ "%.2f"|format(player_data.monthly_due) }}</td>
-                        <td>{{ "%.2f"|format(player_data.monthly_income) }}</td>
-                    </tr>
-                    {% endif %}
-                {% endfor %}
-                <tr class="totals-row">
-                    <td><strong>Totals</strong></td>
-                    <td><strong>{{ "%.2f"|format(report_data.monthly_fees.total_income) }}</strong></td>
-                    <td><strong>{{ "%.2f"|format(report_data.monthly_fees.total_due) }}</strong></td>
-                    <td><strong>{{ "%.2f"|format(report_data.monthly_fees.total_income) }}</strong></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="section-header">{{ _('Per Session Fees') }}</div>
-        <table>
-            <thead>
+                {% for p in payments %}
                 <tr>
-                    <th>{{ _('Player') }}</th>
-                    <th>{{ _('Income') }}</th>
-                    <th>{{ _('Due') }}</th>
-                    <th>{{ _('Net Income') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for player_data in report_data.players %}
-                    {% if player_data.session_income > 0 or player_data.session_due > 0 %}
-                    <tr>
-                        <td class="player-name">{{ player_data.player.first_name }} {{ player_data.player.last_name }}</td>
-                        <td>{{ "%.2f"|format(player_data.session_income) }}</td>
-                        <td>{{ "%.2f"|format(player_data.session_due) }}</td>
-                        <td>{{ "%.2f"|format(player_data.session_income) }}</td>
-                    </tr>
-                    {% endif %}
-                {% endfor %}
-                <tr class="totals-row">
-                    <td><strong>Totals</strong></td>
-                    <td><strong>{{ "%.2f"|format(report_data.session_fees.total_income) }}</strong></td>
-                    <td><strong>{{ "%.2f"|format(report_data.session_fees.total_due) }}</strong></td>
-                    <td><strong>{{ "%.2f"|format(report_data.session_fees.total_income) }}</strong></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="section-header">{{ _('Event Fees') }}</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>{{ _('Player') }}</th>
-                    <th>{{ _('Income') }}</th>
-                    <th>{{ _('Due') }}</th>
-                    <th>{{ _('Net Income') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for player_data in report_data.players %}
-                    {% if player_data.event_income > 0 or player_data.event_due > 0 %}
-                    <tr>
-                        <td class="player-name">{{ player_data.player.first_name }} {{ player_data.player.last_name }}</td>
-                        <td>{{ "%.2f"|format(player_data.event_income) }}</td>
-                        <td>{{ "%.2f"|format(player_data.event_due) }}</td>
-                        <td>{{ "%.2f"|format(player_data.event_income) }}</td>
-                    </tr>
-                    {% endif %}
-                {% endfor %}
-                <tr class="totals-row">
-                    <td><strong>Totals</strong></td>
-                    <td><strong>{{ "%.2f"|format(report_data.event_fees.total_income) }}</strong></td>
-                    <td><strong>{{ "%.2f"|format(report_data.event_fees.total_due) }}</strong></td>
-                    <td><strong>{{ "%.2f"|format(report_data.event_fees.total_income) }}</strong></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="section-header">{{ _('Player Summary') }}</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>{{ _('Player') }}</th>
-                    <th>{{ _('Total Income') }}</th>
-                    <th>{{ _('Total Due') }}</th>
-                    <th>{{ _('Net Income') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for player_data in report_data.players %}
-                <tr>
-                    <td class="player-name">{{ player_data.player.first_name }} {{ player_data.player.last_name }}</td>
-                    <td>{{ "%.2f"|format(player_data.total_income) }}</td>
-                    <td>{{ "%.2f"|format(player_data.total_due) }}</td>
-                    <td>{{ "%.2f"|format(player_data.total_income) }}</td>
+                    <td>{{ p.player_id }}</td>
+                    <td>{{ p.player.full_name() }}</td>
+                    <td class="text-end">{% if p.monthly_amount %}{{ p.monthly_amount }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if p.prepaid_amount %}{{ p.prepaid_amount }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if p.event_total %}{{ p.event_total }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if p.bulk_total %}{{ p.bulk_total }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if p.category_fees %}{{ p.category_fees }}{% else %}—{% endif %}</td>
+                    <td class="text-center">
+                        {% if p.monthly_paid or p.event_total or p.bulk_total %}
+                            <span class="badge text-bg-success">Yes</span>
+                        {% else %}
+                            <span class="badge bg-danger">No</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if p.owed_amount is not none and p.owed_amount|float >= 0 %}
+                            <span class="badge {{ 'bg-danger' if p.owed_amount > 0 else 'bg-success' }}">{{ p.owed_amount }}</span>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
-                <tr class="grand-total">
-                    <td><strong>GRAND TOTAL</strong></td>
-                    <td><strong>{{ "%.2f"|format(total_income) }}</strong></td>
-                    <td><strong>{{ "%.2f"|format(total_due) }}</strong></td>
-                    <td><strong>{{ "%.2f"|format(total_income) }}</strong></td>
-                </tr>
             </tbody>
+            <tfoot>
+                <tr class="fw-bold bg-light">
+                    <td colspan="2" class="text-end">Totals</td>
+                    <td class="text-end">{{ total_monthly }}</td>
+                    <td class="text-end">{{ total_session }}</td>
+                    <td class="text-end">{{ total_event }}</td>
+                    <td class="text-end">{{ total_bulk }}</td>
+                    <td class="text-end">{{ total_category }}</td>
+                    <td></td>
+                    <td class="text-end">{{ total_owed }}</td>
+                </tr>
+            </tfoot>
         </table>
     {% else %}
-        <div class="no-data">{{ _('No active players found for the selected period.') }}</div>
+        <div class="alert alert-warning">
+            No payments found for this month.
+        </div>
     {% endif %}
 </body>
 </html>
