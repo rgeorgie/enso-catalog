@@ -2,13 +2,21 @@
 
 {% block content %}
 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-  <h2 class="m-0">{{ _('Fees Report') }}  – {{ year }}-{{ "%02d"|format(month) }}</h2>
+  <h2 class="m-0">{{ _('Fees Report') }} – {{ year }}-{{ "%02d"|format(month) }}</h2>
 
-  <form method="get" class="d-flex align-items-center gap-2" id="monthForm">
-    <label class="form-label m-0" for="month">{{ _('Month') }}</label>
-    <input type="month" id="month" name="month" class="form-control" style="width: 160px"
-           value="{{ '%04d-%02d'|format(year, month) }}">
-    <button class="btn btn-primary">{{ _('Open') }}</button>
+  <div class="d-flex align-items-center gap-2">
+    <form method="get" class="d-flex align-items-center gap-2" id="monthForm">
+      <label class="form-label m-0" for="month">{{ _('Month') }}</label>
+      <input type="month" id="month" name="month" class="form-control" style="width: 160px"
+             value="{{ '%04d-%02d'|format(year, month) }}">
+      <button class="btn btn-primary">{{ _('Open') }}</button>
+    </form>
+
+    <!-- Button to trigger date range modal -->
+    <button class="btn btn-outline-info" id="periodReportBtn">
+      <i class="bi bi-calendar-range"></i> {{ _('Period Report') }}
+    </button>
+
     <a class="btn btn-outline-secondary"
        href="{{ url_for('fees_export_csv', month='%04d-%02d'|format(year, month)) }}">
       {{ _('Export CSV') }}
@@ -16,7 +24,8 @@
     <a class="btn btn-outline-secondary" href="{{ url_for('payments_export_all_csv') }}">
       {{ _('Export All Payments (CSV)') }}
     </a>
-  </form>
+  </div>
+
   <a class="btn btn-secondary ms-2" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
 </div>
 
@@ -32,6 +41,7 @@
           <th class="text-end">{{ _('Monthly') }}</th>
           <th class="text-end">{{ _('Session') }}</th>
           <th class="text-end">{{ _('Event') }}</th>
+          <th class="text-end">{{ _('Bulk') }}</th>
           <th class="text-end">{{ _('Category Fees') }}</th>
           <th class="text-center">{{ _('Paid') }}</th>
           <th class="text-end">{{ _('Owed') }}</th>
@@ -53,7 +63,8 @@
           data-session-list='{{ (p.session_list | default([], true) | tojson) | safe }}'
           data-year="{{ p.year }}"
           data-month="{{ '%02d'|format(p.month) }}"
-          data-events='{{ (p.event_details | default([], true) | tojson) | safe }}'>
+          data-events='{{ (p.event_details | default([], true) | tojson) | safe }}'
+          data-bulk='{{ (p.bulk_details | default([], true) | tojson) | safe }}'>
           <td>{{ p.player_id }}</td>
           <td>
             {{ p.player.full_name() }}
@@ -61,9 +72,10 @@
           <td class="text-end">{% if p.monthly_amount %}{{ p.monthly_amount }}{% else %}—{% endif %}</td>
           <td class="text-end">{% if p.prepaid_amount %}{{ p.prepaid_amount }}{% else %}—{% endif %}</td>
           <td class="text-end">{% if p.event_total %}{{ p.event_total }}{% else %}—{% endif %}</td>
+          <td class="text-end">{% if p.bulk_total %}{{ p.bulk_total }}{% else %}—{% endif %}</td>
           <td class="text-end">{% if p.category_fees %}{{ p.category_fees }}{% else %}—{% endif %}</td>
           <td class="text-center">
-            {% if p.monthly_paid or p.event_total %}
+            {% if p.monthly_paid or p.event_total or p.bulk_total %}
               <span class="badge text-bg-success">{{ _('Yes') }}</span>
             {% else %}
               <span class="badge bg-danger">{{ _('No') }}</span>
@@ -80,11 +92,12 @@
         {% endfor %}
       </tbody>
       <tfoot>
-        {% set ns = namespace(total_monthly=0, total_session=0, total_event=0, total_category=0, total_owed=0) %}
+        {% set ns = namespace(total_monthly=0, total_session=0, total_event=0, total_bulk=0, total_category=0, total_owed=0) %}
         {% for p in payments %}
           {% if p.monthly_amount %}{% set ns.total_monthly = ns.total_monthly + p.monthly_amount %}{% endif %}
           {% if p.prepaid_amount %}{% set ns.total_session = ns.total_session + p.prepaid_amount %}{% endif %}
           {% if p.event_total %}{% set ns.total_event = ns.total_event + p.event_total %}{% endif %}
+          {% if p.bulk_total %}{% set ns.total_bulk = ns.total_bulk + p.bulk_total %}{% endif %}
           {% if p.category_fees %}{% set ns.total_category = ns.total_category + p.category_fees %}{% endif %}
           {% if p.owed_amount is not none %}{% set ns.total_owed = ns.total_owed + p.owed_amount %}{% endif %}
         {% endfor %}
@@ -93,6 +106,7 @@
           <td class="text-end" id="totalMonthly">{{ ns.total_monthly }}</td>
           <td class="text-end" id="totalSession">{{ ns.total_session }}</td>
           <td class="text-end" id="totalEvent">{{ ns.total_event }}</td>
+          <td class="text-end" id="totalBulk">{{ ns.total_bulk }}</td>
           <td class="text-end" id="totalCategory">{{ ns.total_category }}</td>
           <td></td>
           <td class="text-end" id="totalOwed">{{ ns.total_owed }}</td>
@@ -100,14 +114,134 @@
       </tfoot>
     </table>
   </div>
+
+  <!-- Details Modal -->
+  <div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ _('Payment Details') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="detailsContent">
+          <!-- Content will be populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+  </div>
+
 {% else %}
-  <div class="alert alert-info">{{ _('Nothing to show.') }}</div>
+  <div class="alert alert-warning">
+    {{ _('No payments found for this month.') }}
+  </div>
 {% endif %}
+
+<!-- Custom Date Range Modal -->
+<div id="customDateRangeModal" class="custom-modal-overlay" style="display: none;">
+  <div class="custom-modal-dialog">
+    <div class="custom-modal-content">
+      <div class="custom-modal-header">
+        <h5 class="custom-modal-title">{{ _('Period Fees Report') }}</h5>
+        <button type="button" class="custom-modal-close" id="closeCustomModal">&times;</button>
+      </div>
+      <form id="customDateRangeForm" method="get" action="{{ url_for('fees_period_report') }}">
+        <div class="custom-modal-body">
+          <div class="mb-3">
+            <label for="custom_start_date" class="form-label">{{ _('Start Date') }}</label>
+            <input type="date" class="form-control" id="custom_start_date" name="start_date" required>
+          </div>
+          <div class="mb-3">
+            <label for="custom_end_date" class="form-label">{{ _('End Date') }}</label>
+            <input type="date" class="form-control" id="custom_end_date" name="end_date" required>
+          </div>
+          <div class="alert alert-info">
+            <small>{{ _('This will generate a comprehensive report showing all fees (monthly, per-session, and event) for the selected period.') }}</small>
+          </div>
+        </div>
+        <div class="custom-modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelCustomModal">{{ _('Cancel') }}</button>
+          <button type="submit" class="btn btn-primary">{{ _('Generate Report') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<style>
+/* Custom modal styles */
+.custom-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custom-modal-dialog {
+  max-width: 500px;
+  width: 90%;
+  margin: 20px;
+}
+
+.custom-modal-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.custom-modal-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.custom-modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.custom-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0;
+  width: 1em;
+  height: 1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custom-modal-body {
+  padding: 1rem 1.5rem;
+}
+
+.custom-modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+</style>
 
 <script>
 $(function() {
@@ -170,6 +304,10 @@ $(function() {
       try {
         events = JSON.parse($tr.attr('data-events') || '[]');
       } catch(e) { events = []; }
+      var bulk = [];
+      try {
+        bulk = JSON.parse($tr.attr('data-bulk') || '[]');
+      } catch(e) { bulk = []; }
 
       var monthlyFeeIsMonthly = $tr.data('monthly-amount') && parseFloat($tr.data('monthly-amount')) > 0;
       var monthlyBadge = monthlyPaid
@@ -230,6 +368,23 @@ $(function() {
         eventsHtml += '</ul>';
       }
 
+      // Bulk payments list
+      var bulkHtml = '—';
+      if (Array.isArray(bulk) && bulk.length) {
+        bulkHtml = '<ul class="mb-0">';
+        bulk.forEach(function(b) {
+          var amount = (b.amount != null ? b.amount : '—');
+          var rid = b.id;
+          var receiptNo = b.receipt_no || '';
+          var note = b.note || '';
+          var viewLink = (rid != null && /^[0-9]+$/.test(String(rid)))
+            ? `<a href="${receiptViewBase}${rid}" target="_blank">${receiptNo ? receiptNo : '{{ _('View receipt') }}'}</a>`
+            : '';
+          bulkHtml += `<li>${amount} EUR${ note ? ' — ' + note : ''}${ viewLink ? ', ' + viewLink : ''}</li>`;
+        });
+        bulkHtml += '</ul>';
+      }
+
       return `
         <div class="p-2">
           <div class="mb-1">
@@ -243,6 +398,9 @@ $(function() {
           <div class="mb-1">
             <strong>{{ _('Events') }}:</strong> ${eventsHtml}
           </div>
+          <div class="mb-1">
+            <strong>{{ _('Bulk') }}:</strong> ${bulkHtml}
+          </div>
         </div>
       `;
     }
@@ -251,6 +409,77 @@ $(function() {
   $('#month').on('change', function() {
     $('#monthForm').submit();
   });
+
+  // Date range form validation
+  $('#dateRangeForm').on('submit', function(e) {
+    const startDate = $('#start_date').val();
+    const endDate = $('#end_date').val();
+
+    if (!startDate || !endDate) {
+      e.preventDefault();
+      alert('Please select both start and end dates.');
+      return;
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+      e.preventDefault();
+      alert('Start date cannot be after end date.');
+      return;
+    }
+  });
+
+  // Ensure modal works properly
+  $('#dateRangeModal').on('show.bs.modal', function() {
+    console.log('Modal showing');
+    // Modal positioning handled by CSS
+  });
+
+  $('#dateRangeModal').on('shown.bs.modal', function() {
+    console.log('Modal shown');
+  });
+
+  $('#dateRangeModal').on('hide.bs.modal', function() {
+    console.log('Modal hiding');
+  });
+
+  // Custom modal functionality
+  $('#periodReportBtn').on('click', function(e) {
+    console.log('Custom modal button clicked');
+    e.preventDefault();
+    $('#customDateRangeModal').fadeIn(200);
+  });
+
+  $('#closeCustomModal, #cancelCustomModal').on('click', function(e) {
+    e.preventDefault();
+    $('#customDateRangeModal').fadeOut(200);
+  });
+
+  // Close modal when clicking outside
+  $('#customDateRangeModal').on('click', function(e) {
+    if (e.target === this) {
+      $(this).fadeOut(200);
+    }
+  });
+
+  // Close modal on Escape key
+  $(document).on('keydown', function(e) {
+    if (e.key === 'Escape' && $('#customDateRangeModal').is(':visible')) {
+      $('#customDateRangeModal').fadeOut(200);
+    }
+  });
+
+  // Form validation
+  $('#customDateRangeForm').on('submit', function(e) {
+    const startDate = new Date($('#custom_start_date').val());
+    const endDate = new Date($('#custom_end_date').val());
+
+    if (startDate > endDate) {
+      e.preventDefault();
+      alert('Start date cannot be after end date.');
+      return false;
+    }
+  });
 });
 </script>
+
 {% endblock %}

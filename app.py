@@ -470,6 +470,29 @@ translations = {
         "Medals Report": "Medals Report",
         "Year": "Year",
         "Total": "Total",
+        "Income": "Income",
+        "Due": "Due", 
+        "Net Income": "Net Income",
+        "Balance": "Balance",
+        "Net club revenue (training fees minus event pass-through)": "Net club revenue (training fees minus event pass-through)",
+        "Period Fees Report": "Period Fees Report",
+        "Player Summary": "Player Summary",
+        "Bulk payment": "Bulk payment",
+        "Generated on:": "Generated on:",
+        "This will generate a comprehensive report showing all fees (monthly, per-session, and event) for the selected period.": "This will generate a comprehensive report showing all fees (monthly, per-session, and event) for the selected period.",
+        "Generate Report": "Generate Report",
+        "Period": "Period",
+        "Back to Monthly Report": "Back to Monthly Report",
+        "Total Income": "Total Income",
+        "Total Due": "Total Due",
+        "Monthly Fees": "Monthly Fees",
+        "Per Session Fees": "Per Session Fees",
+        "Event Fees": "Event Fees",
+        "Bulk": "Bulk",
+        "GRAND TOTAL": "GRAND TOTAL",
+        "Payment Details": "Payment Details",
+        "No active players found for the selected period.": "No active players found for the selected period.",
+        "Period Report": "Period Report",
 
         # --- Sportdata profiles ---
         "Sportdata": "Sportdata",
@@ -977,6 +1000,29 @@ translations = {
         "Medals Report": "Отчет за медали",
         "Year": "Година",
         "Total": "Общо",
+        "Income": "Приходи",
+        "Due": "Дължими",
+        "Net Income": "Нетен доход",
+        "Balance": "Баланс",
+        "Net club revenue (training fees minus event pass-through)": "Нетни приходи на клуба (тренировъчни такси минус събитийни пас-тру)",
+        "Period Fees Report": "Отчет за такси за период",
+        "Player Summary": "Обобщение по играчи",
+        "Bulk payment": "Групово плащане",
+        "Generated on:": "Генерирано на:",
+        "This will generate a comprehensive report showing all fees (monthly, per-session, and event) for the selected period.": "Това ще генерира цялостен отчет, показващ всички такси (месечни, на тренировка и за събития) за избрания период.",
+        "Generate Report": "Генерирай отчет",
+        "Period": "Период",
+        "Back to Monthly Report": "Обратно към месечния отчет",
+        "Total Income": "Общо приходи",
+        "Total Due": "Общо дължими",
+        "Monthly Fees": "Месечни такси",
+        "Per Session Fees": "Такси на тренировка",
+        "Event Fees": "Такси за събития",
+        "Bulk": "Групови",
+        "GRAND TOTAL": "ОБЩО",
+        "Payment Details": "Детайли за плащането",
+        "No active players found for the selected period.": "Няма активни спортисти за избрания период.",
+        "Period Report": "Отчет за период",
 
         # --- Sportdata profiles ---
         "Sportdata": "Sportdata",
@@ -2751,6 +2797,7 @@ def player_pay_due_receipt(player_id: int):
     created = []
     total_amount = 0
     today = date.today()
+    bulk_note_parts = []
 
     # Helper: get due type and object by ID
     def get_due_obj(due_id):
@@ -2783,26 +2830,12 @@ def player_pay_due_receipt(player_id: int):
             for s in sessions:
                 s.paid = True
                 db.session.add(s)
-            # Create a single PaymentRecord for all selected sessions
-            # User-friendly note for receipt
+            # For bulk receipt, just accumulate amount and note
             if len(session_ids) == 1:
-                note = f"Session ID: {session_ids[0]}"
+                bulk_note_parts.append(f"Session ID: {session_ids[0]}")
             else:
-                note = f"Session IDs: {', '.join(session_ids)}"
-            rec = PaymentRecord(
-                kind='training_session', player_id=player.id, player_pn=player.pn,
-                amount=amt, year=today.year, month=today.month,
-                sessions_paid=0, sessions_taken=0,
-                currency='EUR', note=note
-            )
-            db.session.add(rec)
-            db.session.commit()
-            try:
-                rec.assign_receipt_no()
-            except Exception:
-                pass
+                bulk_note_parts.append(f"Sessions: {', '.join(session_ids)}")
             total_amount += amt
-            created.append(rec)
             continue
         # Normal dues (int IDs)
         try:
@@ -2811,64 +2844,45 @@ def player_pay_due_receipt(player_id: int):
             continue
         kind, obj = get_due_obj(due_id_int)
         if kind == "monthly":
-            # Create PaymentRecord for monthly fee
+            # For bulk receipt, just accumulate amount and note
             amt = obj.amount or 0
-            rec = PaymentRecord(kind='training_month', player_id=player.id, player_pn=player.pn,
-                                amount=amt, year=obj.year, month=obj.month,
-                                payment_id=obj.id, currency='EUR', note='PAY_FROM_MODAL')
-            db.session.add(rec)
-            db.session.commit()
-            try:
-                rec.assign_receipt_no()
-            except Exception:
-                pass
+            bulk_note_parts.append(f"Monthly fee {obj.year}-{obj.month:02d}")
             obj.paid = True
             obj.paid_on = today
             db.session.add(obj)
-            db.session.commit()
             total_amount += amt
-            created.append(rec)
         elif kind == "event":
             amt = obj.computed_fee() or 0
             event_name = obj.event.title if obj.event and hasattr(obj.event, 'title') else 'Event'
-            note = f"PAY_FROM_MODAL | Event: {event_name}"
-            rec = PaymentRecord(kind='event', player_id=player.id, player_pn=player.pn,
-                                amount=amt, event_registration_id=obj.id,
-                                currency='EUR', note=note)
-            db.session.add(rec)
-            db.session.commit()
-            try:
-                rec.assign_receipt_no()
-            except Exception:
-                pass
+            bulk_note_parts.append(f"Event: {event_name}")
             obj.paid = True
             obj.paid_on = today
             db.session.add(obj)
-            db.session.commit()
             total_amount += amt
-            created.append(rec)
         elif kind == "debt":
             d_amt = int(obj.amount or 0)
             if d_amt <= 0:
                 continue
-            pay_rec = PaymentRecord(
-                kind=obj.kind, player_id=player.id, player_pn=player.pn,
-                amount=d_amt, currency=obj.currency or 'EUR',
-                method=None,
-                note=f'Payment for debt receipt {obj.id}',
-                related_receipt_id=obj.id
-            )
-            db.session.add(pay_rec)
-            db.session.commit()
-            try:
-                pay_rec.assign_receipt_no()
-            except Exception:
-                pass
+            bulk_note_parts.append(f"Debt payment for receipt {obj.id}")
             obj.note = (obj.note or '') + ' | AUTO_DEBT_PAID'
             db.session.add(obj)
-            db.session.commit()
-            created.append(pay_rec)
             total_amount += d_amt
+
+    # Create a single bulk PaymentRecord
+    if total_amount > 0:
+        bulk_note = "Bulk payment: " + "; ".join(bulk_note_parts)
+        rec = PaymentRecord(
+            kind='bulk_payment', player_id=player.id, player_pn=player.pn,
+            amount=total_amount, year=today.year, month=today.month,
+            currency='EUR', note=bulk_note
+        )
+        db.session.add(rec)
+        db.session.commit()
+        try:
+            rec.assign_receipt_no()
+        except Exception:
+            pass
+        created.append(rec)
 
     print('DEBUG: created PaymentRecords:', [r.id for r in created])
     if created:
@@ -2962,7 +2976,6 @@ def backfill_training_sessions():
     db.session.commit()
     flash(_(f"Backfilled {created_total} missing TrainingSession records."), "success")
     return redirect(request.referrer or url_for('list_players'))
-# -------- Fees Report + Toggle + CSV ----------
 @app.route("/reports/fees")
 @admin_required
 def fees_report():
@@ -3027,27 +3040,30 @@ def fees_report():
             extract('month', PaymentRecord.paid_at) == month
         ).all()
         event_total = sum(ep.amount or 0 for ep in event_payments)
-        # Owed for events: sum of unpaid event registrations (per category) for this month
+        # Bulk payments
+        bulk_payments = PaymentRecord.query.filter_by(player_pn=player.pn, kind='bulk_payment').filter(
+            extract('year', PaymentRecord.paid_at) == year,
+            extract('month', PaymentRecord.paid_at) == month
+        ).all()
+        bulk_total = sum(bp.amount or 0 for bp in bulk_payments)
+        # Owed for events: sum of unpaid event registrations (per category) for this player
+        # Event fees are due immediately upon registration, not based on event date
         event_owed = 0
         category_fees = 0
-        from calendar import monthrange
-        month_start = date(year, month, 1)
-        month_end = date(year, month, monthrange(year, month)[1])
-        # All event registrations for this player in this month
-        regs_in_month = [reg for reg in EventRegistration.query.filter_by(player_pn=player.pn).join(Event).filter(Event.start_date >= month_start, Event.start_date <= month_end).all()]
-        for reg in regs_in_month:
+        # All unpaid event registrations for this player
+        unpaid_regs = EventRegistration.query.filter_by(player_pn=player.pn, paid=False).all()
+        for reg in unpaid_regs:
             # Sum all category fees for this registration
             for rc in reg.reg_categories:
                 if rc.category and rc.category.fee is not None:
                     category_fees += int(rc.category.fee)
-            # Owed only if unpaid
-            if not reg.paid:
-                for rc in reg.reg_categories:
-                    if rc.category and rc.category.fee is not None:
-                        event_owed += int(rc.category.fee)
-                # If no categories, fallback to registration fee
-                if not reg.reg_categories and reg.computed_fee():
-                    event_owed += reg.computed_fee()
+            # All unpaid registrations are owed
+            for rc in reg.reg_categories:
+                if rc.category and rc.category.fee is not None:
+                    event_owed += int(rc.category.fee)
+            # If no categories, fallback to registration fee
+            if not reg.reg_categories and reg.computed_fee():
+                event_owed += reg.computed_fee()
         # Details for expansion
         event_details = []
         for ep in event_payments:
@@ -3058,6 +3074,16 @@ def fees_report():
                 'receipt_no': ep.receipt_no,
                 'paid_on': ep.paid_at.date() if ep.paid_at else None,
                 'id': ep.id,
+            })
+        # Details for bulk payments expansion
+        bulk_details = []
+        for bp in bulk_payments:
+            bulk_details.append({
+                'amount': bp.amount,
+                'receipt_no': bp.receipt_no,
+                'paid_on': bp.paid_at.date() if bp.paid_at else None,
+                'id': bp.id,
+                'note': bp.note,
             })
         # Find monthly receipt (PaymentRecord)
         monthly_receipt = None
@@ -3088,6 +3114,8 @@ def fees_report():
             'event_owed': event_owed,
             'category_fees': category_fees,
             'event_details': event_details,
+            'bulk_total': bulk_total,
+            'bulk_details': bulk_details,
             'year': year,
             'month': month,
         })
@@ -4975,6 +5003,166 @@ def player_due_print(player_id: int):
         prepaid_credit=sum((r.amount or 0) for r in sess_records),
         per_session_amount=per_session_amount,
         owed_amount=owed_amount,
+    )
+
+@app.route("/reports/fees/period")
+@admin_required
+def fees_period_report():
+    # Get date range parameters
+    start_date_str = request.args.get("start_date")
+    end_date_str = request.args.get("end_date")
+
+    if not start_date_str or not end_date_str:
+        flash("Please select both start and end dates.", "danger")
+        return redirect(url_for("fees_report"))
+
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        flash("Invalid date format. Use YYYY-MM-DD.", "danger")
+        return redirect(url_for("fees_report"))
+
+    if start_date > end_date:
+        flash("Start date cannot be after end date.", "danger")
+        return redirect(url_for("fees_report"))
+
+    # Get all active players
+    players = Player.query.filter_by(active_member=True).order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+
+    # Aggregate data across the date range
+    report_data = {
+        'monthly_fees': {'total_income': 0, 'total_due': 0, 'details': []},
+        'session_fees': {'total_income': 0, 'total_due': 0, 'details': []},
+        'event_fees': {'total_income': 0, 'total_due': 0, 'details': []},
+        'players': []
+    }
+
+    total_income = 0
+    total_due = 0
+
+    for player in players:
+        player_data = {
+            'player': player,
+            'monthly_income': 0,
+            'monthly_due': 0,
+            'session_income': 0,
+            'session_due': 0,
+            'event_income': 0,
+            'event_due': 0,
+            'total_income': 0,
+            'total_due': 0
+        }
+
+        # Monthly fees - get all payments in date range
+        monthly_payments = PaymentRecord.query.filter_by(
+            player_pn=player.pn, kind='training_month'
+        ).filter(
+            PaymentRecord.paid_at >= start_date,
+            PaymentRecord.paid_at <= end_date
+        ).all()
+
+        monthly_income = sum(p.amount or 0 for p in monthly_payments)
+        player_data['monthly_income'] = monthly_income
+        report_data['monthly_fees']['total_income'] += monthly_income
+
+        # Check for unpaid monthly fees in the period
+        monthly_dues = Payment.query.filter_by(player_pn=player.pn, paid=False).filter(
+            Payment.year >= start_date.year,
+            Payment.month >= start_date.month,
+            Payment.year <= end_date.year,
+            Payment.month <= end_date.month
+        ).all()
+        monthly_due = sum(p.amount or 0 for p in monthly_dues)
+        player_data['monthly_due'] = monthly_due
+        report_data['monthly_fees']['total_due'] += monthly_due
+
+        # Session fees - per session payments
+        session_payments = PaymentRecord.query.filter_by(
+            player_pn=player.pn, kind='training_session'
+        ).filter(
+            PaymentRecord.paid_at >= start_date,
+            PaymentRecord.paid_at <= end_date
+        ).all()
+
+        session_income = sum(p.amount or 0 for p in session_payments)
+        player_data['session_income'] = session_income
+        report_data['session_fees']['total_income'] += session_income
+
+        # Calculate owed session fees
+        if not player.monthly_fee_is_monthly and player.monthly_fee_amount:
+            # Count unpaid sessions in the date range
+            unpaid_sessions = TrainingSession.query.filter_by(
+                player_pn=player.pn, paid=False
+            ).filter(
+                TrainingSession.date >= start_date,
+                TrainingSession.date <= end_date
+            ).count()
+            session_due = unpaid_sessions * player.monthly_fee_amount
+            player_data['session_due'] = session_due
+            report_data['session_fees']['total_due'] += session_due
+
+        # Event fees - event payments
+        event_payments = PaymentRecord.query.filter_by(
+            player_pn=player.pn, kind='event'
+        ).filter(
+            PaymentRecord.paid_at >= start_date,
+            PaymentRecord.paid_at <= end_date
+        ).all()
+
+        event_income = sum(p.amount or 0 for p in event_payments)
+        player_data['event_income'] = event_income
+        report_data['event_fees']['total_income'] += event_income
+
+        # Calculate owed event fees
+        # Event fees are due immediately upon registration, not based on event date
+        event_dues = EventRegistration.query.filter_by(
+            player_pn=player.pn, paid=False
+        ).all()
+
+        event_due = 0
+        for reg in event_dues:
+            event_due += reg.computed_fee() or 0
+        player_data['event_due'] = event_due
+        report_data['event_fees']['total_due'] += event_due
+
+        # Calculate player totals
+        player_data['total_income'] = player_data['monthly_income'] + player_data['session_income'] + player_data['event_income']
+        player_data['total_due'] = player_data['monthly_due'] + player_data['session_due'] + player_data['event_due']
+        # Calculate net income for each player: training income - event expenses
+        player_data['net_income'] = player_data['monthly_income'] + player_data['session_income'] - (player_data['event_income'] + player_data['event_due'])
+
+        total_income += player_data['total_income']
+        total_due += player_data['total_due']
+
+        report_data['players'].append(player_data)
+
+    # Calculate net income: training income - event expenses (paid + due)
+    # Event fees are pass-through, so subtract them from total income
+    net_income = total_income - (report_data['event_fees']['total_income'] + report_data['event_fees']['total_due'])
+
+    # Check if this is a print request
+    if request.args.get('print') == '1':
+        return render_template(
+            "report_fees_print.html",
+            report_data=report_data,
+            start_date=start_date,
+            end_date=end_date,
+            total_income=total_income,
+            total_due=total_due,
+            net_income=net_income,
+            generated_at=datetime.now()
+        )
+
+    return render_template(
+        "report_fees_period.html",
+        report_data=report_data,
+        start_date=start_date,
+        end_date=end_date,
+        total_income=total_income,
+        total_due=total_due,
+        net_income=net_income,
+        today=date.today()
     )
 
 @app.route("/admin/receipts/<int:rid>")

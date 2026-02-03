@@ -49,6 +49,8 @@
         {% if rec.kind == 'training_month' %}
           <p><strong>Plan:</strong> Per month &nbsp;|&nbsp;
              <strong>Month:</strong> {{ "%04d-%02d"|format(rec.year or 0, rec.month or 0) }}</p>
+        {% elif rec.kind == 'bulk_payment' %}
+          <p><strong>Plan:</strong> {{ _('Bulk payment') }}</p>
         {% else %}
           <p><strong>Plan:</strong> Per session</p>
           <p><strong>Sessions:</strong> {{ rec.sessions_taken }}/{{ rec.sessions_paid }} taken</p>
@@ -92,7 +94,16 @@
       </p>
 
       {% if rec.note %}
-        <p><strong>Notes:</strong> {{ rec.note }}</p>
+        {% if rec.kind == 'bulk_payment' and rec.note.startswith('Bulk payment: ') %}
+          <p><strong>{{ _('Payment Details') }}:</strong></p>
+          <ul>
+            {% for item in rec.note[14:].split('; ') %}
+              <li>{{ item.strip() }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p><strong>Notes:</strong> {{ rec.note }}</p>
+        {% endif %}
       {% endif %}
 
       <!-- Stamp: small and bottom-right (size comes from print.css; inline is a safety cap) -->
