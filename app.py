@@ -19,7 +19,7 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL, Regexp
 from sqlalchemy import or_, and_, text
-from sqlalchemy.orm import foreign
+from sqlalchemy.orm import foreign, joinedload
 from werkzeug.routing import BuildError
 
 app = Flask(__name__)
@@ -377,6 +377,7 @@ translations = {
         "Event": "Event",
         "Record payment": "Record payment",
         "Record payment for this debt": "Record payment for this debt",
+        "This receipt was auto-generated as a debt for extra sessions.": "This receipt was auto-generated as a debt for extra sessions.",
         "Record Session": "Record Session",
         "Pay Due": "Pay Due",
         "Open payment form": "Open payment form",
@@ -908,6 +909,7 @@ translations = {
         "Event": "Събитие",
         "Record payment": "Запиши плащане",
         "Record payment for this debt": "Запиши плащане за този дълг",
+        "This receipt was auto-generated as a debt for extra sessions.": "Тази квитанция беше автоматично генерирана като дълг за допълнителни тренировки.",
         "Record Session": "Запиши тренировка",
         "Pay Due": "Плати дължимото",
         "Open payment form": "Отвори форма за плащане",
@@ -2854,7 +2856,16 @@ def player_pay_due_receipt(player_id: int):
         elif kind == "event":
             amt = obj.computed_fee() or 0
             event_name = obj.event.title if obj.event and hasattr(obj.event, 'title') else 'Event'
-            bulk_note_parts.append(f"Event: {event_name}")
+            # Include categories for this payment
+            categories = []
+            for rc in obj.reg_categories:
+                if rc.category:
+                    categories.append(rc.category.name)
+            category_str = ", ".join(categories) if categories else ""
+            if category_str:
+                bulk_note_parts.append(f"Event: {event_name} ({category_str})")
+            else:
+                bulk_note_parts.append(f"Event: {event_name}")
             obj.paid = True
             obj.paid_on = today
             db.session.add(obj)
@@ -5331,15 +5342,53 @@ def fees_period_report():
 @app.route("/admin/receipts/<int:rid>")
 @admin_required
 def receipt_view(rid: int):
-    rec = db.session.get(PaymentRecord, rid)
+    rec = db.session.query(PaymentRecord).options(
+        db.joinedload(PaymentRecord.event_registration)
+        .joinedload(EventRegistration.reg_categories)
+        .joinedload(EventRegCategory.category),
+        db.joinedload(PaymentRecord.event_registration)
+        .joinedload(EventRegistration.event)
+    ).get(rid)
     if not rec:
         abort(404)
     player = db.session.get(Player, rec.player_id)
     ev = None
+    reg = None
+    bulk_categories = []
     if rec.event_registration_id:
-        reg = db.session.get(EventRegistration, rec.event_registration_id)
-        ev = db.session.get(Event, reg.event_id) if reg else None
-    return render_template("receipt.html", rec=rec, player=player, ev=ev)
+        reg = rec.event_registration  # Already loaded by joinedload
+        ev = reg.event if reg else None
+    elif rec.kind == 'bulk_payment' and rec.note:
+        # For bulk payments, parse the note to find events and categories
+        import re
+        # Match "Event: <event_name> (<categories>)" or "Event: <event_name>"
+        event_matches = re.findall(r'Event:\s*([^(\n]+)(?:\s*\(([^)]+)\))?', rec.note)
+        bulk_categories = set()
+        event_titles = []
+        for event_name, categories_str in event_matches:
+            event_name = event_name.strip()
+            event_titles.append(event_name)
+            if categories_str:
+                # Split categories by comma and clean up
+                categories = [cat.strip() for cat in categories_str.split(',')]
+                bulk_categories.update(categories)
+        
+        # If no categories found in note (old format), fall back to all categories for the player in these events
+        if not bulk_categories and event_titles:
+            regs = (db.session.query(EventRegistration)
+                   .join(Event)
+                   .filter(Event.title.in_(event_titles), EventRegistration.player_id == player.id)
+                   .options(db.joinedload(EventRegistration.reg_categories)
+                           .joinedload(EventRegCategory.category))
+                   .all())
+            # Collect all unique categories
+            for reg_item in regs:
+                for rc in reg_item.reg_categories:
+                    if rc.category:
+                        bulk_categories.add(rc.category.name)
+        
+        bulk_categories = sorted(list(bulk_categories))
+    return render_template("receipt.html", rec=rec, player=player, ev=ev, reg=reg, bulk_categories=bulk_categories)
 
 # Dedicated print-friendly receipt view
 @app.route("/admin/receipts/<int:rid>/print")
@@ -5350,10 +5399,41 @@ def receipt_print_view(rid: int):
         abort(404)
     player = db.session.get(Player, rec.player_id)
     ev = None
+    bulk_categories = []
     if rec.event_registration_id:
         reg = db.session.get(EventRegistration, rec.event_registration_id)
         ev = db.session.get(Event, reg.event_id) if reg else None
-    return render_template("receipt_print.html", rec=rec, player=player, ev=ev)
+    elif rec.kind == 'bulk_payment' and rec.note:
+        # For bulk payments, parse the note to find events and categories
+        import re
+        # Match "Event: <event_name> (<categories>)" or "Event: <event_name>"
+        event_matches = re.findall(r'Event:\s*([^(\n]+)(?:\s*\(([^)]+)\))?', rec.note)
+        bulk_categories = set()
+        event_titles = []
+        for event_name, categories_str in event_matches:
+            event_name = event_name.strip()
+            event_titles.append(event_name)
+            if categories_str:
+                # Split categories by comma and clean up
+                categories = [cat.strip() for cat in categories_str.split(',')]
+                bulk_categories.update(categories)
+        
+        # If no categories found in note (old format), fall back to all categories for the player in these events
+        if not bulk_categories and event_titles:
+            regs = (db.session.query(EventRegistration)
+                   .join(Event)
+                   .filter(Event.title.in_(event_titles), EventRegistration.player_id == player.id)
+                   .options(db.joinedload(EventRegistration.reg_categories)
+                           .joinedload(EventRegCategory.category))
+                   .all())
+            # Collect all unique categories
+            for reg_item in regs:
+                for rc in reg_item.reg_categories:
+                    if rc.category:
+                        bulk_categories.add(rc.category.name)
+        
+        bulk_categories = sorted(list(bulk_categories))
+    return render_template("receipt_print.html", rec=rec, player=player, ev=ev, bulk_categories=bulk_categories)
 
 @app.route("/admin/receipts/print_batch")
 @admin_required
@@ -5364,12 +5444,49 @@ def receipts_print_batch():
         return redirect(request.referrer or url_for('list_players'))
     id_list = [int(x) for x in ids.split(',') if x.strip().isdigit()]
     recs = (PaymentRecord.query
+            .options(db.joinedload(PaymentRecord.event_registration)
+                    .joinedload(EventRegistration.reg_categories)
+                    .joinedload(EventRegCategory.category),
+                    db.joinedload(PaymentRecord.event_registration)
+                    .joinedload(EventRegistration.event))
             .filter(PaymentRecord.id.in_(id_list))
             .order_by(PaymentRecord.paid_at.asc())
             .all())
     if not recs:
         flash('No receipts found.', 'info')
         return redirect(request.referrer or url_for('list_players'))
+    
+    # Calculate bulk_categories for each receipt
+    for rec in recs:
+        if rec.kind == 'bulk_payment' and rec.note:
+            import re
+            event_matches = re.findall(r'Event:\s*([^(\n]+)(?:\s*\(([^)]+)\))?', rec.note)
+            rec.bulk_categories = set()
+            event_titles = []
+            for event_name, categories_str in event_matches:
+                event_name = event_name.strip()
+                event_titles.append(event_name)
+                if categories_str:
+                    categories = [cat.strip() for cat in categories_str.split(',')]
+                    rec.bulk_categories.update(categories)
+            
+            # If no categories found in note (old format), fall back to all categories for the player in these events
+            if not rec.bulk_categories and event_titles:
+                regs = (db.session.query(EventRegistration)
+                       .join(Event)
+                       .filter(Event.title.in_(event_titles), EventRegistration.player_id == rec.player_id)
+                       .options(db.joinedload(EventRegistration.reg_categories)
+                               .joinedload(EventRegCategory.category))
+                       .all())
+                for reg_item in regs:
+                    for rc in reg_item.reg_categories:
+                        if rc.category:
+                            rec.bulk_categories.add(rc.category.name)
+            
+            rec.bulk_categories = sorted(list(rec.bulk_categories))
+        else:
+            rec.bulk_categories = []
+    
     return render_template('receipts_print_batch.html', recs=recs)
 
 @app.route("/admin/receipts/print_batch_clean")
@@ -5381,12 +5498,49 @@ def receipts_print_batch_clean():
         return redirect(request.referrer or url_for('list_players'))
     id_list = [int(x) for x in ids.split(',') if x.strip().isdigit()]
     recs = (PaymentRecord.query
+            .options(db.joinedload(PaymentRecord.event_registration)
+                    .joinedload(EventRegistration.reg_categories)
+                    .joinedload(EventRegCategory.category),
+                    db.joinedload(PaymentRecord.event_registration)
+                    .joinedload(EventRegistration.event))
             .filter(PaymentRecord.id.in_(id_list))
             .order_by(PaymentRecord.paid_at.asc())
             .all())
     if not recs:
         flash('No receipts found.', 'info')
         return redirect(request.referrer or url_for('list_players'))
+    
+    # Calculate bulk_categories for each receipt
+    for rec in recs:
+        if rec.kind == 'bulk_payment' and rec.note:
+            import re
+            event_matches = re.findall(r'Event:\s*([^(\n]+)(?:\s*\(([^)]+)\))?', rec.note)
+            rec.bulk_categories = set()
+            event_titles = []
+            for event_name, categories_str in event_matches:
+                event_name = event_name.strip()
+                event_titles.append(event_name)
+                if categories_str:
+                    categories = [cat.strip() for cat in categories_str.split(',')]
+                    rec.bulk_categories.update(categories)
+            
+            # If no categories found in note (old format), fall back to all categories for the player in these events
+            if not rec.bulk_categories and event_titles:
+                regs = (db.session.query(EventRegistration)
+                       .join(Event)
+                       .filter(Event.title.in_(event_titles), EventRegistration.player_id == rec.player_id)
+                       .options(db.joinedload(EventRegistration.reg_categories)
+                               .joinedload(EventRegCategory.category))
+                       .all())
+                for reg_item in regs:
+                    for rc in reg_item.reg_categories:
+                        if rc.category:
+                            rec.bulk_categories.add(rc.category.name)
+            
+            rec.bulk_categories = sorted(list(rec.bulk_categories))
+        else:
+            rec.bulk_categories = []
+    
     return render_template('receipts_print_batch_clean.html', recs=recs)
 
 @app.route("/admin/receipts/<int:rid>/tick", methods=["POST"])
