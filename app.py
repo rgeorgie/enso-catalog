@@ -3422,6 +3422,29 @@ def admin_imports():
     return render_template('admin_imports.html', _=_ , current_lang=get_lang())
 
 
+@app.route('/admin/payments')
+@admin_required
+def admin_payments():
+    """Admin page for managing payments."""
+    player_id = request.args.get('player_id', type=int)
+    
+    # Get all players for the dropdown
+    players = Player.query.order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+    
+    # Get selected player if any
+    selected_player = None
+    if player_id:
+        selected_player = Player.query.get(player_id)
+    
+    # Filter payments by player if selected
+    query = PaymentRecord.query
+    if player_id:
+        query = query.filter_by(player_id=player_id)
+    
+    payments = query.order_by(PaymentRecord.paid_at.desc()).all()
+    return render_template('admin_payments.html', payments=payments, players=players, selected_player=selected_player, _=_ , current_lang=get_lang())
+
+
 @app.route('/admin/events/export_zip_all')
 @admin_required
 def export_events_zip_all():
@@ -5191,6 +5214,56 @@ def payment_new():
 
     flash("Payment recorded. Receipt generated.", "success")
     return redirect(url_for("receipt_view", rid=record.id))
+
+@app.route("/admin/payments/<int:payment_id>/edit", methods=["GET", "POST"])
+@admin_required
+def payment_edit(payment_id: int):
+    record = PaymentRecord.query.get_or_404(payment_id)
+    
+    if request.method == "GET":
+        return render_template("payment_edit.html", record=record, _=_ , current_lang=get_lang())
+    
+    # Update the record
+    record.amount = request.form.get("amount", type=int)
+    record.currency = (request.form.get("currency") or "EUR").strip().upper()
+    record.method = request.form.get("method") or None
+    record.note = request.form.get("note") or None
+    
+    db.session.commit()
+    flash("Payment updated.", "success")
+    return redirect(url_for("admin_payments"))
+
+@app.route("/admin/payments/<int:payment_id>/delete", methods=["POST"])
+@admin_required
+def payment_delete(payment_id: int):
+    record = PaymentRecord.query.get_or_404(payment_id)
+    
+    # If it has a payment_id, we might need to update the Payment row
+    if record.payment_id:
+        pay = Payment.query.get(record.payment_id)
+        if pay and pay.paid:
+            # Check if this is the only record for this payment
+            other_records = PaymentRecord.query.filter_by(payment_id=pay.id).filter(PaymentRecord.id != record.id).count()
+            if other_records == 0:
+                pay.paid = False
+                pay.paid_on = None
+                db.session.add(pay)
+    
+    # If it has event_registration_id, update the registration
+    if record.event_registration_id:
+        reg = EventRegistration.query.get(record.event_registration_id)
+        if reg and reg.paid:
+            # Check if this is the only payment for this registration
+            other_payments = PaymentRecord.query.filter_by(event_registration_id=reg.id).filter(PaymentRecord.id != record.id).count()
+            if other_payments == 0:
+                reg.paid = False
+                reg.paid_on = None
+                db.session.add(reg)
+    
+    db.session.delete(record)
+    db.session.commit()
+    flash("Payment deleted.", "success")
+    return redirect(url_for("admin_payments"))
 
 @app.route("/admin/players/<int:player_id>/due/print")
 @admin_required

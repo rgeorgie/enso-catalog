@@ -41,6 +41,10 @@
     }
     /* Ensure page chrome and content sit above watermark */
     nav, main.container, footer { position: relative; z-index: 1; }
+    
+    /* Fix modal z-index stacking issues */
+    .modal-backdrop { z-index: 1050; }
+    .modal { z-index: 1060; }
   </style>
 </head>
 <body>
@@ -68,6 +72,7 @@
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="adminMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ _('Admin') }}</a>
             <ul class="dropdown-menu" aria-labelledby="adminMenu">
+              <li><a class="dropdown-item" href="{{ url_for('admin_payments') }}">{{ _('Payments') }}</a></li>
               <li><a class="dropdown-item" href="{{ url_for('admin_exports') }}">{{ _('Exports') }}</a></li>
               <li><a class="dropdown-item" href="{{ url_for('admin_imports') }}">{{ _('Imports') }}</a></li>
               <li><hr class="dropdown-divider"></li>

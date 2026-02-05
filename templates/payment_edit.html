@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block head %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}?v=20260131">
+{% endblock %}
+
+{% block content %}
+<h2>{{ _('Edit Payment') }}</h2>
+
+<form method="post" action="{{ url_for('payment_edit', payment_id=record.id) }}" class="mt-3" novalidate>
+  <div class="mb-3">
+    <label class="form-label">{{ _('Kind') }}</label>
+    <input type="text" class="form-control" value="{{ record.kind.replace('_', ' ').title() }}" readonly>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">{{ _('Player') }}</label>
+    <input type="text" class="form-control" value="{{ record.player.full_name() if record.player else 'Unknown' }}" readonly>
+  </div>
+
+  {% if record.kind == 'training_month' %}
+  <div class="mb-3">
+    <label class="form-label">{{ _('Month') }}</label>
+    <input type="text" class="form-control" value="{{ '%04d-%02d' % (record.year, record.month) }}" readonly>
+  </div>
+  {% elif record.kind == 'training_session' %}
+  <div class="mb-3">
+    <label class="form-label">{{ _('Sessions Paid') }}</label>
+    <input type="text" class="form-control" value="{{ record.sessions_paid }}" readonly>
+  </div>
+  {% elif record.kind == 'event' %}
+  <div class="mb-3">
+    <label class="form-label">{{ _('Event') }}</label>
+    <input type="text" class="form-control" value="{{ record.event_registration.event.title if record.event_registration and record.event_registration.event else 'Unknown' }}" readonly>
+  </div>
+  {% endif %}
+
+  <div class="row">
+    <div class="col-md-4 mb-3">
+      <label class="form-label">{{ _('Amount') }}</label>
+      <input type="number" step="1" min="0" name="amount" id="amount" class="form-control" value="{{ record.amount }}" required>
+    </div>
+    <div class="col-md-4 mb-3">
+      <label class="form-label">{{ _('Currency') }}</label>
+      <input type="text" name="currency" id="currency" class="form-control" value="{{ record.currency }}">
+    </div>
+    <div class="col-md-4 mb-3">
+      <label class="form-label">{{ _('Method') }}</label>
+      <input type="text" name="method" id="method" class="form-control" value="{{ record.method or '' }}" placeholder="cash / card / bank">
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">{{ _('Notes') }}</label>
+    <textarea name="note" id="note" class="form-control" rows="2">{{ record.note or '' }}</textarea>
+  </div>
+
+  <button type="submit" class="btn btn-primary">{{ _('Update') }}</button>
+  <a class="btn btn-secondary" href="{{ url_for('admin_payments') }}">{{ _('Back') }}</a>
+</form>
+{% endblock %}
