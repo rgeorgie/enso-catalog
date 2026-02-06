@@ -44,20 +44,44 @@
 
       <hr/>
 
-      {% if rec.kind.startswith('training') or (rec.kind == 'bulk_payment' and rec.note and ('Session ID:' in rec.note or 'Sessions:' in rec.note)) %}
+      {% if rec.kind == 'bulk_payment' %}
+        <p><strong>{{ _('Category') }}:</strong> {{ _('Bulk payment') }}</p>
+        <p><strong>{{ _('Details') }}:</strong></p>
+        <ul>
+          {% set note_parts = rec.note.split('; ') %}
+          {% for part in note_parts %}
+            {% if part.startswith('Session ID:') %}
+              {% set session_id = part.split('Session ID: ')[1] %}
+              {% set session_date = session_id.split('_')[1] %}
+              {% set formatted_date = session_date[0:4] + '-' + session_date[4:6] + '-' + session_date[6:8] %}
+              <li>{{ _('Training session on') }} {{ formatted_date }}</li>
+            {% elif part.startswith('Sessions:') %}
+              {% set sessions_part = part.split('Sessions: ')[1] %}
+              {% set session_ids = sessions_part.split(',') %}
+              {% set dates = [] %}
+              {% for sid in session_ids %}
+                {% set session_date = sid.strip().split('_')[1] %}
+                {% set formatted_date = session_date[0:4] + '-' + session_date[4:6] + '-' + session_date[6:8] %}
+                {% set _ = dates.append(formatted_date) %}
+              {% endfor %}
+              {% set unique_dates = dates | unique | list %}
+              <li>{{ _('Training sessions on') }} {{ unique_dates | join(', ') }}</li>
+            {% elif part.startswith('Monthly fee') %}
+              <li>{{ part }}</li>
+            {% elif part.startswith('Event:') %}
+              <li>{{ part }}</li>
+            {% elif part.startswith('Debt payment') %}
+              <li>{{ part }}</li>
+            {% else %}
+              <li>{{ part }}</li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      {% elif rec.kind.startswith('training') %}
         <p><strong>{{ _('Category') }}:</strong> {{ _('Training fee') }}</p>
         {% if rec.kind == 'training_month' %}
           <p><strong>{{ _('Plan') }}:</strong> {{ _('Per month') }} &nbsp;|&nbsp;
              <strong>{{ _('Month') }}:</strong> {{ "%04d-%02d"|format(rec.year or 0, rec.month or 0) }}</p>
-        {% elif rec.kind == 'bulk_payment' %}
-          <p><strong>{{ _('Plan') }}:</strong> {{ _('Per session') }}</p>
-          {% if 'Session ID:' in rec.note %}
-            <!-- Extract session date from the note -->
-            {% set session_id = rec.note.split('Session ID: ')[1].split()[0] %}
-            {% set session_date = session_id.split('_')[1] %}
-            {% set formatted_date = session_date[0:4] + '-' + session_date[4:6] + '-' + session_date[6:8] %}
-            <p><strong>{{ _('Session Date') }}:</strong> {{ formatted_date }}</p>
-          {% endif %}
         {% else %}
           <p><strong>{{ _('Plan') }}:</strong> {{ _('Per session') }}</p>
           <p><strong>{{ _('Sessions') }}:</strong> {{ rec.sessions_taken }}/{{ rec.sessions_paid }} {{ _('taken') }}</p>

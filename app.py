@@ -250,6 +250,14 @@ translations = {
         "Edit": "Edit",
         "Run DB migration": "Run DB migration",
         "Admin Login": "Admin Login",
+        "Admin Settings": "Admin Settings",
+        "Logo": "Logo",
+        "Background Image": "Background Image",
+        "Admin Password": "Admin Password",
+        "Leave blank to keep current password": "Leave blank to keep current password",
+        "Save Settings": "Save Settings",
+        "Current Logo": "Current Logo",
+        "Current Background": "Current Background",
         "Admin exports": "Admin exports",
         "Admin imports": "Admin imports",
         "Imports": "Imports",
@@ -368,6 +376,10 @@ translations = {
         "ID": "ID",
         "Category": "Category",
         "Training fee": "Training fee",
+        "Bulk payment": "Bulk payment",
+        "Details": "Details",
+        "Training session on": "Training session on",
+        "Training sessions on": "Training sessions on",
         "Plan": "Plan",
         "Per month": "Per month",
         "Per session": "Per session",
@@ -781,6 +793,14 @@ translations = {
         "Edit": "Редакция",
         "Run DB migration": "Стартирай миграция",
         "Admin Login": "Админ вход",
+        "Admin Settings": "Админ настройки",
+        "Logo": "Лого",
+        "Background Image": "Фонова картинка",
+        "Admin Password": "Админ парола",
+        "Leave blank to keep current password": "Оставете празно, за да запазите текущата парола",
+        "Save Settings": "Запази настройки",
+        "Current Logo": "Текущо лого",
+        "Current Background": "Текущ фон",
         "Admin exports": "Админ експорти",
         "Admin imports": "Админ импорти",
         "Imports": "Импорти",
@@ -900,6 +920,10 @@ translations = {
         "ID": "ID",
         "Category": "Категория",
         "Training fee": "Такса за тренировка",
+        "Bulk payment": "Групово плащане",
+        "Details": "Детайли",
+        "Training session on": "Тренировка на",
+        "Training sessions on": "Тренировки на",
         "Plan": "План",
         "Per month": "Месечно",
         "Per session": "На тренировка",
@@ -1365,6 +1389,8 @@ translations = {
         "Selected athlete:": "Избран спортист:",
         "Enter your 10-digit Bulgarian ID number to confirm and record the session.": "Въведете вашия номер на спортист, за да потвърдите и запишете сесията.",
         "For quick session recording without admin login, use Kiosk Mode: athletes click their name and enter their Personal Number (ЕГН) to record training sessions.": "За бързо записване на сесии без администраторски вход, използвайте режим Kiosk: спортистите кликват върху името си и въвеждат своя номер на спортист, за да запишат тренировъчни сесии.",
+        "Current Logo": "Текущо лого",
+        "Current Background": "Текущ фон",
     },
 }
 
@@ -1926,8 +1952,6 @@ class SettingsForm(FlaskForm):
     logo = FileField("Logo", validators=[VOptional()])
     admin_password = PasswordField("Admin Password", validators=[VOptional(), Length(min=6)])
     background = FileField("Background Image", validators=[VOptional()])
-    primary_color = StringField("Primary Color", validators=[VOptional(), Regexp(r'^#[0-9a-fA-F]{6}$', message="Invalid hex color")])
-    secondary_color = StringField("Secondary Color", validators=[VOptional(), Regexp(r'^#[0-9a-fA-F]{6}$', message="Invalid hex color")])
     submit = SubmitField("Save Settings")
 
 def set_localized_choices(form: PlayerForm):
@@ -1943,8 +1967,6 @@ def inject_settings():
     return dict(
         app_logo=settings.get('logo_path', '/static/img/enso-logo.webp'),
         app_background=settings.get('background_image'),
-        app_primary_color=settings.get('primary_color', '#007bff'),
-        app_secondary_color=settings.get('secondary_color', '#6c757d'),
     )
 @app.context_processor
 def inject_i18n():
@@ -5095,21 +5117,6 @@ def admin_settings():
             setting.value = hashed
             db.session.add(setting)
 
-        # Colors
-        if form.primary_color.data:
-            setting = Setting.query.filter_by(key='primary_color').first()
-            if not setting:
-                setting = Setting(key='primary_color')
-            setting.value = form.primary_color.data
-            db.session.add(setting)
-
-        if form.secondary_color.data:
-            setting = Setting.query.filter_by(key='secondary_color').first()
-            if not setting:
-                setting = Setting(key='secondary_color')
-            setting.value = form.secondary_color.data
-            db.session.add(setting)
-
         db.session.commit()
         flash("Settings saved successfully.", "success")
         return redirect(url_for('admin_settings'))
@@ -5117,16 +5124,12 @@ def admin_settings():
     # Load current values
     logo_setting = Setting.query.filter_by(key='logo_path').first()
     background_setting = Setting.query.filter_by(key='background_image').first()
-    primary_setting = Setting.query.filter_by(key='primary_color').first()
-    secondary_setting = Setting.query.filter_by(key='secondary_color').first()
 
     return render_template(
         "admin_settings.html",
         form=form,
         current_logo=logo_setting.value if logo_setting else '/static/img/enso-logo.webp',
         current_background=background_setting.value if background_setting else None,
-        current_primary=primary_setting.value if primary_setting else '#007bff',
-        current_secondary=secondary_setting.value if secondary_setting else '#6c757d',
         _=_,
         current_lang=get_lang(),
     )

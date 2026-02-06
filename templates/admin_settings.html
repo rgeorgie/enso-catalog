@@ -13,7 +13,7 @@
             <div class="mb-3">
               <label class="form-label">{{ _('Logo') }}</label>
               <div class="mb-2">
-                <img src="{{ current_logo }}" alt="Current Logo" style="height: 40px;">
+                <img src="{{ current_logo }}" alt="{{ _('Current Logo') }}" style="height: 40px;">
               </div>
               {{ form.logo(class="form-control") }}
             </div>
@@ -22,7 +22,7 @@
               <label class="form-label">{{ _('Background Image') }}</label>
               {% if current_background %}
                 <div class="mb-2">
-                  <img src="{{ current_background }}" alt="Current Background" style="height: 40px;">
+                  <img src="{{ current_background }}" alt="{{ _('Current Background') }}" style="height: 40px;">
                 </div>
               {% endif %}
               {{ form.background(class="form-control") }}
@@ -34,21 +34,15 @@
               <div class="form-text">{{ _('Leave blank to keep current password') }}</div>
             </div>
 
-            <div class="mb-3">
-              <label class="form-label">{{ _('Primary Color') }}</label>
-              {{ form.primary_color(class="form-control", type="color", value=current_primary) }}
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">{{ _('Secondary Color') }}</label>
-              {{ form.secondary_color(class="form-control", type="color", value=current_secondary) }}
-            </div>
-
             <button type="submit" class="btn btn-primary">{{ _('Save Settings') }}</button>
           </form>
         </div>
       </div>
     </div>
+  </div>
+
+  <div class="mt-3">
+    <a class="btn btn-outline-secondary" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
   </div>
 </div>
 {% endblock %}
