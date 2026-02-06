@@ -3862,9 +3862,39 @@ def event_detail(event_id: int):
             elif rc.medal == "silver": silver += 1
             elif rc.medal == "bronze": bronze += 1
 
+    # Group registrations by player
+    player_summaries = {}
+    for r in regs:
+        pid = r.player_id
+        if pid not in player_summaries:
+            player_summaries[pid] = {
+                'player': r.player,
+                'entries': 0,
+                'regs': [],
+                'total_expected': 0,
+                'total_paid': 0,
+                'gold': 0,
+                'silver': 0,
+                'bronze': 0
+            }
+        player_summaries[pid]['entries'] += 1
+        player_summaries[pid]['regs'].append(r)
+        fee = expected_fee(r)
+        if fee:
+            player_summaries[pid]['total_expected'] += fee
+            if r.paid:
+                player_summaries[pid]['total_paid'] += fee
+        for rc in r.reg_categories or []:
+            if rc.medal == "gold": player_summaries[pid]['gold'] += 1
+            elif rc.medal == "silver": player_summaries[pid]['silver'] += 1
+            elif rc.medal == "bronze": player_summaries[pid]['bronze'] += 1
+
+    # Sort player summaries by player name
+    player_summaries_list = sorted(player_summaries.values(), key=lambda ps: (ps['player'].last_name, ps['player'].first_name))
+
     return render_template(
         "event_detail.html",
-        ev=ev, regs=regs,
+        ev=ev, regs=regs, player_summaries=player_summaries_list,
         unique_participants=unique_participants,
         entries_count=entries_count,
         total_expected=total_expected,
