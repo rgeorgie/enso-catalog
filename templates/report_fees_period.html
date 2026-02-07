@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+  <h2 class="m-0">{{ _('Period Fees Report') }}</h2>
+
+  <div class="d-flex align-items-center gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('fees_report') }}">{{ _('Back to Monthly Report') }}</a>
+    <a class="btn btn-primary" href="{{ url_for('fees_period_report', start_date=start_date.strftime('%Y-%m-%d'), end_date=end_date.strftime('%Y-%m-%d'), print=1) }}" target="_blank">{{ _('Print Version') }}</a>
+  </div>
+</div>
+
+<div class="alert alert-info">
+  <strong>{{ _('Period') }}:</strong> {{ start_date.strftime('%d.%m.%Y') }} - {{ end_date.strftime('%d.%m.%Y') }}
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title text-success">{{ _('Total Income') }}</h5>
+        <h3 class="text-success">{{ "%.2f"|format(total_income) }} BGN</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title text-danger">{{ _('Total Due') }}</h5>
+        <h3 class="text-danger">{{ "%.2f"|format(total_due) }} BGN</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title">{{ _('Net Income') }}</h5>
+        <h3 class="text-success">{{ "%.2f"|format(net_income) }} BGN</h3>
+        <small class="text-muted">{{ _('Net club revenue (training fees minus event pass-through)') }}</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if report_data.players %}
+  <!-- Monthly Fees Section -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">{{ _('Monthly Fees') }}</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>{{ _('Player') }}</th>
+              <th class="text-end">{{ _('Income') }}</th>
+              <th class="text-end">{{ _('Due') }}</th>
+              <th class="text-end">{{ _('Net Income') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for player_data in report_data.players %}
+              {% if player_data.monthly_income > 0 or player_data.monthly_due > 0 %}
+              <tr>
+                <td>{{ player_data.player.first_name }} {{ player_data.player.last_name }}</td>
+                <td class="text-end">{{ "%.2f"|format(player_data.monthly_income) }}</td>
+                <td class="text-end">{{ "%.2f"|format(player_data.monthly_due) }}</td>
+                <td class="text-end">{{ "%.2f"|format(player_data.monthly_income - player_data.monthly_due) }}</td>
+              </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="table-light fw-bold">
+              <td>{{ _('Totals') }}</td>
+              <td class="text-end">{{ "%.2f"|format(report_data.monthly_fees.total_income) }}</td>
+              <td class="text-end">{{ "%.2f"|format(report_data.monthly_fees.total_due) }}</td>
+              <td class="text-end">{{ "%.2f"|format(report_data.monthly_fees.total_income - report_data.monthly_fees.total_due) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per Session Fees Section -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">{{ _('Per Session Fees') }}</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>{{ _('Player') }}</th>
+              <th class="text-end">{{ _('Income') }}</th>
+              <th class="text-end">{{ _('Due') }}</th>
+              <th class="text-end">{{ _('Net Income') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for player_data in report_data.players %}
+              {% if player_data.session_income > 0 or player_data.session_due > 0 %}
+              <tr>
+                <td>{{ player_data.player.first_name }} {{ player_data.player.last_name }}</td>
+                <td class="text-end">{{ "%.2f"|format(player_data.session_income) }}</td>
+                <td class="text-end">{{ "%.2f"|format(player_data.session_due) }}</td>
+                <td class="text-end">{{ "%.2f"|format(player_data.session_income - player_data.session_due) }}</td>
+              </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="table-light fw-bold">
+              <td>{{ _('Totals') }}</td>
+              <td class="text-end">{{ "%.2f"|format(report_data.session_fees.total_income) }}</td>
+              <td class="text-end">{{ "%.2f"|format(report_data.session_fees.total_due) }}</td>
+              <td class="text-end">{{ "%.2f"|format(report_data.session_fees.total_income - report_data.session_fees.total_due) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event Fees Section -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">{{ _('Event Fees') }}</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>{{ _('Player') }}</th>
+              <th class="text-end">{{ _('Income') }}</th>
+              <th class="text-end">{{ _('Due') }}</th>
+              <th class="text-end">{{ _('Net Income') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for player_data in report_data.players %}
+              {% if player_data.event_income > 0 or player_data.event_due > 0 %}
+              <tr>
+                <td>{{ player_data.player.first_name }} {{ player_data.player.last_name }}</td>
+                <td class="text-end">{{ "%.2f"|format(player_data.event_income) }}</td>
+                <td class="text-end">{{ "%.2f"|format(player_data.event_due) }}</td>
+                <td class="text-end">{{ "%.2f"|format(-(player_data.event_income + player_data.event_due)) }}</td>
+              </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="table-light fw-bold">
+              <td>{{ _('Totals') }}</td>
+              <td class="text-end">{{ "%.2f"|format(report_data.event_fees.total_income) }}</td>
+              <td class="text-end">{{ "%.2f"|format(report_data.event_fees.total_due) }}</td>
+              <td class="text-end">{{ "%.2f"|format(-(report_data.event_fees.total_income + report_data.event_fees.total_due)) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player Summary Section -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">{{ _('Player Summary') }}</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>{{ _('Player') }}</th>
+              <th class="text-end">{{ _('Total Income') }}</th>
+              <th class="text-end">{{ _('Total Due') }}</th>
+              <th class="text-end">{{ _('Net Income') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for player_data in report_data.players %}
+            <tr>
+              <td>{{ player_data.player.first_name }} {{ player_data.player.last_name }}</td>
+              <td class="text-end">{{ "%.2f"|format(player_data.total_income) }}</td>
+              <td class="text-end">{{ "%.2f"|format(player_data.total_due) }}</td>
+              <td class="text-end">{{ "%.2f"|format(player_data.net_income) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="table-warning fw-bold">
+              <td>{{ _('GRAND TOTAL') }}</td>
+              <td class="text-end">{{ "%.2f"|format(total_income) }}</td>
+              <td class="text-end">{{ "%.2f"|format(total_due) }}</td>
+              <td class="text-end">{{ "%.2f"|format(net_income) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+{% else %}
+  <div class="alert alert-warning">
+    {{ _('No active players found for the selected period.') }}
+  </div>
+{% endif %}
+
+{% endblock %}

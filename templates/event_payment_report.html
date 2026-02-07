@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block head %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}?v=20260131">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="mb-1">{{ _('Event Payment Report') }}</h1>
+      <h2 class="h4 text-muted mb-0">{{ ev.title }}</h2>
+      <div class="text-muted">{{ _('Date') }}: {{ ev.start_date }}{% if ev.end_date and ev.end_date != ev.start_date %} – {{ ev.end_date }}{% endif %}</div>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-success" onclick="window.print()">{{ _('Print') }}</button>
+      <button class="btn btn-outline-secondary" onclick="window.close()">{{ _('Close') }}</button>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ _('Total Expected') }}</div>
+          <div class="fs-4 fw-semibold">{{ total_expected }} EUR</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ _('Total Paid') }}</div>
+          <div class="fs-4 fw-semibold text-success">{{ total_paid }} EUR</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ _('Total Unpaid') }}</div>
+          <div class="fs-4 fw-semibold text-danger">{{ total_unpaid }} EUR</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ _('Participants') }}</div>
+          <div class="fs-4 fw-semibold">{{ grouped_regs|length }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registrations Table -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">{{ _('Registrations & Payments') }}</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>{{ _('Player') }}</th>
+              <th>{{ _('Categories') }}</th>
+              <th class="text-end">{{ _('Expected Fee') }}</th>
+              <th class="text-center">{{ _('Paid') }}</th>
+              <th class="text-end">{{ _('Status') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for group in grouped_regs %}
+              <tr>
+                <td>
+                  <strong>{{ group.player.full_name() }}</strong><br>
+                  <small class="text-muted">{{ _('ID') }}: {{ group.player.id }}</small>
+                </td>
+                <td>
+                  {% if group.categories %}
+                    <ul class="mb-0 ps-3">
+                      {% for cat in group.categories %}
+                        <li>{{ cat }}</li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <em class="text-muted">{{ _('No categories') }}</em>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {{ group.total_fee }} EUR
+                </td>
+                <td class="text-center">
+                  {% if group.fully_paid %}
+                    <span class="badge bg-success">{{ _('Yes') }}</span>
+                  {% else %}
+                    <span class="badge bg-warning">{{ _('No') }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {% if group.fully_paid %}
+                    <span class="text-success">{{ _('Paid') }}</span>
+                  {% else %}
+                    <span class="text-danger">{{ _('Unpaid') }} ({{ group.total_fee }} EUR)</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <th colspan="2">{{ _('TOTALS') }}</th>
+              <th class="text-end">{{ total_expected }} EUR</th>
+              <th class="text-center">{{ grouped_regs|selectattr('fully_paid')|list|length }}/{{ grouped_regs|length }}</th>
+              <th class="text-end">
+                <span class="text-success">{{ total_paid }} EUR {{ _('paid') }}</span><br>
+                <span class="text-danger">{{ total_unpaid }} EUR {{ _('unpaid') }}</span>
+              </th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="mt-4 text-center text-muted">
+    <small>{{ _('Generated on') }} {{ now.strftime('%Y-%m-%d %H:%M') }}</small>
+  </div>
+</div>
+{% endblock %}

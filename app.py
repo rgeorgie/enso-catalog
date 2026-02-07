@@ -15,11 +15,11 @@ from flask_wtf import FlaskForm
 from werkzeug.utils import secure_filename
 from wtforms import (
     StringField, SelectField, DateField, IntegerField,
-    TextAreaField, SubmitField, BooleanField, SelectMultipleField
+    TextAreaField, SubmitField, BooleanField, SelectMultipleField, FileField, PasswordField
 )
-from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL, Regexp
+from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL, Regexp, ValidationError
 from sqlalchemy import or_, and_, text
-from sqlalchemy.orm import foreign
+from sqlalchemy.orm import foreign, joinedload
 from werkzeug.routing import BuildError
 
 app = Flask(__name__)
@@ -250,6 +250,19 @@ translations = {
         "Edit": "Edit",
         "Run DB migration": "Run DB migration",
         "Admin Login": "Admin Login",
+        "Admin Settings": "Admin Settings",
+        "Logo": "Logo",
+        "Background Image": "Background Image",
+        "Admin Password": "Admin Password",
+        "Leave blank to keep current password": "Leave blank to keep current password",
+        "Save Settings": "Save Settings",
+        "Admin Card ID": "Admin Card ID",
+        "Read Card": "Read Card",
+        "Reading...": "Reading...",
+        "Current registered card:": "Current registered card:",
+        "No admin card registered yet": "No admin card registered yet",
+        "Current Logo": "Current Logo",
+        "Current Background": "Current Background",
         "Admin exports": "Admin exports",
         "Admin imports": "Admin imports",
         "Imports": "Imports",
@@ -305,6 +318,9 @@ translations = {
         "Mother Phone": "Mother Phone",
         "Father Name": "Father Name",
         "Father Phone": "Father Phone",
+        "Card ID": "Card ID",
+        "Read Card": "Read Card",
+        "Reading...": "Reading...",
         "Profile": "Profile",
         "Contacts": "Contacts",
         "Fee": "Fee",
@@ -368,6 +384,10 @@ translations = {
         "ID": "ID",
         "Category": "Category",
         "Training fee": "Training fee",
+        "Bulk payment": "Bulk payment",
+        "Details": "Details",
+        "Training session on": "Training session on",
+        "Training sessions on": "Training sessions on",
         "Plan": "Plan",
         "Per month": "Per month",
         "Per session": "Per session",
@@ -377,6 +397,7 @@ translations = {
         "Event": "Event",
         "Record payment": "Record payment",
         "Record payment for this debt": "Record payment for this debt",
+        "This receipt was auto-generated as a debt for extra sessions.": "This receipt was auto-generated as a debt for extra sessions.",
         "Record Session": "Record Session",
         "Pay Due": "Pay Due",
         "Open payment form": "Open payment form",
@@ -470,6 +491,29 @@ translations = {
         "Medals Report": "Medals Report",
         "Year": "Year",
         "Total": "Total",
+        "Income": "Income",
+        "Due": "Due", 
+        "Net Income": "Net Income",
+        "Balance": "Balance",
+        "Net club revenue (training fees minus event pass-through)": "Net club revenue (training fees minus event pass-through)",
+        "Period Fees Report": "Period Fees Report",
+        "Player Summary": "Player Summary",
+        "Bulk payment": "Bulk payment",
+        "Generated on:": "Generated on:",
+        "This will generate a comprehensive report showing all fees (monthly, per-session, and event) for the selected period.": "This will generate a comprehensive report showing all fees (monthly, per-session, and event) for the selected period.",
+        "Generate Report": "Generate Report",
+        "Period": "Period",
+        "Back to Monthly Report": "Back to Monthly Report",
+        "Total Income": "Total Income",
+        "Total Due": "Total Due",
+        "Monthly Fees": "Monthly Fees",
+        "Per Session Fees": "Per Session Fees",
+        "Event Fees": "Event Fees",
+        "Bulk": "Bulk",
+        "GRAND TOTAL": "GRAND TOTAL",
+        "Payment Details": "Payment Details",
+        "No active players found for the selected period.": "No active players found for the selected period.",
+        "Period Report": "Period Report",
 
         # --- Sportdata profiles ---
         "Sportdata": "Sportdata",
@@ -500,6 +544,15 @@ translations = {
         "Password": "Password",
         "Admin login required.": "Admin login required.",
         "Logged in as admin.": "Logged in as admin.",
+        "Logged in as admin via card.": "Logged in as admin via card.",
+        "Invalid admin card.": "Invalid admin card.",
+        "Card Login": "Card Login",
+        "Scan your admin card to login": "Scan your admin card to login automatically",
+        "Scan admin card...": "Scan admin card...",
+        "Login with Card": "Login with Card",
+        "Card Reader Active": "Card Reader Active",
+        "Please scan your admin card": "Please scan your admin card",
+        "Password Login": "Password Login",
         "Invalid credentials.": "Invalid credentials.",
         "Logged out.": "Logged out.",
         "Player created.": "Player created.",
@@ -700,6 +753,33 @@ translations = {
         "This application stores all data locally in SQLite. For production use, consider additional security measures and regular backups.": "This application stores all data locally in SQLite. For production use, consider additional security measures and regular backups.",
         "Overview": "Overview",
         "The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club's operations. It handles player registration, training session tracking, payment management, event organization, and reporting.": "The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club's operations. It handles player registration, training session tracking, payment management, event organization, and reporting.",
+        "Please enter your Personal Number (ЕГН).": "Please enter your Player Number.",
+        "Player with Personal Number {pn} not found.": "Player with number {id} not found.",
+        "Player account is not active.": "Player account is not active.",
+        "Session for today already recorded for {name}.": "Session for today already recorded for {name}.",
+        "Wrong Player Number! Please enter your own number.": "Wrong Player Number! Please enter your own number.",
+        "Welcome {name}! Your training session has been recorded successfully. Keep up the great work!": "Welcome {name}! 🎉 Your training session has been recorded successfully! You're doing amazing - keep pushing your limits and achieving greatness! 💪",
+        "Session recording failed. Please try again.": "Session recording failed. Please try again.",
+        "Kiosk Mode - Record Training Session": "Kiosk Mode - Record Training Session",
+        "Enter your Personal Number (ЕГН)": "Enter your Player Number",
+        "Record Session": "Record Session",
+        "Cancel": "Cancel",
+        "Click on your name to record a training session": "Click on your name to record a training session",
+        "Or simply scan your card to record a session automatically": "Or simply scan your card to record a session automatically",
+        "Card Reader": "Card Reader",
+        "Scan your card here to record a training session automatically": "Scan your card here to record a training session automatically",
+        "Scan card...": "Scan card...",
+        "Error processing card scan. Please try again.": "Error processing card scan. Please try again.",
+        "Kiosk Mode": "Kiosk Mode",
+        "Search by name...": "Search by name...",
+        "All Belts": "All Belts",
+        "Search": "Search",
+        "Admin View": "Admin View",
+        "No players found": "No players found",
+        "Try adjusting your search criteria.": "Try adjusting your search criteria.",
+        "Selected athlete:": "Selected athlete:",
+        "Enter your 10-digit Bulgarian ID number to confirm and record the session.": "Enter your 10-digit Bulgarian ID number to confirm and record the session.",
+        "For quick session recording without admin login, use Kiosk Mode: athletes click their name and enter their Personal Number (ЕГН) to record training sessions.": "For quick session recording without admin login, use Kiosk Mode: athletes click their name and enter their Player Number to record training sessions.",
     },
     "bg": {
         # --- Grade/Belt labels ---
@@ -735,6 +815,19 @@ translations = {
         "Edit": "Редакция",
         "Run DB migration": "Стартирай миграция",
         "Admin Login": "Админ вход",
+        "Admin Settings": "Админ настройки",
+        "Logo": "Лого",
+        "Background Image": "Фонова картинка",
+        "Admin Password": "Админ парола",
+        "Leave blank to keep current password": "Оставете празно, за да запазите текущата парола",
+        "Save Settings": "Запази настройки",
+        "Admin Card ID": "ID на админ карта",
+        "Read Card": "Прочети карта",
+        "Reading...": "Четене...",
+        "Current registered card:": "Текуща регистрирана карта:",
+        "No admin card registered yet": "Все още няма регистрирана админ карта",
+        "Current Logo": "Текущо лого",
+        "Current Background": "Текущ фон",
         "Admin exports": "Админ експорти",
         "Admin imports": "Админ импорти",
         "Imports": "Импорти",
@@ -790,6 +883,9 @@ translations = {
         "Mother Phone": "Телефон на майката",
         "Father Name": "Име на бащата",
         "Father Phone": "Телефон на бащата",
+        "Card ID": "ID на карта",
+        "Read Card": "Прочети карта",
+        "Reading...": "Четене...",
         "Actions": "Действия",
         "Profile": "Профил",
         "Contacts": "Контакти",
@@ -854,6 +950,10 @@ translations = {
         "ID": "ID",
         "Category": "Категория",
         "Training fee": "Такса за тренировка",
+        "Bulk payment": "Групово плащане",
+        "Details": "Детайли",
+        "Training session on": "Тренировка на",
+        "Training sessions on": "Тренировки на",
         "Plan": "План",
         "Per month": "Месечно",
         "Per session": "На тренировка",
@@ -863,6 +963,7 @@ translations = {
         "Event": "Събитие",
         "Record payment": "Запиши плащане",
         "Record payment for this debt": "Запиши плащане за този дълг",
+        "This receipt was auto-generated as a debt for extra sessions.": "Тази квитанция беше автоматично генерирана като дълг за допълнителни тренировки.",
         "Record Session": "Запиши тренировка",
         "Pay Due": "Плати дължимото",
         "Open payment form": "Отвори форма за плащане",
@@ -955,6 +1056,29 @@ translations = {
         "Medals Report": "Отчет за медали",
         "Year": "Година",
         "Total": "Общо",
+        "Income": "Приходи",
+        "Due": "Дължими",
+        "Net Income": "Нетен доход",
+        "Balance": "Баланс",
+        "Net club revenue (training fees minus event pass-through)": "Нетни приходи на клуба (тренировъчни такси минус събитийни пас-тру)",
+        "Period Fees Report": "Отчет за такси за период",
+        "Player Summary": "Обобщение по играчи",
+        "Bulk payment": "Групово плащане",
+        "Generated on:": "Генерирано на:",
+        "This will generate a comprehensive report showing all fees (monthly, per-session, and event) for the selected period.": "Това ще генерира цялостен отчет, показващ всички такси (месечни, на тренировка и за събития) за избрания период.",
+        "Generate Report": "Генерирай отчет",
+        "Period": "Период",
+        "Back to Monthly Report": "Обратно към месечния отчет",
+        "Total Income": "Общо приходи",
+        "Total Due": "Общо дължими",
+        "Monthly Fees": "Месечни такси",
+        "Per Session Fees": "Такси на тренировка",
+        "Event Fees": "Такси за събития",
+        "Bulk": "Групови",
+        "GRAND TOTAL": "ОБЩО",
+        "Payment Details": "Детайли за плащането",
+        "No active players found for the selected period.": "Няма активни спортисти за избрания период.",
+        "Period Report": "Отчет за период",
 
         # --- Sportdata profiles ---
         "Sportdata": "Sportdata",
@@ -985,6 +1109,15 @@ translations = {
         "Password": "Парола",
         "Admin login required.": "Необходим е администраторски вход.",
         "Logged in as admin.": "Влязохте като администратор.",
+        "Logged in as admin via card.": "Влязохте като администратор с карта.",
+        "Invalid admin card.": "Невалидна админ карта.",
+        "Card Login": "Вход с карта",
+        "Scan your admin card to login": "Сканирайте админ картата си за автоматичен вход",
+        "Scan admin card...": "Сканиране на админ карта...",
+        "Login with Card": "Вход с карта",
+        "Card Reader Active": "Четецът на карти е активен",
+        "Please scan your admin card": "Моля, сканирайте админ картата си",
+        "Password Login": "Вход с парола",
         "Invalid credentials.": "Невалидни данни за вход.",
         "Logged out.": "Излязохте.",
         "Player created.": "Спортистът е създаден.",
@@ -1273,6 +1406,35 @@ translations = {
         "This application stores all data locally in SQLite. For production use, consider additional security measures and regular backups.": "Това приложение съхранява всички данни локално в SQLite. За производствена употреба, обмислете допълнителни мерки за сигурност и редовни резервни копия.",
         "Overview": "Обзор",
         "The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club's operations. It handles player registration, training session tracking, payment management, event organization, and reporting.": "Системата за управление на клуб по karate е цялостно уеб приложение, предназначено да управлява всички аспекти на операциите на клуб по karate. То обработва регистрация на спортисти, проследяване на тренировъчни сесии, управление на плащания, организация на събития и отчитане.",
+        "Please enter your Personal Number (ЕГН).": "Моля, въведете вашия номер на спортист.",
+        "Player with Personal Number {pn} not found.": "Спортист с номер {id} не е намерен.",
+        "Player account is not active.": "Профилът на спортиста не е активен.",
+        "Session for today already recorded for {name}.": "Сесията за днес вече е записана за {name}.",
+        "Wrong Player Number! Please enter your own number.": "Грешен номер на спортист! Моля, въведете вашия собствен номер.",
+        "Welcome {name}! Your training session has been recorded successfully. Keep up the great work!": "Добре дошъл {name}! 🎉 Твоята тренировъчна сесия е записана успешно! Ти си невероятен - продължавай да се бориш и постигай велики неща! 💪",
+        "Session recording failed. Please try again.": "Записването на сесията е неуспешно. Моля, опитайте отново.",
+        "Kiosk Mode - Record Training Session": "Режим Кiosk - Записване на тренировъчна сесия",
+        "Enter your Personal Number (ЕГН)": "Въведете вашия номер на спортист",
+        "Record Session": "Запиши тренировка",
+        "Cancel": "Отказ",
+        "Click on your name to record a training session": "Кликнете върху името си, за да запишете тренировъчна сесия",
+        "Or simply scan your card to record a session automatically": "Или просто сканирайте картата си, за да запишете сесия автоматично",
+        "Card Reader": "Четец на карти",
+        "Scan your card here to record a training session automatically": "Сканирайте картата си тук, за да запишете тренировъчна сесия автоматично",
+        "Scan card...": "Сканиране на карта...",
+        "Error processing card scan. Please try again.": "Грешка при обработка на сканирането на картата. Моля, опитайте отново.",
+        "Kiosk Mode": "Режим Kiosk",
+        "Search by name...": "Търсене по име...",
+        "All Belts": "Всички колани",
+        "Search": "Търсене",
+        "Admin View": "Админ изглед",
+        "No players found": "Няма намерени спортисти",
+        "Try adjusting your search criteria.": "Опитайте да коригирате критериите за търсене.",
+        "Selected athlete:": "Избран спортист:",
+        "Enter your 10-digit Bulgarian ID number to confirm and record the session.": "Въведете вашия номер на спортист, за да потвърдите и запишете сесията.",
+        "For quick session recording without admin login, use Kiosk Mode: athletes click their name and enter their Personal Number (ЕГН) to record training sessions.": "За бързо записване на сесии без администраторски вход, използвайте режим Kiosk: спортистите кликват върху името си и въвеждат своя номер на спортист, за да запишат тренировъчни сесии.",
+        "Current Logo": "Текущо лого",
+        "Current Background": "Текущ фон",
     },
 }
 
@@ -1379,6 +1541,143 @@ def first_working_day(year: int, month: int) -> date:
         if d.month == month and d.weekday() < 5:
             return d
     return date(year, month, 1)
+
+def scrape_bnfk_events():
+    """Scrape events from BNFK calendar for informational display."""
+    import json
+    from datetime import datetime
+    from dateutil import parser as date_parser
+    import re
+    
+    cache_file = os.path.join(BASE_DIR, 'bnfk_cache.json')
+    cache_duration_hours = 24
+    
+    # Check if we have a valid cache
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+            
+            cached_time = datetime.fromisoformat(cache_data['timestamp'])
+            if (datetime.now() - cached_time).total_seconds() < (cache_duration_hours * 3600):
+                # Cache is still valid, return cached events
+                return cache_data['events']
+        except (json.JSONDecodeError, KeyError, ValueError):
+            # Cache is corrupted, continue to scrape
+            pass
+    
+    # Scrape fresh data
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+        
+        url = "https://www.bnfk.bg/calendar"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Find the calendar table
+        events = []
+        
+        # Helper function to parse dates from various formats
+        def parse_dates(date_str):
+            date_str = date_str.strip()
+            # Try to find date patterns using regex
+            # Patterns: DD.MM.YYYY, DD/MM/YYYY, DD.MM, etc.
+            date_pattern = re.compile(r'(\d{1,2})[./](\d{1,2})(?:[./](\d{4}))?')
+            matches = date_pattern.findall(date_str)
+            
+            if not matches:
+                # Try dateutil for other formats like "24 януари 2026"
+                try:
+                    parsed = date_parser.parse(date_str, fuzzy=True)
+                    return parsed.date(), parsed.date()
+                except:
+                    return None, None
+            
+            dates = []
+            for match in matches:
+                day, month, year = match
+                day = int(day)
+                month = int(month)
+                if year:
+                    year = int(year)
+                else:
+                    year = date.today().year
+                    # If month is before current, assume next year
+                    current_month = date.today().month
+                    if month < current_month:
+                        year += 1
+                try:
+                    dates.append(date(year, month, day))
+                except ValueError:
+                    continue
+            
+            if len(dates) == 1:
+                return dates[0], dates[0]
+            elif len(dates) == 2:
+                return dates[0], dates[1]
+            else:
+                return None, None
+        
+        # Look for table rows with event data
+        table = soup.find('table')
+        if table:
+            rows = table.find_all('tr')
+            for row in rows:
+                cols = row.find_all('td')
+                if len(cols) >= 3:
+                    date_range = cols[0].get_text(strip=True)
+                    title = cols[1].get_text(strip=True)
+                    location = cols[2].get_text(strip=True)
+                    
+                    # Parse dates
+                    start_date, end_date = parse_dates(date_range)
+                    if not start_date:
+                        app.logger.warning(f'Could not parse date: {date_range}')
+                        continue
+                    
+                    events.append({
+                        'title': f'🇧🇬 BNFK: {title}',
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        'location': location,
+                        'url': url,  # Link back to BNFK calendar
+                        'is_external': True
+                    })
+        
+        # Cache the results
+        cache_data = {
+            'timestamp': datetime.now().isoformat(),
+            'events': events
+        }
+        
+        # Convert date objects to ISO strings for JSON serialization
+        for event in cache_data['events']:
+            event['start_date'] = event['start_date'].isoformat()
+            event['end_date'] = event['end_date'].isoformat()
+        
+        try:
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            # If caching fails, just continue without caching
+            pass
+        
+        return events
+        
+    except Exception as e:
+        app.logger.warning(f'Failed to scrape BNFK events: {e}')
+        # Try to return cached data even if expired
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    cache_data = json.load(f)
+                return cache_data.get('events', [])
+            except Exception:
+                pass
+        return []
 
 def parse_month_str(month_str: Optional[str]) -> Tuple[int, int]:
     t = date.today()
@@ -1489,6 +1788,9 @@ class Player(db.Model):
     mother_phone = db.Column(db.String(40), nullable=True)
     father_name = db.Column(db.String(120), nullable=True)
     father_phone = db.Column(db.String(40), nullable=True)
+
+    # Card ID for RFID/card reader
+    card_id = db.Column(db.String(50), nullable=True, unique=True)
 
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
@@ -1626,9 +1928,19 @@ class PaymentRecord(db.Model):
         if do_commit:
             db.session.commit()
 
+class Setting(db.Model):
+    key = db.Column(db.String(50), primary_key=True)
+    value = db.Column(db.String(500), nullable=True)
+
 # -----------------------------
 # Forms
 # -----------------------------
+def validate_card_id_uniqueness(form, field):
+    if field.data:
+        existing = Player.query.filter_by(card_id=field.data).first()
+        if existing and (not hasattr(form, 'player') or existing.id != form.player.id):
+            raise ValidationError("Card ID already in use by another player.")
+
 class PlayerForm(FlaskForm):
     first_name = StringField("First Name", validators=[DataRequired(), Length(max=80)])
     last_name = StringField("Last Name", validators=[DataRequired(), Length(max=80)])
@@ -1660,6 +1972,8 @@ class PlayerForm(FlaskForm):
     father_name = StringField("Father Name", validators=[VOptional(), Length(max=120)])
     father_phone = StringField("Father Phone", validators=[VOptional(), Length(max=40)])
 
+    card_id = StringField("Card ID", validators=[VOptional(), Length(max=50), validate_card_id_uniqueness])
+
     notes = TextAreaField("Notes", validators=[VOptional(), Length(max=5000)])
 
     sportdata_wkf_url = StringField("WKF Profile URL", validators=[VOptional(), URL(), Length(max=255)])
@@ -1689,6 +2003,13 @@ class EventRegistrationForm(FlaskForm):
     paid = BooleanField("Paid", default=False)
     submit = SubmitField("Add Registration")
 
+class SettingsForm(FlaskForm):
+    logo = FileField("Logo", validators=[VOptional()])
+    admin_password = PasswordField("Admin Password", validators=[VOptional(), Length(min=6)])
+    admin_card_id = StringField("Admin Card ID", validators=[VOptional(), Length(max=50)])
+    background = FileField("Background Image", validators=[VOptional()])
+    submit = SubmitField("Save Settings")
+
 def set_localized_choices(form: PlayerForm):
     form.grade_level.choices = [(g, g) for g in GRADING_SCHEME["grades"]]
     # Display localized label, store short key in DB
@@ -1696,8 +2017,13 @@ def set_localized_choices(form: PlayerForm):
     form.gender.choices = [("", _("—"))] + [(v, _(v)) for v in GENDER_VALUES]
 
 # -----------------------------
-# Context processors
-# -----------------------------
+@app.context_processor
+def inject_settings():
+    settings = {s.key: s.value for s in Setting.query.all()}
+    return dict(
+        app_logo=settings.get('logo_path', '/static/img/enso-logo.webp'),
+        app_background=settings.get('background_image'),
+    )
 @app.context_processor
 def inject_i18n():
     return dict(_=_, current_lang=get_lang())
@@ -2020,7 +2346,34 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
-        if username == ADMIN_USER and password == ADMIN_PASS:
+        card_id = request.form.get("card_id", "")
+        
+        # Check for admin card login
+        if card_id:
+            admin_card_setting = Setting.query.filter_by(key='admin_card_id').first()
+            if admin_card_setting and card_id == admin_card_setting.value:
+                session["is_admin"] = True
+                flash(_("Logged in as admin via card."), "success")
+                if next_url.endswith("/login") or next_url.startswith("/login?"):
+                    next_url = url_for("list_players")
+                return redirect(next_url)
+            else:
+                flash(_("Invalid admin card."), "danger")
+                return render_template("login.html", next_url=next_url)
+        
+        # Check settings first
+        setting = Setting.query.filter_by(key='admin_password_hash').first()
+        if setting:
+            import hashlib
+            hashed = hashlib.sha256(password.encode()).hexdigest()
+            if username == ADMIN_USER and hashed == setting.value:
+                session["is_admin"] = True
+                flash(_("Logged in as admin."), "success")
+                if next_url.endswith("/login") or next_url.startswith("/login?"):
+                    next_url = url_for("list_players")
+                return redirect(next_url)
+        # Fallback to env
+        elif username == ADMIN_USER and password == ADMIN_PASS:
             session["is_admin"] = True
             flash(_("Logged in as admin."), "success")
             if next_url.endswith("/login") or next_url.startswith("/login?"):
@@ -2038,6 +2391,129 @@ def logout():
 @app.route("/help")
 def help_page():
     return render_template("help.html", _=_ , current_lang=get_lang())
+
+@app.route("/kiosk")
+def kiosk():
+    """Kiosk mode: Public player list for session recording without admin login."""
+    q = request.args.get("q", "").strip()
+    belt = request.args.get("belt", "")
+    active = request.args.get("active", "")
+
+    query = Player.query.filter_by(active_member=True)  # Only show active members
+
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(Player.first_name.ilike(like), Player.last_name.ilike(like)))
+
+    if belt:
+        query = query.filter_by(belt_rank=belt)
+
+    players = query.order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+
+    # Get belt colors for display
+    belt_colors = {}
+    for p in players:
+        belt_colors[p.id] = BELT_PALETTE.get(p.belt_rank, "#f8f9fa")
+
+    return render_template("kiosk.html", players=players, belt_colors=belt_colors, q=q, belt=belt, active=active)
+
+@app.route("/kiosk/record_session", methods=["POST"])
+def kiosk_record_session():
+    """Kiosk mode: Record session by player ID."""
+    player_id_str = request.form.get("player_id", "").strip()
+    expected_player_id_str = request.form.get("expected_player_id", "").strip()
+    
+    if not player_id_str:
+        flash(_("Please enter your Player Number."), "warning")
+        return redirect(url_for("kiosk"))
+    
+    try:
+        player_id = int(player_id_str)
+        expected_player_id = int(expected_player_id_str)
+    except ValueError:
+        flash(_("Player Number must be a valid number."), "danger")
+        return redirect(url_for("kiosk"))
+    
+    # Verify the entered ID matches the expected player
+    if player_id != expected_player_id:
+        flash(_("Wrong Player Number! Please enter your own number."), "danger")
+        return redirect(url_for("kiosk"))
+    
+    # Find player by ID
+    player = Player.query.get(player_id)
+    if not player:
+        flash(_("Player with number {id} not found.").format(id=player_id), "danger")
+        return redirect(url_for("kiosk"))
+    
+    if not player.active_member:
+        flash(_("Player account is not active."), "warning")
+        return redirect(url_for("kiosk"))
+    
+    # Check if session already recorded today
+    today = date.today()
+    existing = TrainingSession.query.filter_by(player_pn=player.pn, date=today).first()
+    if existing:
+        flash(_("Session for today already recorded for {name}.").format(name=f"{player.first_name} {player.last_name}"), "info")
+        return redirect(url_for("kiosk"))
+    
+    # For monthly payers, mark as paid since they pay monthly
+    is_paid = player.monthly_fee_is_monthly
+    
+    session_id = f"{player.id}_{today.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S%f')}"
+    ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=today, session_id=session_id, paid=is_paid, created_at=datetime.now())
+    db.session.add(ts)
+    
+    try:
+        db.session.commit()
+        flash(_("Welcome {name}! Your training session has been recorded successfully. Keep up the great work!").format(name=player.first_name), "success")
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to record TrainingSession from kiosk')
+        flash(_("Session recording failed. Please try again."), "danger")
+    
+    return redirect(url_for("kiosk"))
+
+@app.route("/kiosk/record_session_card", methods=["POST"])
+def kiosk_record_session_card():
+    """Kiosk mode: Record session by card ID."""
+    card_id = request.form.get("card_id", "").strip()
+    
+    if not card_id:
+        return {"success": False, "message": "No card ID provided"}, 400
+    
+    # Find player by card_id
+    player = Player.query.filter_by(card_id=card_id).first()
+    if not player:
+        return {"success": False, "message": "Card not recognized. Please register your card first."}, 404
+    
+    if not player.active_member:
+        return {"success": False, "message": "Player account is not active."}, 403
+    
+    # Check if session already recorded today
+    today = date.today()
+    existing = TrainingSession.query.filter_by(player_pn=player.pn, date=today).first()
+    if existing:
+        return {"success": False, "message": f"Session for today already recorded for {player.first_name} {player.last_name}."}, 409
+    
+    # For monthly payers, mark as paid since they pay monthly
+    is_paid = player.monthly_fee_is_monthly
+    
+    session_id = f"{player.id}_{today.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S%f')}"
+    ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=today, session_id=session_id, paid=is_paid, created_at=datetime.now())
+    db.session.add(ts)
+    
+    try:
+        db.session.commit()
+        return {
+            "success": True, 
+            "message": f"Welcome {player.first_name}! Your training session has been recorded successfully. Keep up the great work!",
+            "player_name": f"{player.first_name} {player.last_name}",
+            "belt_rank": player.belt_rank or "No Belt"
+        }, 200
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to record TrainingSession from card scan')
+        return {"success": False, "message": "Session recording failed. Please try again."}, 500
 
 # -------- CRUD Players ----------
 @app.route("/admin/players/import_csv", methods=["POST"], endpoint='admin_players_import_csv')
@@ -2212,6 +2688,8 @@ def create_player():
             father_name=form.father_name.data or None,
             father_phone=form.father_phone.data or None,
 
+            card_id=form.card_id.data or None,
+
             sportdata_wkf_url=form.sportdata_wkf_url.data or None,
             sportdata_bnfk_url=form.sportdata_bnfk_url.data or None,
             sportdata_enso_url=form.sportdata_enso_url.data or None,
@@ -2250,6 +2728,7 @@ def create_player():
 def edit_player(player_id: int):
     player = Player.query.get_or_404(player_id)
     form = PlayerForm(obj=player)
+    form.player = player  # Pass player to form for validation
     set_localized_choices(form)
     if form.validate_on_submit():
         form.populate_obj(player)
@@ -2458,6 +2937,7 @@ def player_pay_due_receipt(player_id: int):
     created = []
     total_amount = 0
     today = date.today()
+    bulk_note_parts = []
 
     # Helper: get due type and object by ID
     def get_due_obj(due_id):
@@ -2490,26 +2970,12 @@ def player_pay_due_receipt(player_id: int):
             for s in sessions:
                 s.paid = True
                 db.session.add(s)
-            # Create a single PaymentRecord for all selected sessions
-            # User-friendly note for receipt
+            # For bulk receipt, just accumulate amount and note
             if len(session_ids) == 1:
-                note = f"Session ID: {session_ids[0]}"
+                bulk_note_parts.append(f"Session ID: {session_ids[0]}")
             else:
-                note = f"Session IDs: {', '.join(session_ids)}"
-            rec = PaymentRecord(
-                kind='training_session', player_id=player.id, player_pn=player.pn,
-                amount=amt, year=today.year, month=today.month,
-                sessions_paid=0, sessions_taken=0,
-                currency='EUR', note=note
-            )
-            db.session.add(rec)
-            db.session.commit()
-            try:
-                rec.assign_receipt_no()
-            except Exception:
-                pass
+                bulk_note_parts.append(f"Sessions: {', '.join(session_ids)}")
             total_amount += amt
-            created.append(rec)
             continue
         # Normal dues (int IDs)
         try:
@@ -2518,64 +2984,54 @@ def player_pay_due_receipt(player_id: int):
             continue
         kind, obj = get_due_obj(due_id_int)
         if kind == "monthly":
-            # Create PaymentRecord for monthly fee
+            # For bulk receipt, just accumulate amount and note
             amt = obj.amount or 0
-            rec = PaymentRecord(kind='training_month', player_id=player.id, player_pn=player.pn,
-                                amount=amt, year=obj.year, month=obj.month,
-                                payment_id=obj.id, currency='EUR', note='PAY_FROM_MODAL')
-            db.session.add(rec)
-            db.session.commit()
-            try:
-                rec.assign_receipt_no()
-            except Exception:
-                pass
+            bulk_note_parts.append(f"Monthly fee {obj.year}-{obj.month:02d}")
             obj.paid = True
             obj.paid_on = today
             db.session.add(obj)
-            db.session.commit()
             total_amount += amt
-            created.append(rec)
         elif kind == "event":
             amt = obj.computed_fee() or 0
             event_name = obj.event.title if obj.event and hasattr(obj.event, 'title') else 'Event'
-            note = f"PAY_FROM_MODAL | Event: {event_name}"
-            rec = PaymentRecord(kind='event', player_id=player.id, player_pn=player.pn,
-                                amount=amt, event_registration_id=obj.id,
-                                currency='EUR', note=note)
-            db.session.add(rec)
-            db.session.commit()
-            try:
-                rec.assign_receipt_no()
-            except Exception:
-                pass
+            # Include categories for this payment
+            categories = []
+            for rc in obj.reg_categories:
+                if rc.category:
+                    categories.append(rc.category.name)
+            category_str = ", ".join(categories) if categories else ""
+            if category_str:
+                bulk_note_parts.append(f"Event: {event_name} ({category_str})")
+            else:
+                bulk_note_parts.append(f"Event: {event_name}")
             obj.paid = True
             obj.paid_on = today
             db.session.add(obj)
-            db.session.commit()
             total_amount += amt
-            created.append(rec)
         elif kind == "debt":
             d_amt = int(obj.amount or 0)
             if d_amt <= 0:
                 continue
-            pay_rec = PaymentRecord(
-                kind=obj.kind, player_id=player.id, player_pn=player.pn,
-                amount=d_amt, currency=obj.currency or 'EUR',
-                method=None,
-                note=f'Payment for debt receipt {obj.id}',
-                related_receipt_id=obj.id
-            )
-            db.session.add(pay_rec)
-            db.session.commit()
-            try:
-                pay_rec.assign_receipt_no()
-            except Exception:
-                pass
+            bulk_note_parts.append(f"Debt payment for receipt {obj.id}")
             obj.note = (obj.note or '') + ' | AUTO_DEBT_PAID'
             db.session.add(obj)
-            db.session.commit()
-            created.append(pay_rec)
             total_amount += d_amt
+
+    # Create a single bulk PaymentRecord
+    if total_amount > 0:
+        bulk_note = "Bulk payment: " + "; ".join(bulk_note_parts)
+        rec = PaymentRecord(
+            kind='bulk_payment', player_id=player.id, player_pn=player.pn,
+            amount=total_amount, year=today.year, month=today.month,
+            currency='EUR', note=bulk_note
+        )
+        db.session.add(rec)
+        db.session.commit()
+        try:
+            rec.assign_receipt_no()
+        except Exception:
+            pass
+        created.append(rec)
 
     print('DEBUG: created PaymentRecords:', [r.id for r in created])
     if created:
@@ -2669,7 +3125,6 @@ def backfill_training_sessions():
     db.session.commit()
     flash(_(f"Backfilled {created_total} missing TrainingSession records."), "success")
     return redirect(request.referrer or url_for('list_players'))
-# -------- Fees Report + Toggle + CSV ----------
 @app.route("/reports/fees")
 @admin_required
 def fees_report():
@@ -2734,27 +3189,30 @@ def fees_report():
             extract('month', PaymentRecord.paid_at) == month
         ).all()
         event_total = sum(ep.amount or 0 for ep in event_payments)
-        # Owed for events: sum of unpaid event registrations (per category) for this month
+        # Bulk payments
+        bulk_payments = PaymentRecord.query.filter_by(player_pn=player.pn, kind='bulk_payment').filter(
+            extract('year', PaymentRecord.paid_at) == year,
+            extract('month', PaymentRecord.paid_at) == month
+        ).all()
+        bulk_total = sum(bp.amount or 0 for bp in bulk_payments)
+        # Owed for events: sum of unpaid event registrations (per category) for this player
+        # Event fees are due immediately upon registration, not based on event date
         event_owed = 0
         category_fees = 0
-        from calendar import monthrange
-        month_start = date(year, month, 1)
-        month_end = date(year, month, monthrange(year, month)[1])
-        # All event registrations for this player in this month
-        regs_in_month = [reg for reg in EventRegistration.query.filter_by(player_pn=player.pn).join(Event).filter(Event.start_date >= month_start, Event.start_date <= month_end).all()]
-        for reg in regs_in_month:
+        # All unpaid event registrations for this player
+        unpaid_regs = EventRegistration.query.filter_by(player_pn=player.pn, paid=False).all()
+        for reg in unpaid_regs:
             # Sum all category fees for this registration
             for rc in reg.reg_categories:
                 if rc.category and rc.category.fee is not None:
                     category_fees += int(rc.category.fee)
-            # Owed only if unpaid
-            if not reg.paid:
-                for rc in reg.reg_categories:
-                    if rc.category and rc.category.fee is not None:
-                        event_owed += int(rc.category.fee)
-                # If no categories, fallback to registration fee
-                if not reg.reg_categories and reg.computed_fee():
-                    event_owed += reg.computed_fee()
+            # All unpaid registrations are owed
+            for rc in reg.reg_categories:
+                if rc.category and rc.category.fee is not None:
+                    event_owed += int(rc.category.fee)
+            # If no categories, fallback to registration fee
+            if not reg.reg_categories and reg.computed_fee():
+                event_owed += reg.computed_fee()
         # Details for expansion
         event_details = []
         for ep in event_payments:
@@ -2765,6 +3223,16 @@ def fees_report():
                 'receipt_no': ep.receipt_no,
                 'paid_on': ep.paid_at.date() if ep.paid_at else None,
                 'id': ep.id,
+            })
+        # Details for bulk payments expansion
+        bulk_details = []
+        for bp in bulk_payments:
+            bulk_details.append({
+                'amount': bp.amount,
+                'receipt_no': bp.receipt_no,
+                'paid_on': bp.paid_at.date() if bp.paid_at else None,
+                'id': bp.id,
+                'note': bp.note,
             })
         # Find monthly receipt (PaymentRecord)
         monthly_receipt = None
@@ -2795,6 +3263,8 @@ def fees_report():
             'event_owed': event_owed,
             'category_fees': category_fees,
             'event_details': event_details,
+            'bulk_total': bulk_total,
+            'bulk_details': bulk_details,
             'year': year,
             'month': month,
         })
@@ -2812,6 +3282,168 @@ def fees_report():
         month=month,
         due_date=due,
         today=date.today()
+    )
+
+@app.route("/admin/reports/fees/print/<int:year>/<int:month>")
+@admin_required
+def fees_report_print(year: int, month: int):
+    """Print-friendly version of the monthly fees report."""
+    month_str = f"{year:04d}-{month:02d}"
+    ensure_payments_for_month(year, month)
+
+    # Get all active players
+    players = Player.query.filter_by(active_member=True).order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+    payments = {p.player_id: p for p in Payment.query.filter_by(year=year, month=month).all()}
+
+    # Consolidate all payments per athlete (same logic as fees_report)
+    from sqlalchemy import extract
+    report_rows = []
+    for player in players:
+        # Monthly
+        payment = payments.get(player.id)
+        monthly_amount = payment.amount if payment else 0
+        monthly_paid = payment.paid if payment else False
+        monthly_id = payment.id if payment else None
+        # Per-session
+        per_session_amount = player.monthly_fee_amount if player.monthly_fee_is_monthly is False else None
+        sessions_taken = 0
+        sessions_paid = 0
+        prepaid_amount = 0
+        sessions_in_month = []
+        sess_filter = {'player_pn': player.pn} if player.pn else {'player_id': player.id}
+        if per_session_amount is not None:
+            from calendar import monthrange
+            month_start = date(year, month, 1)
+            month_end = date(year, month, monthrange(year, month)[1])
+            sessions_in_month = TrainingSession.query.filter_by(**sess_filter).filter(TrainingSession.date >= month_start, TrainingSession.date <= month_end).all()
+            sessions_taken = len(sessions_in_month)
+            sessions_paid = sum(1 for s in sessions_in_month if getattr(s, 'paid', False))
+            session_pay_recs = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').filter(
+                db.func.strftime('%Y', PaymentRecord.paid_at) == str(year),
+                db.func.strftime('%m', PaymentRecord.paid_at) == f"{month:02d}"
+            ).all()
+            prepaid_amount = sum(r.amount or 0 for r in session_pay_recs)
+            owed_amount = max(0, (sessions_taken - sessions_paid) * per_session_amount)
+        else:
+            owed_amount = 0
+        
+        session_list = [
+            {
+                'session_id': s.session_id,
+                'date': s.date.isoformat() if s.date else None,
+                'paid': bool(getattr(s, 'paid', False)),
+                'amount': per_session_amount if per_session_amount is not None else None
+            }
+            for s in (locals().get('sessions_in_month') or [])
+        ]
+        
+        # Events
+        event_payments = PaymentRecord.query.filter_by(player_pn=player.pn, kind='event').filter(
+            extract('year', PaymentRecord.paid_at) == year,
+            extract('month', PaymentRecord.paid_at) == month
+        ).all()
+        event_total = sum(ep.amount or 0 for ep in event_payments)
+        
+        # Bulk payments
+        bulk_payments = PaymentRecord.query.filter_by(player_pn=player.pn, kind='bulk_payment').filter(
+            extract('year', PaymentRecord.paid_at) == year,
+            extract('month', PaymentRecord.paid_at) == month
+        ).all()
+        bulk_total = sum(bp.amount or 0 for bp in bulk_payments)
+        
+        # Event owed calculation (same as main report)
+        event_owed = 0
+        category_fees = 0
+        unpaid_regs = EventRegistration.query.filter_by(player_pn=player.pn, paid=False).all()
+        for reg in unpaid_regs:
+            for rc in reg.reg_categories:
+                if rc.category and rc.category.fee is not None:
+                    category_fees += int(rc.category.fee)
+            for rc in reg.reg_categories:
+                if rc.category and rc.category.fee is not None:
+                    event_owed += int(rc.category.fee)
+            if not reg.reg_categories and reg.computed_fee():
+                event_owed += reg.computed_fee()
+        
+        # Event and bulk details for expandable sections
+        event_details = []
+        for ep in event_payments:
+            event_name = ep.event_registration.event.title if ep.event_registration and ep.event_registration.event else None
+            event_details.append({
+                'amount': ep.amount,
+                'event_name': event_name,
+                'receipt_no': ep.receipt_no,
+                'paid_on': ep.paid_at.date() if ep.paid_at else None,
+                'id': ep.id,
+            })
+        
+        bulk_details = []
+        for bp in bulk_payments:
+            bulk_details.append({
+                'amount': bp.amount,
+                'receipt_no': bp.receipt_no,
+                'paid_on': bp.paid_at.date() if bp.paid_at else None,
+                'id': bp.id,
+                'note': bp.note,
+            })
+        
+        # Find monthly receipt
+        monthly_receipt = None
+        if payment:
+            monthly_receipt = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_month', year=year, month=month).first()
+        monthly_receipt_no = monthly_receipt.receipt_no if monthly_receipt else None
+        
+        # Session receipts
+        session_receipt_nos = [r.receipt_no for r in (locals().get('session_receipts') or []) if r.receipt_no]
+        
+        report_rows.append({
+            'player': player,
+            'player_id': player.id,
+            'monthly_amount': monthly_amount,
+            'monthly_paid': monthly_paid,
+            'monthly_receipt_no': monthly_receipt_no,
+            'sessions_paid': sessions_paid,
+            'sessions_taken': sessions_taken,
+            'prepaid_amount': prepaid_amount,
+            'per_session_amount': per_session_amount,
+            'session_receipt_nos': session_receipt_nos,
+            'owed_amount': (owed_amount or 0) + (event_owed or 0),
+            'event_total': event_total,
+            'event_owed': event_owed,
+            'category_fees': category_fees,
+            'bulk_total': bulk_total,
+            'year': year,
+            'month': month,
+        })
+
+    # Calculate totals
+    total_monthly = sum(p['monthly_amount'] for p in report_rows)
+    total_session = sum(p['prepaid_amount'] for p in report_rows)
+    total_event = sum(p['event_total'] for p in report_rows)
+    total_bulk = sum(p['bulk_total'] for p in report_rows)
+    total_category = sum(p['category_fees'] for p in report_rows)
+    total_owed = sum(p['owed_amount'] for p in report_rows)
+    
+    # Show due date as today if today is in the target month, else use first working day
+    today_dt = date.today()
+    if today_dt.year == year and today_dt.month == month:
+        due = today_dt
+    else:
+        due = first_working_day(year, month)
+    
+    return render_template(
+        "report_fees_print.html",
+        payments=report_rows,
+        year=year,
+        month=month,
+        total_monthly=total_monthly,
+        total_session=total_session,
+        total_event=total_event,
+        total_bulk=total_bulk,
+        total_category=total_category,
+        total_owed=total_owed,
+        due_date=due,
+        generated_at=datetime.now()
     )
 
 @app.route("/admin/fees/<int:payment_id>/toggle", methods=["POST"])
@@ -2926,6 +3558,29 @@ def admin_exports():
 def admin_imports():
     """Admin page listing import/upload entry points."""
     return render_template('admin_imports.html', _=_ , current_lang=get_lang())
+
+
+@app.route('/admin/payments')
+@admin_required
+def admin_payments():
+    """Admin page for managing payments."""
+    player_id = request.args.get('player_id', type=int)
+    
+    # Get all players for the dropdown
+    players = Player.query.order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+    
+    # Get selected player if any
+    selected_player = None
+    if player_id:
+        selected_player = Player.query.get(player_id)
+    
+    # Filter payments by player if selected
+    query = PaymentRecord.query
+    if player_id:
+        query = query.filter_by(player_id=player_id)
+    
+    payments = query.order_by(PaymentRecord.paid_at.desc()).all()
+    return render_template('admin_payments.html', payments=payments, players=players, selected_player=selected_player, _=_ , current_lang=get_lang())
 
 
 @app.route('/admin/events/export_zip_all')
@@ -3194,6 +3849,27 @@ def events_calendar():
         .all()
     )
 
+    # Get registration counts for events
+    event_reg_counts = {}
+    for e in events:
+        event_reg_counts[e.id] = EventRegistration.query.filter_by(event_id=e.id).count()
+
+    # Scrape BNFK events
+    bnfk_events = scrape_bnfk_events()
+    
+    # Convert string dates back to date objects if loaded from cache
+    for event in bnfk_events:
+        if isinstance(event['start_date'], str):
+            event['start_date'] = date.fromisoformat(event['start_date'])
+        if isinstance(event['end_date'], str):
+            event['end_date'] = date.fromisoformat(event['end_date'])
+    
+    # Filter BNFK events for current month
+    bnfk_events_filtered = [
+        e for e in bnfk_events 
+        if e['start_date'] <= last and (e['end_date'] or e['start_date']) >= first
+    ]
+
     cal = calendar.monthcalendar(y, m)
     weeks = []
     
@@ -3217,6 +3893,8 @@ def events_calendar():
     
     # Prepare events by date for JavaScript
     events_by_date = {}
+    
+    # Add local events
     for e in events:
         # For events spanning multiple days, add to each day
         event_start = e.start_date
@@ -3229,7 +3907,25 @@ def events_calendar():
                     events_by_date[date_key] = []
                 events_by_date[date_key].append({
                     'title': e.title,
-                    'url': url_for('event_detail', event_id=e.id)
+                    'url': url_for('event_detail', event_id=e.id),
+                    'registrations_count': event_reg_counts[e.id]
+                })
+            current_date += timedelta(days=1)
+    
+    # Add BNFK events
+    for e in bnfk_events_filtered:
+        event_start = e['start_date']
+        event_end = e['end_date']
+        current_date = event_start
+        while current_date <= event_end:
+            if first <= current_date <= last:
+                date_key = current_date.isoformat()
+                if date_key not in events_by_date:
+                    events_by_date[date_key] = []
+                events_by_date[date_key].append({
+                    'title': e['title'],
+                    'url': e['url'],
+                    'registrations_count': 0
                 })
             current_date += timedelta(days=1)
     
@@ -3304,15 +4000,115 @@ def event_detail(event_id: int):
             elif rc.medal == "silver": silver += 1
             elif rc.medal == "bronze": bronze += 1
 
+    # Group registrations by player
+    player_summaries = {}
+    for r in regs:
+        pid = r.player_id
+        if pid not in player_summaries:
+            player_summaries[pid] = {
+                'player': r.player,
+                'entries': 0,
+                'regs': [],
+                'total_expected': 0,
+                'total_paid': 0,
+                'gold': 0,
+                'silver': 0,
+                'bronze': 0
+            }
+        player_summaries[pid]['entries'] += 1
+        player_summaries[pid]['regs'].append(r)
+        fee = expected_fee(r)
+        if fee:
+            player_summaries[pid]['total_expected'] += fee
+            if r.paid:
+                player_summaries[pid]['total_paid'] += fee
+        for rc in r.reg_categories or []:
+            if rc.medal == "gold": player_summaries[pid]['gold'] += 1
+            elif rc.medal == "silver": player_summaries[pid]['silver'] += 1
+            elif rc.medal == "bronze": player_summaries[pid]['bronze'] += 1
+
+    # Sort player summaries by player name
+    player_summaries_list = sorted(player_summaries.values(), key=lambda ps: (ps['player'].last_name, ps['player'].first_name))
+
     return render_template(
         "event_detail.html",
-        ev=ev, regs=regs,
+        ev=ev, regs=regs, player_summaries=player_summaries_list,
         unique_participants=unique_participants,
         entries_count=entries_count,
         total_expected=total_expected,
         total_paid=total_paid,
         total_unpaid=total_unpaid,
         medal_gold=gold, medal_silver=silver, medal_bronze=bronze
+    )
+
+@app.route("/admin/events/<int:event_id>/payment_report")
+@admin_required
+def event_payment_report(event_id: int):
+    ev = Event.query.get_or_404(event_id)
+    regs = (EventRegistration.query
+            .filter_by(event_id=ev.id)
+            .join(Player, Player.id == EventRegistration.player_id)
+            .order_by(Player.last_name.asc(), Player.first_name.asc())
+            .all())
+
+    def expected_fee(r: EventRegistration) -> Optional[int]:
+        if r.fee_override is not None:
+            return r.fee_override
+        total = 0
+        counted = False
+        for rc in r.reg_categories or []:
+            if rc.category and rc.category.fee is not None:
+                total += int(rc.category.fee)
+                counted = True
+        return total if counted else None
+
+    # Group registrations by player
+    player_groups = {}
+    for reg in regs:
+        player_id = reg.player.id
+        if player_id not in player_groups:
+            player_groups[player_id] = {
+                'player': reg.player,
+                'regs': [],
+                'categories': [],
+                'total_fee': 0,
+                'paid_count': 0,
+                'total_count': 0
+            }
+        player_groups[player_id]['regs'].append(reg)
+        fee = expected_fee(reg)
+        if fee is not None:
+            player_groups[player_id]['total_fee'] += fee
+        player_groups[player_id]['total_count'] += 1
+        if reg.paid:
+            player_groups[player_id]['paid_count'] += 1
+        # Collect categories
+        for rc in reg.reg_categories or []:
+            if rc.category and rc.category.name not in player_groups[player_id]['categories']:
+                player_groups[player_id]['categories'].append(rc.category.name)
+
+    # Convert to list and determine if fully paid
+    grouped_regs = []
+    for pg in player_groups.values():
+        pg['fully_paid'] = pg['paid_count'] == pg['total_count']
+        grouped_regs.append(pg)
+
+    # Sort by player name
+    grouped_regs.sort(key=lambda x: (x['player'].last_name.lower(), x['player'].first_name.lower()))
+
+    # Calculate totals
+    total_expected = sum(pg['total_fee'] for pg in grouped_regs)
+    total_paid = sum(pg['total_fee'] for pg in grouped_regs if pg['fully_paid'])
+    total_unpaid = total_expected - total_paid
+
+    return render_template(
+        "event_payment_report.html",
+        ev=ev, grouped_regs=grouped_regs,
+        expected_fee=expected_fee,
+        total_expected=total_expected,
+        total_paid=total_paid,
+        total_unpaid=total_unpaid,
+        now=datetime.utcnow()
     )
 
 @app.route("/admin/events/new", methods=["GET", "POST"])
@@ -4282,6 +5078,7 @@ def migrate():
             if "mother_phone" not in existing: to_add.append(("mother_phone", "VARCHAR(40)"))
             if "father_name" not in existing: to_add.append(("father_name", "VARCHAR(120)"))
             if "father_phone" not in existing: to_add.append(("father_phone", "VARCHAR(40)"))
+            if "card_id" not in existing: to_add.append(("card_id", "VARCHAR(50)"))
             if "pn" not in existing:
                 conn.execute(text("ALTER TABLE player ADD COLUMN pn VARCHAR(20)"))
             for name, coltype in to_add:
@@ -4350,6 +5147,7 @@ def auto_migrate_on_startup():
             ("mother_phone", "VARCHAR(40)"),
             ("father_name", "VARCHAR(120)"),
             ("father_phone", "VARCHAR(40)"),
+            ("card_id", "VARCHAR(50)"),
         ]:
             if col not in existing:
                 to_add.append((col, t))
@@ -4394,6 +5192,75 @@ with app.app_context():
         auto_migrate_on_startup()
     except Exception as e:
         app.logger.exception("Auto-migrate failed: %s", e)
+
+# -----------------------------
+# Admin Settings
+# -----------------------------
+@app.route("/admin/settings", methods=["GET", "POST"])
+@admin_required
+def admin_settings():
+    form = SettingsForm()
+    if form.validate_on_submit():
+        # Handle logo upload
+        if form.logo.data:
+            filename = secure_filename(form.logo.data.filename)
+            if allowed_file(filename):
+                filepath = os.path.join(app.root_path, 'static/img', filename)
+                form.logo.data.save(filepath)
+                setting = Setting.query.filter_by(key='logo_path').first()
+                if not setting:
+                    setting = Setting(key='logo_path')
+                setting.value = f'/static/img/{filename}'
+                db.session.add(setting)
+
+        # Handle background upload
+        if form.background.data:
+            filename = secure_filename(form.background.data.filename)
+            if allowed_file(filename):
+                filepath = os.path.join(app.root_path, 'static/img', filename)
+                form.background.data.save(filepath)
+                setting = Setting.query.filter_by(key='background_image').first()
+                if not setting:
+                    setting = Setting(key='background_image')
+                setting.value = f'/static/img/{filename}'
+                db.session.add(setting)
+
+        # Admin password
+        if form.admin_password.data:
+            import hashlib
+            hashed = hashlib.sha256(form.admin_password.data.encode()).hexdigest()
+            setting = Setting.query.filter_by(key='admin_password_hash').first()
+            if not setting:
+                setting = Setting(key='admin_password_hash')
+            setting.value = hashed
+            db.session.add(setting)
+
+        # Admin card ID
+        if form.admin_card_id.data:
+            setting = Setting.query.filter_by(key='admin_card_id').first()
+            if not setting:
+                setting = Setting(key='admin_card_id')
+            setting.value = form.admin_card_id.data
+            db.session.add(setting)
+
+        db.session.commit()
+        flash("Settings saved successfully.", "success")
+        return redirect(url_for('admin_settings'))
+
+    # Load current values
+    logo_setting = Setting.query.filter_by(key='logo_path').first()
+    background_setting = Setting.query.filter_by(key='background_image').first()
+    admin_card_setting = Setting.query.filter_by(key='admin_card_id').first()
+
+    return render_template(
+        "admin_settings.html",
+        form=form,
+        current_logo=logo_setting.value if logo_setting else '/static/img/enso-logo.webp',
+        current_background=background_setting.value if background_setting else None,
+        current_admin_card=admin_card_setting.value if admin_card_setting else None,
+        _=_,
+        current_lang=get_lang(),
+    )
 
 # -----------------------------
 # Payments & Receipts (admin-only)
@@ -4502,12 +5369,82 @@ def payment_new():
                 reg_row.paid_on = date.today()
                 db.session.add(reg_row)
 
+        if record.kind == "training_session" and record.sessions_paid and record.sessions_paid > 0:
+            # Mark the most recent unpaid sessions as paid
+            unpaid_sessions = (TrainingSession.query
+                             .filter_by(player_pn=record.player_pn, paid=False)
+                             .order_by(TrainingSession.date.desc())
+                             .limit(record.sessions_paid)
+                             .all())
+            for session in unpaid_sessions:
+                session.paid = True
+                db.session.add(session)
+
         db.session.commit()
     except Exception:
         db.session.rollback()
 
     flash("Payment recorded. Receipt generated.", "success")
     return redirect(url_for("receipt_view", rid=record.id))
+
+@app.route("/admin/payments/<int:payment_id>/edit", methods=["GET", "POST"])
+@admin_required
+def payment_edit(payment_id: int):
+    record = PaymentRecord.query.get_or_404(payment_id)
+    
+    if request.method == "GET":
+        return render_template("payment_edit.html", record=record, _=_ , current_lang=get_lang())
+    
+    # Update the record
+    record.amount = request.form.get("amount", type=int)
+    record.currency = (request.form.get("currency") or "EUR").strip().upper()
+    record.method = request.form.get("method") or None
+    record.note = request.form.get("note") or None
+    
+    db.session.commit()
+    flash("Payment updated.", "success")
+    return redirect(url_for("admin_payments"))
+
+@app.route("/admin/payments/<int:payment_id>/delete", methods=["POST"])
+@admin_required
+def payment_delete(payment_id: int):
+    record = PaymentRecord.query.get_or_404(payment_id)
+    
+    # If it has a payment_id, mark the Payment as unpaid (due again)
+    if record.payment_id:
+        pay = Payment.query.get(record.payment_id)
+        if pay:
+            pay.paid = False
+            pay.paid_on = None
+            db.session.add(pay)
+    
+    # If it has event_registration_id, update the registration
+    if record.event_registration_id:
+        reg = EventRegistration.query.get(record.event_registration_id)
+        if reg and reg.paid:
+            # Check if this is the only payment for this registration
+            other_payments = PaymentRecord.query.filter_by(event_registration_id=reg.id).filter(PaymentRecord.id != record.id).count()
+            if other_payments == 0:
+                reg.paid = False
+                reg.paid_on = None
+                db.session.add(reg)
+    
+    # If it's a training_session payment, mark sessions as unpaid
+    if record.kind == "training_session" and record.sessions_paid and record.sessions_paid > 0:
+        # Find the most recent paid sessions for this player and mark them as unpaid
+        paid_sessions = (TrainingSession.query
+                        .filter_by(player_pn=record.player_pn, paid=True)
+                        .order_by(TrainingSession.date.desc())
+                        .limit(record.sessions_paid)
+                        .all())
+        for session in paid_sessions:
+            session.paid = False
+            db.session.add(session)
+    
+    db.session.delete(record)
+    db.session.commit()
+    flash("Payment deleted.", "success")
+    return redirect(url_for("admin_payments"))
 
 @app.route("/admin/players/<int:player_id>/due/print")
 @admin_required
@@ -4565,18 +5502,217 @@ def player_due_print(player_id: int):
         owed_amount=owed_amount,
     )
 
+@app.route("/reports/fees/period")
+@admin_required
+def fees_period_report():
+    # Get date range parameters
+    start_date_str = request.args.get("start_date")
+    end_date_str = request.args.get("end_date")
+
+    if not start_date_str or not end_date_str:
+        flash("Please select both start and end dates.", "danger")
+        return redirect(url_for("fees_report"))
+
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        flash("Invalid date format. Use YYYY-MM-DD.", "danger")
+        return redirect(url_for("fees_report"))
+
+    if start_date > end_date:
+        flash("Start date cannot be after end date.", "danger")
+        return redirect(url_for("fees_report"))
+
+    # Get all active players
+    players = Player.query.filter_by(active_member=True).order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+
+    # Aggregate data across the date range
+    report_data = {
+        'monthly_fees': {'total_income': 0, 'total_due': 0, 'details': []},
+        'session_fees': {'total_income': 0, 'total_due': 0, 'details': []},
+        'event_fees': {'total_income': 0, 'total_due': 0, 'details': []},
+        'players': []
+    }
+
+    total_income = 0
+    total_due = 0
+
+    for player in players:
+        player_data = {
+            'player': player,
+            'monthly_income': 0,
+            'monthly_due': 0,
+            'session_income': 0,
+            'session_due': 0,
+            'event_income': 0,
+            'event_due': 0,
+            'total_income': 0,
+            'total_due': 0
+        }
+
+        # Monthly fees - get all payments in date range
+        monthly_payments = PaymentRecord.query.filter_by(
+            player_pn=player.pn, kind='training_month'
+        ).filter(
+            PaymentRecord.paid_at >= start_date,
+            PaymentRecord.paid_at <= end_date
+        ).all()
+
+        monthly_income = sum(p.amount or 0 for p in monthly_payments)
+        player_data['monthly_income'] = monthly_income
+        report_data['monthly_fees']['total_income'] += monthly_income
+
+        # Check for unpaid monthly fees in the period
+        monthly_dues = Payment.query.filter_by(player_pn=player.pn, paid=False).filter(
+            Payment.year >= start_date.year,
+            Payment.month >= start_date.month,
+            Payment.year <= end_date.year,
+            Payment.month <= end_date.month
+        ).all()
+        monthly_due = sum(p.amount or 0 for p in monthly_dues)
+        player_data['monthly_due'] = monthly_due
+        report_data['monthly_fees']['total_due'] += monthly_due
+
+        # Session fees - per session payments
+        session_payments = PaymentRecord.query.filter_by(
+            player_pn=player.pn, kind='training_session'
+        ).filter(
+            PaymentRecord.paid_at >= start_date,
+            PaymentRecord.paid_at <= end_date
+        ).all()
+
+        session_income = sum(p.amount or 0 for p in session_payments)
+        player_data['session_income'] = session_income
+        report_data['session_fees']['total_income'] += session_income
+
+        # Calculate owed session fees
+        if not player.monthly_fee_is_monthly and player.monthly_fee_amount:
+            # Count unpaid sessions in the date range
+            unpaid_sessions = TrainingSession.query.filter_by(
+                player_pn=player.pn, paid=False
+            ).filter(
+                TrainingSession.date >= start_date,
+                TrainingSession.date <= end_date
+            ).count()
+            session_due = unpaid_sessions * player.monthly_fee_amount
+            player_data['session_due'] = session_due
+            report_data['session_fees']['total_due'] += session_due
+
+        # Event fees - event payments
+        event_payments = PaymentRecord.query.filter_by(
+            player_pn=player.pn, kind='event'
+        ).filter(
+            PaymentRecord.paid_at >= start_date,
+            PaymentRecord.paid_at <= end_date
+        ).all()
+
+        event_income = sum(p.amount or 0 for p in event_payments)
+        player_data['event_income'] = event_income
+        report_data['event_fees']['total_income'] += event_income
+
+        # Calculate owed event fees
+        # Event fees are due immediately upon registration, not based on event date
+        event_dues = EventRegistration.query.filter_by(
+            player_pn=player.pn, paid=False
+        ).all()
+
+        event_due = 0
+        for reg in event_dues:
+            event_due += reg.computed_fee() or 0
+        player_data['event_due'] = event_due
+        report_data['event_fees']['total_due'] += event_due
+
+        # Calculate player totals
+        player_data['total_income'] = player_data['monthly_income'] + player_data['session_income'] + player_data['event_income']
+        player_data['total_due'] = player_data['monthly_due'] + player_data['session_due'] + player_data['event_due']
+        # Calculate net income for each player: training income - event expenses
+        player_data['net_income'] = player_data['monthly_income'] + player_data['session_income'] - (player_data['event_income'] + player_data['event_due'])
+
+        total_income += player_data['total_income']
+        total_due += player_data['total_due']
+
+        report_data['players'].append(player_data)
+
+    # Calculate net income: training income - event expenses (paid + due)
+    # Event fees are pass-through, so subtract them from total income
+    net_income = total_income - (report_data['event_fees']['total_income'] + report_data['event_fees']['total_due'])
+
+    # Check if this is a print request
+    if request.args.get('print') == '1':
+        return render_template(
+            "report_fees_period_print.html",
+            report_data=report_data,
+            start_date=start_date,
+            end_date=end_date,
+            total_income=total_income,
+            total_due=total_due,
+            net_income=net_income,
+            generated_at=datetime.now()
+        )
+
+    # Default: render interactive version
+    return render_template(
+        "report_fees_period.html",
+        report_data=report_data,
+        start_date=start_date,
+        end_date=end_date,
+        total_income=total_income,
+        total_due=total_due,
+        net_income=net_income,
+        today=date.today()
+    )
+
 @app.route("/admin/receipts/<int:rid>")
 @admin_required
 def receipt_view(rid: int):
-    rec = db.session.get(PaymentRecord, rid)
+    rec = db.session.query(PaymentRecord).options(
+        db.joinedload(PaymentRecord.event_registration)
+        .joinedload(EventRegistration.reg_categories)
+        .joinedload(EventRegCategory.category),
+        db.joinedload(PaymentRecord.event_registration)
+        .joinedload(EventRegistration.event)
+    ).get(rid)
     if not rec:
         abort(404)
     player = db.session.get(Player, rec.player_id)
     ev = None
+    reg = None
+    bulk_categories = []
     if rec.event_registration_id:
-        reg = db.session.get(EventRegistration, rec.event_registration_id)
-        ev = db.session.get(Event, reg.event_id) if reg else None
-    return render_template("receipt.html", rec=rec, player=player, ev=ev)
+        reg = rec.event_registration  # Already loaded by joinedload
+        ev = reg.event if reg else None
+    elif rec.kind == 'bulk_payment' and rec.note:
+        # For bulk payments, parse the note to find events and categories
+        import re
+        # Match "Event: <event_name> (<categories>)" or "Event: <event_name>"
+        event_matches = re.findall(r'Event:\s*([^(\n]+)(?:\s*\(([^)]+)\))?', rec.note)
+        bulk_categories = set()
+        event_titles = []
+        for event_name, categories_str in event_matches:
+            event_name = event_name.strip()
+            event_titles.append(event_name)
+            if categories_str:
+                # Split categories by comma and clean up
+                categories = [cat.strip() for cat in categories_str.split(',')]
+                bulk_categories.update(categories)
+        
+        # If no categories found in note (old format), fall back to all categories for the player in these events
+        if not bulk_categories and event_titles:
+            regs = (db.session.query(EventRegistration)
+                   .join(Event)
+                   .filter(Event.title.in_(event_titles), EventRegistration.player_id == player.id)
+                   .options(db.joinedload(EventRegistration.reg_categories)
+                           .joinedload(EventRegCategory.category))
+                   .all())
+            # Collect all unique categories
+            for reg_item in regs:
+                for rc in reg_item.reg_categories:
+                    if rc.category:
+                        bulk_categories.add(rc.category.name)
+        
+        bulk_categories = sorted(list(bulk_categories))
+    return render_template("receipt.html", rec=rec, player=player, ev=ev, reg=reg, bulk_categories=bulk_categories)
 
 # Dedicated print-friendly receipt view
 @app.route("/admin/receipts/<int:rid>/print")
@@ -4587,10 +5723,41 @@ def receipt_print_view(rid: int):
         abort(404)
     player = db.session.get(Player, rec.player_id)
     ev = None
+    bulk_categories = []
     if rec.event_registration_id:
         reg = db.session.get(EventRegistration, rec.event_registration_id)
         ev = db.session.get(Event, reg.event_id) if reg else None
-    return render_template("receipt_print.html", rec=rec, player=player, ev=ev)
+    elif rec.kind == 'bulk_payment' and rec.note:
+        # For bulk payments, parse the note to find events and categories
+        import re
+        # Match "Event: <event_name> (<categories>)" or "Event: <event_name>"
+        event_matches = re.findall(r'Event:\s*([^(\n]+)(?:\s*\(([^)]+)\))?', rec.note)
+        bulk_categories = set()
+        event_titles = []
+        for event_name, categories_str in event_matches:
+            event_name = event_name.strip()
+            event_titles.append(event_name)
+            if categories_str:
+                # Split categories by comma and clean up
+                categories = [cat.strip() for cat in categories_str.split(',')]
+                bulk_categories.update(categories)
+        
+        # If no categories found in note (old format), fall back to all categories for the player in these events
+        if not bulk_categories and event_titles:
+            regs = (db.session.query(EventRegistration)
+                   .join(Event)
+                   .filter(Event.title.in_(event_titles), EventRegistration.player_id == player.id)
+                   .options(db.joinedload(EventRegistration.reg_categories)
+                           .joinedload(EventRegCategory.category))
+                   .all())
+            # Collect all unique categories
+            for reg_item in regs:
+                for rc in reg_item.reg_categories:
+                    if rc.category:
+                        bulk_categories.add(rc.category.name)
+        
+        bulk_categories = sorted(list(bulk_categories))
+    return render_template("receipt_print.html", rec=rec, player=player, ev=ev, bulk_categories=bulk_categories)
 
 @app.route("/admin/receipts/print_batch")
 @admin_required
@@ -4600,11 +5767,123 @@ def receipts_print_batch():
         flash('No receipts selected for printing.', 'info')
         return redirect(request.referrer or url_for('list_players'))
     id_list = [int(x) for x in ids.split(',') if x.strip().isdigit()]
-    recs = PaymentRecord.query.filter(PaymentRecord.id.in_(id_list)).order_by(PaymentRecord.paid_at.asc()).all()
+    recs = (PaymentRecord.query
+            .options(db.joinedload(PaymentRecord.event_registration)
+                    .joinedload(EventRegistration.reg_categories)
+                    .joinedload(EventRegCategory.category),
+                    db.joinedload(PaymentRecord.event_registration)
+                    .joinedload(EventRegistration.event))
+            .filter(PaymentRecord.id.in_(id_list))
+            .order_by(PaymentRecord.paid_at.asc())
+            .all())
     if not recs:
         flash('No receipts found.', 'info')
         return redirect(request.referrer or url_for('list_players'))
+    
+    # Load training sessions for training receipts
+    for rec in recs:
+        if rec.kind.startswith('training') and rec.kind != 'training_month':
+            # For per-session training receipts, load the associated training sessions
+            # We can find them by player and date range around the payment date
+            payment_date = rec.paid_at.date() if rec.paid_at else date.today()
+            # Look for sessions in the week around the payment date
+            start_date = payment_date - timedelta(days=7)
+            end_date = payment_date + timedelta(days=7)
+            rec.training_sessions = (TrainingSession.query
+                                   .filter_by(player_pn=rec.player_pn)
+                                   .filter(TrainingSession.date >= start_date)
+                                   .filter(TrainingSession.date <= end_date)
+                                   .order_by(TrainingSession.date)
+                                   .all())
+        else:
+            rec.training_sessions = []
+    
+    # Calculate bulk_categories for each receipt
+    for rec in recs:
+        if rec.kind == 'bulk_payment' and rec.note:
+            import re
+            event_matches = re.findall(r'Event:\s*([^(\n]+)(?:\s*\(([^)]+)\))?', rec.note)
+            rec.bulk_categories = set()
+            event_titles = []
+            for event_name, categories_str in event_matches:
+                event_name = event_name.strip()
+                event_titles.append(event_name)
+                if categories_str:
+                    categories = [cat.strip() for cat in categories_str.split(',')]
+                    rec.bulk_categories.update(categories)
+            
+            # If no categories found in note (old format), fall back to all categories for the player in these events
+            if not rec.bulk_categories and event_titles:
+                regs = (db.session.query(EventRegistration)
+                       .join(Event)
+                       .filter(Event.title.in_(event_titles), EventRegistration.player_id == rec.player_id)
+                       .options(db.joinedload(EventRegistration.reg_categories)
+                               .joinedload(EventRegCategory.category))
+                       .all())
+                for reg_item in regs:
+                    for rc in reg_item.reg_categories:
+                        if rc.category:
+                            rec.bulk_categories.add(rc.category.name)
+            
+            rec.bulk_categories = sorted(list(rec.bulk_categories))
+        else:
+            rec.bulk_categories = []
+    
     return render_template('receipts_print_batch.html', recs=recs)
+
+@app.route("/admin/receipts/print_batch_clean")
+@admin_required
+def receipts_print_batch_clean():
+    ids = request.args.get('ids', '')
+    if not ids:
+        flash('No receipts selected for printing.', 'info')
+        return redirect(request.referrer or url_for('list_players'))
+    id_list = [int(x) for x in ids.split(',') if x.strip().isdigit()]
+    recs = (PaymentRecord.query
+            .options(db.joinedload(PaymentRecord.event_registration)
+                    .joinedload(EventRegistration.reg_categories)
+                    .joinedload(EventRegCategory.category),
+                    db.joinedload(PaymentRecord.event_registration)
+                    .joinedload(EventRegistration.event))
+            .filter(PaymentRecord.id.in_(id_list))
+            .order_by(PaymentRecord.paid_at.asc())
+            .all())
+    if not recs:
+        flash('No receipts found.', 'info')
+        return redirect(request.referrer or url_for('list_players'))
+    
+    # Calculate bulk_categories for each receipt
+    for rec in recs:
+        if rec.kind == 'bulk_payment' and rec.note:
+            import re
+            event_matches = re.findall(r'Event:\s*([^(\n]+)(?:\s*\(([^)]+)\))?', rec.note)
+            rec.bulk_categories = set()
+            event_titles = []
+            for event_name, categories_str in event_matches:
+                event_name = event_name.strip()
+                event_titles.append(event_name)
+                if categories_str:
+                    categories = [cat.strip() for cat in categories_str.split(',')]
+                    rec.bulk_categories.update(categories)
+            
+            # If no categories found in note (old format), fall back to all categories for the player in these events
+            if not rec.bulk_categories and event_titles:
+                regs = (db.session.query(EventRegistration)
+                       .join(Event)
+                       .filter(Event.title.in_(event_titles), EventRegistration.player_id == rec.player_id)
+                       .options(db.joinedload(EventRegistration.reg_categories)
+                               .joinedload(EventRegCategory.category))
+                       .all())
+                for reg_item in regs:
+                    for rc in reg_item.reg_categories:
+                        if rc.category:
+                            rec.bulk_categories.add(rc.category.name)
+            
+            rec.bulk_categories = sorted(list(rec.bulk_categories))
+        else:
+            rec.bulk_categories = []
+    
+    return render_template('receipts_print_batch_clean.html', recs=recs)
 
 @app.route("/admin/receipts/<int:rid>/tick", methods=["POST"])
 @admin_required
@@ -4891,4 +6170,4 @@ if __name__ == "__main__":
     #     SESSION_COOKIE_SAMESITE="Lax",
     #     # SESSION_COOKIE_SECURE=True,  # enable if served over HTTPS
     # )
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)

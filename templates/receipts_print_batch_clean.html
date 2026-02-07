@@ -3,12 +3,34 @@
 {% block head %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}?v=20260131">
+<script>
+  // Force page breaks between receipts for A4 portrait
+  window.onload = function() {
+    var receipts = document.querySelectorAll('.receipt');
+    for (var i = 0; i < receipts.length; i++) {
+      receipts[i].style.position = 'relative';
+      receipts[i].style.width = '100%';
+      receipts[i].style.height = '27cm'; // A4 content height
+      receipts[i].style.minHeight = '27cm';
+      receipts[i].style.maxHeight = '27cm';
+      receipts[i].style.pageBreakAfter = 'always';
+      receipts[i].style.breakAfter = 'page';
+      receipts[i].style.marginBottom = '0';
+      receipts[i].style.paddingBottom = '1cm';
+      receipts[i].style.boxSizing = 'border-box';
+    }
+    
+    setTimeout(function() {
+      window.print();
+    }, 300);
+  };
+</script>
 {% endblock %}
 
 {% block content %}
 <div class="container">
   {% for rec in recs %}
-    <div class="receipt card p-4 mb-4">
+    <div class="receipt card p-4 mb-4{% if not loop.last %} break-after-page{% endif %}">
 
       <div class="d-flex justify-content-between align-items-start mb-3">
         <div>
@@ -29,8 +51,8 @@
           {% set note_parts = rec.note.split('; ') %}
           {% for part in note_parts %}
             {% if part.startswith('Session ID:') %}
-              {% set session_id_part = part.split('Session ID:')[1].split()[0] %}
-              {% set session_date = session_id_part.split('_')[1] %}
+              {% set session_id = part.split('Session ID: ')[1] %}
+              {% set session_date = session_id.split('_')[1] %}
               {% set formatted_date = session_date[0:4] + '-' + session_date[4:6] + '-' + session_date[6:8] %}
               <li>{{ _('Training session on') }} {{ formatted_date }}</li>
             {% elif part.startswith('Sessions:') %}
@@ -63,14 +85,6 @@
         {% else %}
           <p><strong>{{ _('Plan') }}:</strong> {{ _('Per session') }}</p>
           <p><strong>{{ _('Sessions') }}:</strong> {{ rec.sessions_taken }}/{{ rec.sessions_paid }} {{ _('taken') }}</p>
-          {% if rec.training_sessions %}
-            <p><strong>{{ _('Session dates') }}:</strong></p>
-            <ul class="mb-0 ps-3">
-              {% for session in rec.training_sessions %}
-                <li>{{ session.date.strftime('%Y-%m-%d') }} ({{ session.date.strftime('%A') }})</li>
-              {% endfor %}
-            </ul>
-          {% endif %}
         {% endif %}
       {% else %}
         <p><strong>{{ _('Category') }}:</strong> {{ _('Event') }}</p>
@@ -134,12 +148,6 @@
 
     </div>
   {% endfor %}
-
-  <div class="mt-3 no-print d-flex gap-2 justify-content-center">
-    <a class="btn btn-success" href="{{ url_for('receipts_print_batch_clean', ids=request.args.get('ids', '')) }}" target="_blank">Print (clean)</a>
-    <a class="btn btn-outline-secondary" href="{{ request.referrer or url_for('list_players') }}">Back</a>
-  </div>
 </div>
-
-<!-- Print dialog auto-open removed -->
+</body>
 {% endblock %}

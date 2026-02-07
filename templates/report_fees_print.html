@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fees Report - {{ year }}-{{ "%02d"|format(month) }}</title>
+    <link href="{{ url_for('static', filename='print.css') }}" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .header p {
+            margin: 5px 0;
+            color: #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .text-end {
+            text-align: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 3px;
+            border: 1px solid #000;
+        }
+        .text-bg-success {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .bg-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .bg-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .bg-light {
+            background-color: #f8f9fa;
+        }
+        .fw-bold {
+            font-weight: bold;
+        }
+        .alert {
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-color: #ffeaa7;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Fees Report – {{ year }}-{{ "%02d"|format(month) }}</h1>
+        <p>Generated on: {{ generated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        <p>Due date: {{ due_date.strftime('%Y-%m-%d') if due_date else 'Not set' }}</p>
+    </div>
+
+    {% if payments %}
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Player</th>
+                    <th class="text-end">Monthly</th>
+                    <th class="text-end">Session</th>
+                    <th class="text-end">Event</th>
+                    <th class="text-end">Bulk</th>
+                    <th class="text-end">Category Fees</th>
+                    <th class="text-center">Paid</th>
+                    <th class="text-end">Owed</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td>{{ p.player_id }}</td>
+                    <td>{{ p.player.full_name() }}</td>
+                    <td class="text-end">{% if p.monthly_amount %}{{ p.monthly_amount }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if p.prepaid_amount %}{{ p.prepaid_amount }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if p.event_total %}{{ p.event_total }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if p.bulk_total %}{{ p.bulk_total }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if p.category_fees %}{{ p.category_fees }}{% else %}—{% endif %}</td>
+                    <td class="text-center">
+                        {% if p.monthly_paid or p.event_total or p.bulk_total %}
+                            <span class="badge text-bg-success">Yes</span>
+                        {% else %}
+                            <span class="badge bg-danger">No</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if p.owed_amount is not none and p.owed_amount|float >= 0 %}
+                            <span class="badge {{ 'bg-danger' if p.owed_amount > 0 else 'bg-success' }}">{{ p.owed_amount }}</span>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="fw-bold bg-light">
+                    <td colspan="2" class="text-end">Totals</td>
+                    <td class="text-end">{{ total_monthly }}</td>
+                    <td class="text-end">{{ total_session }}</td>
+                    <td class="text-end">{{ total_event }}</td>
+                    <td class="text-end">{{ total_bulk }}</td>
+                    <td class="text-end">{{ total_category }}</td>
+                    <td></td>
+                    <td class="text-end">{{ total_owed }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    {% else %}
+        <div class="alert alert-warning">
+            No payments found for this month.
+        </div>
+    {% endif %}
+</body>
+</html>

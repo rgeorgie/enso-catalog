@@ -2,16 +2,106 @@
 {% block content %}
 <h1 class="mb-4">{{ _('Admin Login') }}</h1>
 
-<form method="post" action="{{ url_for('login', next=next_url) }}">
-  <div class="mb-3">
-    <label class="form-label">{{ _('Username') }}</label>
-    <input class="form-control" name="username" autocomplete="username" required>
+<!-- Card Login Section -->
+<div class="card mb-4">
+  <div class="card-body text-center">
+    <h5 class="card-title">{{ _('Card Login') }}</h5>
+    <p class="card-text">{{ _('Scan your admin card to login automatically') }}</p>
+    <form method="post" action="{{ url_for('login', next=next_url) }}" id="card_login_form">
+      <input type="hidden" name="card_id" id="card_id_input">
+      <div class="mb-3">
+        <div class="alert alert-info">
+          <i class="fas fa-credit-card fa-2x mb-2"></i>
+          <br>
+          <strong>{{ _('Card Reader Active') }}</strong>
+          <br>
+          {{ _('Please scan your admin card') }}
+        </div>
+      </div>
+    </form>
   </div>
-  <div class="mb-3">
-    <label class="form-label">{{ _('Password') }}</label>
-    <input class="form-control" name="password" type="password" autocomplete="current-password" required>
+</div>
+
+<!-- Password Login Section -->
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">{{ _('Password Login') }}</h5>
+    <form method="post" action="{{ url_for('login', next=next_url) }}">
+      <div class="mb-3">
+        <label class="form-label">{{ _('Username') }}</label>
+        <input class="form-control" name="username" autocomplete="username" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">{{ _('Password') }}</label>
+        <input class="form-control" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn btn-primary" type="submit">{{ _('Login') }}</button>
+    </form>
   </div>
-  <button class="btn btn-primary" type="submit">Login</button>
-  <a class="btn btn-secondary mt-2" href="/">{{ _('Back') }}</a>
-</form>
+</div>
+
+<div class="mt-3">
+  <a class="btn btn-secondary" href="/">{{ _('Back') }}</a>
+</div>
+
+<script>
+  // Card login functionality
+  document.addEventListener('DOMContentLoaded', function() {
+    const cardIdInput = document.getElementById('card_id_input');
+    const cardLoginForm = document.getElementById('card_login_form');
+    
+    let cardBuffer = '';
+    let cardTimeout;
+
+    function clearCardBuffer() {
+      cardBuffer = '';
+      cardIdInput.value = '';
+      if (cardTimeout) {
+        clearTimeout(cardTimeout);
+      }
+    }
+
+    // Listen for card reader input
+    document.addEventListener('keydown', function(event) {
+      // Only process if not in password/username fields
+      const activeElement = document.activeElement;
+      if (activeElement && (activeElement.name === 'username' || activeElement.name === 'password')) {
+        return;
+      }
+
+      // Clear any existing timeout
+      if (cardTimeout) {
+        clearTimeout(cardTimeout);
+      }
+
+      // Add character to buffer
+      if (event.key.length === 1) {
+        cardBuffer += event.key;
+        cardIdInput.value = cardBuffer;
+      }
+
+      // If Enter is pressed, submit the form automatically
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        if (cardBuffer.trim()) {
+          cardLoginForm.submit();
+        } else {
+          clearCardBuffer();
+        }
+        return;
+      }
+
+      // Set timeout to clear buffer if no Enter within 100ms
+      cardTimeout = setTimeout(() => {
+        clearCardBuffer();
+      }, 100);
+    });
+
+    // Clear buffer when clicking on password fields
+    document.querySelectorAll('input[name="username"], input[name="password"]').forEach(input => {
+      input.addEventListener('focus', clearCardBuffer);
+    });
+  });
+</script>
+
 {% endblock %}

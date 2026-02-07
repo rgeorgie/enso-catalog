@@ -202,8 +202,38 @@
                 <ul>
                   <li><strong>{{ _('Registration Lists') }}</strong>: {{ _('View all registered athletes') }}</li>
                   <li><strong>{{ _('Payment Tracking') }}</strong>: {{ _('Monitor paid/unpaid registrations') }}</li>
+                  <li><strong>{{ _('Grouped Payment Report') }}</strong>: {{ _('View payments grouped by player, showing all categories and total fees per athlete') }}</li>
                   <li><strong>{{ _('Export Data') }}</strong>: {{ _('CSV exports for external systems') }}</li>
                   <li><strong>{{ _('Medal Tracking') }}</strong>: {{ _('Record competition results') }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Admin Settings -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#adminSettings">
+                ⚙️ {{ _('Admin Settings') }}
+              </button>
+            </h2>
+            <div id="adminSettings" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+              <div class="accordion-body">
+                <h5>{{ _('Customizing the Application') }}</h5>
+                <ol>
+                  <li>{{ _('Access Settings: Admin → Settings (login required)') }}</li>
+                  <li>{{ _('Logo Upload: Upload a custom club logo (JPG/PNG/GIF/WEBP, max 2MB)') }}</li>
+                  <li>{{ _('Background Image: Set a custom background watermark for the app') }}</li>
+                  <li>{{ _('Color Theme: Choose primary and secondary colors for the interface') }}</li>
+                  <li>{{ _('Admin Password: Change the admin login password (securely hashed)') }}</li>
+                </ol>
+
+                <h5>{{ _('Settings Effects') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Logo') }}</strong>: {{ _('Appears in navigation bar and on calendar events with registrations') }}</li>
+                  <li><strong>{{ _('Background') }}</strong>: {{ _('Shows as a faint watermark on all pages') }}</li>
+                  <li><strong>{{ _('Colors') }}</strong>: {{ _('Updates primary/secondary theme colors throughout the app') }}</li>
+                  <li><strong>{{ _('Password') }}</strong>: {{ _('Securely stored and used for admin login verification') }}</li>
                 </ul>
               </div>
             </div>
@@ -222,6 +252,7 @@
                 <ul>
                   <li>{{ _('Fee Reports: Monthly payment summaries') }}</li>
                   <li>{{ _('Medal Reports: Competition results by year') }}</li>
+                  <li>{{ _('Event Payment Reports: Grouped payments by player with categories and totals') }}</li>
                   <li>{{ _('Player Lists: Filtered player directories') }}</li>
                   <li>{{ _('Payment Exports: Complete transaction history') }}</li>
                 </ul>
@@ -291,6 +322,7 @@
                   <li><strong>{{ _('Interactive Calendar') }}</strong>: {{ _('Click dates to create events (admin)') }}</li>
                   <li><strong>{{ _('Event Details') }}</strong>: {{ _('Click events for full information') }}</li>
                   <li><strong>{{ _('Attendance Tracking') }}</strong>: {{ _('Daily participation numbers') }}</li>
+                  <li><strong>{{ _('Event Registration Indicators') }}</strong>: {{ _('Events with registered players show club logo and participant count') }}</li>
                   <li><strong>{{ _('Multi-language Support') }}</strong>: {{ _('Localized date formats') }}</li>
                 </ul>
 
@@ -403,7 +435,10 @@
 
     <div class="mt-4 p-3 bg-light rounded">
       <h5>{{ _('Overview') }}</h5>
-      <p>{{ _('The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club\'s operations. It handles player registration, training session tracking, payment management, event organization, and reporting.') }}</p>
+      <p>{{ _('The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club\'s operations. It handles player registration, training session tracking, payment management, event organization, reporting, and customizable admin settings for branding and security.') }}</p>
+
+      <h6>{{ _('Kiosk Mode') }}</h6>
+      <p>{{ _('For quick session recording without admin login, use Kiosk Mode: athletes click their name and enter their player number to record training sessions.') }}</p>
 
       <h5>{{ _('Quick Start Guide') }}</h5>
       <div class="row">
@@ -418,6 +453,16 @@
         <div class="col-md-4">
           <h6>3. {{ _('Manage Payments') }}</h6>
           <p>{{ _('Keep track of fees, generate receipts, and monitor outstanding payments.') }}</p>
+        </div>
+      </div>
+      <div class="row mt-3">
+        <div class="col-md-6">
+          <h6>4. {{ _('Customize Settings') }}</h6>
+          <p>{{ _('Admin users can customize the app\'s logo, background, colors, and security settings.') }}</p>
+        </div>
+        <div class="col-md-6">
+          <h6>5. {{ _('Create Events') }}</h6>
+          <p>{{ _('Organize competitions and track registrations with the interactive calendar.') }}</p>
         </div>
       </div>
     </div>

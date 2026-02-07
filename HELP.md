@@ -4,6 +4,15 @@
 
 The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club's operations. It handles player registration, training session tracking, payment management, event organization, and reporting.
 
+## Kiosk Mode
+
+For quick session recording without admin login, use the **Kiosk Mode** (`/kiosk`):
+- Displays active players as large, clickable cards
+- Athletes click their name to open a session recording modal
+- Enter Player Number to confirm and record the training session
+- Automatic payment status based on player type (monthly vs per-session)
+- Prevents duplicate sessions for the same day
+
 ## Getting Started
 
 ### Installation & Setup
@@ -91,7 +100,7 @@ The application supports Bulgarian (default) and English. Use the language switc
 #### Viewing Attendance
 - **Calendar View**: Visual calendar with session indicators
 - **List View**: Detailed chronological list of all sessions
-- **Main Calendar**: Club-wide calendar showing daily attendance numbers
+- **Main Calendar**: Club-wide calendar showing daily attendance numbers and **events with registered players displaying club logos and participant counts**
 
 ### 3. Payment & Fee Management
 
@@ -134,6 +143,7 @@ The application supports Bulgarian (default) and English. Use the language switc
 #### Event Reporting
 - **Registration Lists**: View all registered athletes
 - **Payment Tracking**: Monitor paid/unpaid registrations
+- **Grouped Payment Report**: View payments grouped by player, showing all categories and total fees per athlete
 - **Export Data**: CSV exports for external systems
 - **Medal Tracking**: Record competition results
 
@@ -142,6 +152,7 @@ The application supports Bulgarian (default) and English. Use the language switc
 #### Available Reports
 - **Fee Reports**: Monthly payment summaries
 - **Medal Reports**: Competition results by year
+- **Event Payment Reports**: Grouped payments by player with categories and totals
 - **Player Lists**: Filtered player directories
 - **Payment Exports**: Complete transaction history
 
@@ -154,6 +165,21 @@ The application supports Bulgarian (default) and English. Use the language switc
 - **Bulk Operations**: Import multiple players/events
 - **Data Backup**: Full system backups
 - **Migration Tools**: Database schema updates
+
+### 6. Admin Settings
+
+#### Customizing the Application
+1. **Access Settings**: Admin → Settings (login required)
+2. **Logo Upload**: Upload a custom club logo (JPG/PNG/GIF/WEBP, max 2MB)
+3. **Background Image**: Set a custom background watermark for the app
+4. **Color Theme**: Choose primary and secondary colors for the interface
+5. **Admin Password**: Change the admin login password (securely hashed)
+
+#### Settings Effects
+- **Logo**: Appears in navigation bar and on calendar events with registrations
+- **Background**: Shows as a faint watermark on all pages
+- **Colors**: Updates primary/secondary theme colors throughout the app
+- **Password**: Securely stored and used for admin login verification
 
 ## Daily Operations
 
@@ -179,6 +205,8 @@ The application supports Bulgarian (default) and English. Use the language switc
 - **Interactive Calendar**: Click dates to create events (admin)
 - **Event Details**: Click events for full information
 - **Attendance Tracking**: Daily participation numbers
+- **Event Registration Indicators**: Events with registered players show club logo and participant count
+- **BNFK Events**: External Bulgarian National Karate Federation events (informational only, cached daily)
 - **Multi-language Support**: Localized date formats
 
 ### Data Validation

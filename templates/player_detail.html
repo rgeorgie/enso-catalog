@@ -112,10 +112,10 @@
         </div>
 
         <!-- Purge confirmation modal -->
-        <div class="modal fade" id="purgeModal" tabindex="-1" aria-labelledby="purgeModalLabel" aria-hidden="true">
+        <div class="modal fade" id="purgeModal" tabindex="-1" aria-labelledby="purgeModalLabel" aria-hidden="true" data-bs-backdrop="static">
           <div class="modal-dialog">
             <div class="modal-content">
-              <form method="post" action="{{ url_for('purge_player', player_id=player.id) }}">
+              <form id="purgeForm" method="post" action="{{ url_for('purge_player', player_id=player.id) }}">
                 <div class="modal-header">
                   <h5 class="modal-title" id="purgeModalLabel">{{ _('Permanently delete player') }}</h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -144,6 +144,43 @@
                 btn.disabled = input.value.trim() !== 'PURGE';
               });
             }
+            
+            // Fix modal stacking issues
+            const purgeModalEl = document.getElementById('purgeModal');
+            if (purgeModalEl) {
+              purgeModalEl.addEventListener('show.bs.modal', function() {
+                // Move modal to body to ensure proper z-index stacking
+                if (purgeModalEl.parentNode !== document.body) {
+                  document.body.appendChild(purgeModalEl);
+                }
+              });
+              
+              // Clean up when modal is hidden
+              purgeModalEl.addEventListener('hidden.bs.modal', function() {
+                // Reset modal position if needed
+                const originalParent = document.querySelector('.admin-actions');
+                if (originalParent && !originalParent.contains(purgeModalEl)) {
+                  originalParent.appendChild(purgeModalEl);
+                }
+              });
+            }
+            
+            // Handle form submission to prevent modal backdrop issues
+            document.getElementById('purgeForm').addEventListener('submit', function(e) {
+              // Hide modal and clean up backdrops before form submission
+              const modalEl = document.getElementById('purgeModal');
+              const modal = bootstrap.Modal.getInstance(modalEl);
+              if (modal) {
+                modal.hide();
+              }
+              // Clean up any remaining backdrops
+              setTimeout(function() {
+                try { 
+                  document.querySelectorAll('.modal-backdrop').forEach(el => el.remove()); 
+                  document.body.classList.remove('modal-open'); 
+                } catch(e) {}
+              }, 300);
+            });
           });
         </script>
         {% endif %}

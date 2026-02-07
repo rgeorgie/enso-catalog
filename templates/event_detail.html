@@ -9,6 +9,7 @@
     {% if session.get('is_admin') %}
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('event_export_csv', event_id=ev.id) }}">{{ _('Export Registrations CSV') }}</a>
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('event_export_full', event_id=ev.id) }}">{{ _('Export Event (full ZIP)') }}</a>
+      <a class="btn btn-outline-primary btn-sm" href="{{ url_for('event_payment_report', event_id=ev.id) }}" target="_blank">{{ _('Payment Report') }}</a>
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('event_edit', event_id=ev.id) }}">{{ _('Edit Event') }}</a>
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('event_categories', event_id=ev.id) }}">{{ _('Categories') }}</a>
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('event_registrations', event_id=ev.id) }}">{{ _('Registrations') }}</a>
@@ -92,31 +93,39 @@
 </div>
 
 <h4 class="mt-3">{{ _('Registrations') }}</h4>
-{% if regs %}
+{% if player_summaries %}
   <div class="table-responsive">
     <table class="table table-striped align-middle">
       <thead>
         <tr>
           <th>{{ _('Name') }}</th>
+          <th>{{ _('Entries') }}</th>
           <th>{{ _('Categories') }} / {{ _('Medals') }}</th>
           <th class="text-end">{{ _('Amount') }}</th>
           <th class="text-center">{{ _('Paid') }}</th>
         </tr>
       </thead>
       <tbody>
-      {% for r in regs %}
+      {% for ps in player_summaries %}
         <tr>
           <td>
             {% if session.get('is_admin') %}
-              <a href="{{ url_for('player_detail', player_id=r.player.id) }}">{{ r.player.full_name() }}</a>
+              <a href="{{ url_for('player_detail', player_id=ps.player.id) }}">{{ ps.player.full_name() }}</a>
             {% else %}
-              {{ r.player.full_name() }}
+              {{ ps.player.full_name() }}
             {% endif %}
           </td>
+          <td>{{ ps.entries }}</td>
           <td>
-            {% if r.reg_categories %}
+            {% set all_categories = [] %}
+            {% for r in ps.regs %}
+              {% for rc in r.reg_categories %}
+                {% set _ = all_categories.append(rc) %}
+              {% endfor %}
+            {% endfor %}
+            {% if all_categories %}
               <div class="d-flex flex-wrap gap-2">
-                {% for rc in r.reg_categories %}
+                {% for rc in all_categories %}
                   <span class="badge text-bg-secondary">
                     {{ rc.category.name }}
                     {% if rc.medal == 'gold' %} · 🥇 {{ _('Gold') }}
@@ -131,32 +140,23 @@
             {% endif %}
           </td>
           <td class="text-end">
-            {% set computed = 0 %}
-            {% set has_any = false %}
-            {% for rc in r.reg_categories %}
-              {% if rc.category and rc.category.fee is not none %}
-                {% set computed = computed + rc.category.fee %}
-                {% set has_any = true %}
-              {% endif %}
-            {% endfor %}
-            {% if r.fee_override is not none %}
-              {{ r.fee_override }} € <span class="text-muted small">({{ _('override') }})</span>
-              {% if has_any %}
-                <span class="text-muted">/</span>
-                {{ computed }} € <span class="text-muted small">({{ _('computed') }})</span>
-              {% endif %}
-            {% elif has_any %}
-              {{ computed }} € <span class="text-muted small">({{ _('computed') }})</span>
+            {% if ps.total_expected > 0 %}
+              {{ ps.total_expected }} €
             {% else %}
               —
             {% endif %}
           </td>
           <td class="text-center">
-            {% if r.paid %}
-              <span class="badge bg-success">{{ _('Yes') }}</span>
-              {% if r.paid_on %}<div class="small text-muted">{{ r.paid_on }}</div>{% endif %}
+            {% if ps.total_expected > 0 %}
+              {% if ps.total_paid == ps.total_expected %}
+                <span class="badge bg-success">{{ _('Yes') }}</span>
+              {% elif ps.total_paid > 0 %}
+                <span class="badge bg-warning">{{ ps.total_paid }} / {{ ps.total_expected }} €</span>
+              {% else %}
+                <span class="badge bg-danger">{{ _('No') }}</span>
+              {% endif %}
             {% else %}
-              <span class="badge bg-danger">{{ _('No') }}</span>
+              —
             {% endif %}
           </td>
         </tr>

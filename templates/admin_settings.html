@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4">{{ _('Admin Settings') }}</h1>
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data">
+            {{ form.hidden_tag() }}
+
+            <div class="mb-3">
+              <label class="form-label">{{ _('Logo') }}</label>
+              <div class="mb-2">
+                <img src="{{ current_logo }}" alt="{{ _('Current Logo') }}" style="height: 40px;">
+              </div>
+              {{ form.logo(class="form-control") }}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">{{ _('Background Image') }}</label>
+              {% if current_background %}
+                <div class="mb-2">
+                  <img src="{{ current_background }}" alt="{{ _('Current Background') }}" style="height: 40px;">
+                </div>
+              {% endif %}
+              {{ form.background(class="form-control") }}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">{{ _('Admin Password') }}</label>
+              {{ form.admin_password(class="form-control") }}
+              <div class="form-text">{{ _('Leave blank to keep current password') }}</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">{{ _('Admin Card ID') }}</label>
+              <div class="input-group">
+                {{ form.admin_card_id(class="form-control", id="admin_card_id_input") }}
+                <button class="btn btn-outline-secondary" type="button" id="read_admin_card_btn">{{ _('Read Card') }}</button>
+              </div>
+              {% if current_admin_card %}
+                <div class="form-text">{{ _('Current registered card:') }} <code>{{ current_admin_card }}</code></div>
+              {% else %}
+                <div class="form-text">{{ _('No admin card registered yet') }}</div>
+              {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary">{{ _('Save Settings') }}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <a class="btn btn-outline-secondary" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
+  </div>
+</div>
+
+<script>
+  // Admin card reader functionality
+  document.addEventListener('DOMContentLoaded', function() {
+    const readCardBtn = document.getElementById('read_admin_card_btn');
+    const cardIdInput = document.getElementById('admin_card_id_input');
+
+    if (readCardBtn && cardIdInput) {
+      readCardBtn.addEventListener('click', function() {
+        cardIdInput.focus();
+        cardIdInput.value = '';
+        readCardBtn.textContent = '{{ _("Reading...") }}';
+        readCardBtn.disabled = true;
+
+        // Listen for card input (card readers typically send data followed by Enter)
+        function handleCardInput(event) {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            cardIdInput.blur();
+            document.removeEventListener('keydown', handleCardInput);
+            readCardBtn.textContent = '{{ _("Read Card") }}';
+            readCardBtn.disabled = false;
+          }
+        }
+
+        document.addEventListener('keydown', handleCardInput);
+
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          document.removeEventListener('keydown', handleCardInput);
+          readCardBtn.textContent = '{{ _("Read Card") }}';
+          readCardBtn.disabled = false;
+        }, 10000);
+      });
+    }
+  });
+</script>
+
+{% endblock %}

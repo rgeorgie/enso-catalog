@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-10 offset-md-1 mt-3">
+    <h1>{{ _('Admin Payments') }}</h1>
+    <p class="text-muted">{{ _('Manage payment records and receipts.') }}</p>
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <form method="get" action="{{ url_for('admin_payments') }}" class="d-flex gap-2">
+          <select name="player_id" class="form-select" onchange="this.form.submit()">
+            <option value="">{{ _('All Players') }}</option>
+            {% for player in players %}
+            <option value="{{ player.id }}" {% if selected_player and selected_player.id == player.id %}selected{% endif %}>
+              {{ player.full_name() }}
+            </option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-outline-secondary">{{ _('Filter') }}</button>
+          {% if selected_player_id %}
+          <a href="{{ url_for('admin_payments') }}" class="btn btn-outline-secondary">{{ _('Clear Filter') }}</a>
+          {% endif %}
+        </form>
+      </div>
+      <div class="col-md-6 text-end">
+        <a class="btn btn-primary" href="{{ url_for('payment_new') }}">{{ _('Add New Payment') }}</a>
+      </div>
+    </div>
+
+    {% if selected_player %}
+      <div class="alert alert-info">
+        {{ _('Showing payments for') }}: <strong>{{ selected_player.full_name() }}</strong> ({{ payments | length }} {{ _('payments') }})
+      </div>
+    {% else %}
+      <div class="alert alert-info">
+        {{ _('Showing all payments') }} ({{ payments | length }} {{ _('total') }})
+      </div>
+    {% endif %}
+
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>{{ _('ID') }}</th>
+            <th>{{ _('Player') }}</th>
+            <th>{{ _('Kind') }}</th>
+            <th>{{ _('Amount') }}</th>
+            <th>{{ _('Date') }}</th>
+            <th>{{ _('Receipt No') }}</th>
+            <th>{{ _('Actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for payment in payments %}
+          <tr>
+            <td>{{ payment.id }}</td>
+            <td>
+              {% if payment.player %}
+                <a href="{{ url_for('player_detail', player_id=payment.player_id) }}">{{ payment.player.full_name() }}</a>
+              {% else %}
+                {{ _('Unknown') }}
+              {% endif %}
+            </td>
+            <td>{{ payment.kind.replace('_', ' ').title() }}</td>
+            <td>{{ payment.amount }} {{ payment.currency }}</td>
+            <td>{{ payment.paid_at.strftime('%Y-%m-%d %H:%M') if payment.paid_at else '' }}</td>
+            <td>{{ payment.receipt_no or '' }}</td>
+            <td>
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('receipt_view', rid=payment.id) }}">{{ _('View') }}</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('payment_edit', payment_id=payment.id) }}">{{ _('Edit') }}</a>
+              <form method="post" action="{{ url_for('payment_delete', payment_id=payment.id) }}" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-outline-danger">{{ _('Delete') }}</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-4">
+      <a class="btn btn-secondary" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

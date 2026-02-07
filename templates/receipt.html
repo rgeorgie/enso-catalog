@@ -10,39 +10,90 @@
 
   <div class="d-flex justify-content-between align-items-start mb-3">
     <div>
-      <h3 class="mb-1">Payment Receipt</h3>
+      <h3 class="mb-1">{{ _('Payment Receipt') }}</h3>
       <div class="text-muted"># {{ rec.receipt_no or '—' }}</div>
-      <div class="text-muted">Date: {{ (rec.paid_at or rec.created_at).strftime('%Y-%m-%d %H:%M') }}</div>
-      <div><strong>Player:</strong> {{ player.full_name() }}</div>
-      <div><strong>ID:</strong> {{ player.id }}</div>
+      <div class="text-muted">{{ _('Date') }}: {{ (rec.paid_at or rec.created_at).strftime('%Y-%m-%d %H:%M') }}</div>
+      <div><strong>{{ _('Player') }}:</strong> {{ player.full_name() }}</div>
+      <div><strong>{{ _('ID') }}:</strong> {{ player.id }}</div>
     </div>
   </div>
 
   <hr/>
 
-  {% if rec.kind.startswith('training') %}
-    <p><strong>Category:</strong> Training fee</p>
+  {% if rec.kind == 'bulk_payment' %}
+    <p><strong>{{ _('Category') }}:</strong> {{ _('Bulk payment') }}</p>
+    <p><strong>{{ _('Details') }}:</strong></p>
+    <ul>
+      {% set note_parts = rec.note.split('; ') %}
+      {% for part in note_parts %}
+        {% if 'Session ID:' in part %}
+          {% set session_id = part.split('Session ID: ')[1] %}
+          {% set session_date = session_id.split('_')[1] %}
+          {% set formatted_date = session_date[0:4] + '-' + session_date[4:6] + '-' + session_date[6:8] %}
+          <li>{{ _('Training session on') }} {{ formatted_date }}</li>
+        {% elif part.startswith('Sessions:') %}
+          {% set sessions_part = part.split('Sessions: ')[1] %}
+          {% set session_ids = sessions_part.split(',') %}
+          {% set dates = [] %}
+          {% for sid in session_ids %}
+            {% set session_date = sid.strip().split('_')[1] %}
+            {% set formatted_date = session_date[0:4] + '-' + session_date[4:6] + '-' + session_date[6:8] %}
+            {% set _ = dates.append(formatted_date) %}
+          {% endfor %}
+          {% set unique_dates = dates | unique | list %}
+          <li>{{ _('Training sessions on') }} {{ unique_dates | join(', ') }}</li>
+        {% elif part.startswith('Monthly fee') %}
+          <li>{{ part }}</li>
+        {% elif part.startswith('Event:') %}
+          <li>{{ part }}</li>
+        {% elif part.startswith('Debt payment') %}
+          <li>{{ part }}</li>
+        {% else %}
+          <li>{{ part }}</li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  {% elif rec.kind.startswith('training') %}
+    <p><strong>{{ _('Category') }}:</strong> {{ _('Training fee') }}</p>
     {% if rec.kind == 'training_month' %}
-      <p><strong>Plan:</strong> Per month &nbsp;|&nbsp;
-         <strong>Month:</strong> {{ "%04d-%02d"|format(rec.year or 0, rec.month or 0) }}</p>
+      <p><strong>{{ _('Plan') }}:</strong> {{ _('Per month') }} &nbsp;|&nbsp;
+         <strong>{{ _('Month') }}:</strong> {{ "%04d-%02d"|format(rec.year or 0, rec.month or 0) }}</p>
     {% else %}
-      <p><strong>Plan:</strong> Per session</p>
-      <p><strong>Sessions:</strong> {{ rec.sessions_taken }}/{{ rec.sessions_paid }} taken</p>
+      <p><strong>{{ _('Plan') }}:</strong> {{ _('Per session') }}</p>
+      <p><strong>{{ _('Sessions') }}:</strong> {{ rec.sessions_taken }}/{{ rec.sessions_paid }} {{ _('taken') }}</p>
     {% endif %}
   {% else %}
-    <p><strong>Category:</strong> Event</p>
+    <p><strong>{{ _('Category') }}:</strong> {{ _('Event') }}</p>
     {% if ev %}
-      <p><strong>Event:</strong> {{ ev.title }}
+      <p><strong>{{ _('Event') }}:</strong> {{ ev.title }}
         ({{ ev.start_date }}{% if ev.end_date %} – {{ ev.end_date }}{% endif %})
       </p>
     {% endif %}
-    {% if rec.event_registration and rec.event_registration.reg_categories %}
-      <p><strong>Event Categories:</strong>
+    {% if reg and reg.reg_categories %}
+      <p><strong>{{ _('Event Categories') }}:</strong>
+        <ul class="mb-0 ps-3">
+          {% for rc in reg.reg_categories %}
+            <li>
+              {{ rc.category.name if rc.category else '—' }}
+            </li>
+          {% endfor %}
+        </ul>
+      </p>
+    {% elif rec.event_registration and rec.event_registration.reg_categories %}
+      <p><strong>{{ _('Event Categories') }}:</strong>
         <ul class="mb-0 ps-3">
           {% for rc in rec.event_registration.reg_categories %}
             <li>
               {{ rc.category.name if rc.category else '—' }}
             </li>
+          {% endfor %}
+        </ul>
+      </p>
+    {% elif bulk_categories %}
+      <p><strong>{{ _('Event Categories') }}:</strong>
+        <ul class="mb-0 ps-3">
+          {% for cat_name in bulk_categories %}
+            <li>{{ cat_name }}</li>
           {% endfor %}
         </ul>
       </p>
@@ -53,22 +104,26 @@
     <hr>
     <div class="no-print">
       <form method="post" action="{{ url_for('receipt_pay_debt', rid=rec.id) }}">
-        <div class="mb-2 form-text">This receipt was auto-generated as a debt for extra sessions.</div>
+        <div class="mb-2 form-text">{{ _('This receipt was auto-generated as a debt for extra sessions.') }}</div>
         <div class="d-flex gap-2">
-          <button class="btn btn-sm btn-success" type="submit">Record payment for this debt</button>
-          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('payment_new', player_id=rec.player_id, amount=rec.amount) }}">Open payment form</a>
+          <button class="btn btn-sm btn-success" type="submit">{{ _('Record payment for this debt') }}</button>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('payment_new', player_id=rec.player_id, amount=rec.amount) }}">{{ _('Open payment form') }}</a>
         </div>
       </form>
     </div>
   {% endif %}
 
   <p class="mt-3">
-    <strong>Amount:</strong> {{ rec.amount }} {{ rec.currency }}
-    {% if rec.method %}&nbsp;|&nbsp;<strong>Method:</strong> {{ rec.method }}{% endif %}
+    <strong>{{ _('Amount') }}:</strong> {{ rec.amount }} {{ rec.currency }}
+    {% if rec.method %}&nbsp;|&nbsp;<strong>{{ _('Method') }}:</strong> {{ rec.method }}{% endif %}
   </p>
 
   {% if rec.note %}
-    <p><strong>Notes:</strong> {{ rec.note }}</p>
+    {% if rec.kind == 'bulk_payment' and rec.note.startswith('Bulk payment: ') %}
+      <!-- For bulk payments, event details are shown above, so we skip the payment breakdown -->
+    {% else %}
+      <p><strong>{{ _('Note') }}:</strong> {{ rec.note }}</p>
+    {% endif %}
   {% endif %}
 
   <!-- Stamp: small and bottom-right (size comes from print.css; inline is a safety cap) -->
@@ -78,8 +133,8 @@
   </div>
 
   <div class="mt-3 no-print d-flex gap-2">
-    <button class="btn btn-outline-danger" type="button" onclick="window.close()">Close</button>
-    <a class="btn btn-success" href="{{ url_for('receipt_print_view', rid=rec.id) }}" target="_blank">Print (clean)</a>
+    <a class="btn btn-success" href="{{ url_for('receipt_print_view', rid=rec.id) }}" target="_blank">{{ _('Print') }} (clean)</a>
+    <a class="btn btn-outline-secondary" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
   </div>
 
 </div>
