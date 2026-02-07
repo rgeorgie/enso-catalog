@@ -24,15 +24,22 @@ from wtforms.validators import DataRequired, Email, Optional as VOptional, Lengt
 from sqlalchemy import or_, and_, text
 from sqlalchemy.orm import foreign, joinedload
 from werkzeug.routing import BuildError
-import serial
+try:
+    import serial
+    import evdev
+    from evdev import ecodes
+except ImportError:
+    serial = None
+    evdev = None
+    ecodes = None
 
 app = Flask(__name__)
 
 socketio = SocketIO(app, async_mode='threading')
 
 # Card reader settings
-CARD_READER_PORT = os.environ.get('CARD_READER_PORT', '/dev/ttyACM0')
-CARD_READER_BAUD = int(os.environ.get('CARD_READER_BAUD', '9600'))
+CARD_READER_DEVICE = os.environ.get('CARD_READER_DEVICE', '/dev/input/event0')
+CARD_READER_BAUD = int(os.environ.get('CARD_READER_BAUD', '9600'))  # Not used for HID
 
 # -----------------------------
 # Config
@@ -60,14 +67,36 @@ db = SQLAlchemy(app)
 # Card reader thread
 def start_card_reader():
     def card_reader_loop():
+        if not evdev:
+            print("evdev not available, card reader disabled")
+            return
         try:
-            ser = serial.Serial(CARD_READER_PORT, CARD_READER_BAUD, timeout=1)
-            print(f"Card reader connected on {CARD_READER_PORT}")
-            while True:
-                line = ser.readline().decode('utf-8').strip()
-                if line:
-                    socketio.emit('card_scan', {'card_id': line})
-                time.sleep(0.1)
+            device = evdev.InputDevice(CARD_READER_DEVICE)
+            print(f"Card reader connected on {CARD_READER_DEVICE}: {device.name}")
+            card_buffer = ''
+            for event in device.read_loop():
+                if event.type == ecodes.EV_KEY:
+                    key_event = evdev.categorize(event)
+                    if key_event.keystate == key_event.key_down:
+                        if key_event.keycode == 'KEY_ENTER':
+                            if card_buffer.strip():
+                                socketio.emit('card_scan', {'card_id': card_buffer.strip()})
+                            card_buffer = ''
+                        elif key_event.keycode.startswith('KEY_'):
+                            # Map keycode to character
+                            key_map = {
+                                'KEY_0': '0', 'KEY_1': '1', 'KEY_2': '2', 'KEY_3': '3', 'KEY_4': '4',
+                                'KEY_5': '5', 'KEY_6': '6', 'KEY_7': '7', 'KEY_8': '8', 'KEY_9': '9',
+                                'KEY_A': 'a', 'KEY_B': 'b', 'KEY_C': 'c', 'KEY_D': 'd', 'KEY_E': 'e',
+                                'KEY_F': 'f', 'KEY_G': 'g', 'KEY_H': 'h', 'KEY_I': 'i', 'KEY_J': 'j',
+                                'KEY_K': 'k', 'KEY_L': 'l', 'KEY_M': 'm', 'KEY_N': 'n', 'KEY_O': 'o',
+                                'KEY_P': 'p', 'KEY_Q': 'q', 'KEY_R': 'r', 'KEY_S': 's', 'KEY_T': 't',
+                                'KEY_U': 'u', 'KEY_V': 'v', 'KEY_W': 'w', 'KEY_X': 'x', 'KEY_Y': 'y',
+                                'KEY_Z': 'z',
+                            }
+                            char = key_map.get(key_event.keycode, '')
+                            if char:
+                                card_buffer += char
         except Exception as e:
             print(f"Card reader error: {e}")
     thread = threading.Thread(target=card_reader_loop, daemon=True)
