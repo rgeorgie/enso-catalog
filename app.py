@@ -28,14 +28,20 @@ try:
     import serial
     import evdev
     from evdev import ecodes
-except ImportError:
+    import eventlet
+    print("evdev imported successfully")
+    async_mode = 'eventlet'
+except Exception as e:
+    print(f"Import failed: {e}")
     serial = None
     evdev = None
     ecodes = None
+    eventlet = None
+    async_mode = 'threading'
 
 app = Flask(__name__)
 
-socketio = SocketIO(app, async_mode='threading')
+socketio = SocketIO(app, async_mode=async_mode)
 
 # Card reader settings
 CARD_READER_DEVICE = os.environ.get('CARD_READER_DEVICE', '/dev/input/event0')
