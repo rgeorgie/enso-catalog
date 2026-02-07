@@ -95,7 +95,7 @@ sudo apt install chromium-browser
 sudo ./setup-systemd.sh
 ```
 
-This creates and enables two systemd services that automatically detect your project location:
+This creates and enables two systemd services that automatically detect your project location and user:
 - `enso-catalog.service`: Runs the Flask application
 - `enso-kiosk.service`: Starts Chromium in kiosk mode pointing to the local app
 

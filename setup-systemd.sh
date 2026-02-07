@@ -18,7 +18,11 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$SCRIPT_DIR"
 
+# Get the user who owns the project directory
+PROJECT_USER="$(stat -c '%U' "$PROJECT_DIR")"
+
 echo "Project directory: $PROJECT_DIR"
+echo "Project user: $PROJECT_USER"
 
 # Check if service files exist
 if [ ! -f "$SCRIPT_DIR/enso-catalog.service" ]; then
@@ -35,9 +39,9 @@ fi
 TEMP_CATALOG_SERVICE="/tmp/enso-catalog.service"
 TEMP_KIOSK_SERVICE="/tmp/enso-kiosk.service"
 
-# Replace the hardcoded path with the actual project directory
-sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g" "$SCRIPT_DIR/enso-catalog.service" > "$TEMP_CATALOG_SERVICE"
-sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g" "$SCRIPT_DIR/enso-kiosk.service" > "$TEMP_KIOSK_SERVICE"
+# Replace the hardcoded path and user with the actual project directory and user
+sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g; s|User=pi|User=$PROJECT_USER|g" "$SCRIPT_DIR/enso-catalog.service" > "$TEMP_CATALOG_SERVICE"
+sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g; s|User=pi|User=$PROJECT_USER|g" "$SCRIPT_DIR/enso-kiosk.service" > "$TEMP_KIOSK_SERVICE"
 
 # Copy service files
 echo "Copying service files..."
@@ -60,6 +64,7 @@ echo ""
 echo "Setup complete!"
 echo ""
 echo "Project location: $PROJECT_DIR"
+echo "Running as user: $PROJECT_USER"
 echo ""
 echo "To start the services manually:"
 echo "  sudo systemctl start enso-catalog"

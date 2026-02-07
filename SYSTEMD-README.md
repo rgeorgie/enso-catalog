@@ -12,10 +12,10 @@ This directory contains systemd service files and setup script to automatically 
 ## Prerequisites
 
 1. Raspberry Pi with Raspberry Pi OS (or similar Linux distribution)
-2. Project installed in any directory (the setup script will auto-detect the location)
+2. Project installed in any directory (the setup script will auto-detect the location and owner)
 3. Virtual environment set up (typically `.venv` in the project directory)
 4. Chromium browser installed (`sudo apt install chromium-browser`)
-5. User `pi` exists and has appropriate permissions (or modify the service files for your user)
+5. User who owns the project directory should have appropriate permissions
 
 ## Installation
 
