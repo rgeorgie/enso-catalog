@@ -357,10 +357,8 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .then(response => response.text())
       .then(html => {
-        // Replace page content with response
-        document.open();
-        document.write(html);
-        document.close();
+        // Reload page to show flash messages
+        window.location.reload();
       })
       .catch(error => {
         console.error('Import error:', error);
