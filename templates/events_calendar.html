@@ -17,7 +17,7 @@
 </div>
 
 {% if session.get('is_admin') %}
-<div class="modal fade" id="importEventZipModal" tabindex="-1" aria-labelledby="importEventZipLabel" aria-hidden="true">
+<div class="modal fade" id="importEventZipModal" tabindex="-1" aria-labelledby="importEventZipLabel" aria-hidden="true" data-bs-backdrop="false">
   <div class="modal-dialog">
     <div class="modal-content">
       <form id="importEventZipForm" enctype="multipart/form-data">
@@ -163,40 +163,69 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Handle import button with AJAX
-document.getElementById('importEventZipBtn').addEventListener('click', function() {
-  const form = document.getElementById('importEventZipForm');
-  const fileInput = form.querySelector('input[type="file"]');
-  if (!fileInput || !fileInput.files[0]) {
-    alert('{{ _("Please select a file first.") }}');
-    return;
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Script loaded for events_calendar');
+  const importBtn = document.getElementById('importEventZipBtn');
+  if (importBtn) {
+    importBtn.addEventListener('click', function() {
+      console.log('Import button clicked');
+      const form = document.getElementById('importEventZipForm');
+      const fileInput = form.querySelector('input[type="file"]');
+      if (!fileInput || !fileInput.files[0]) {
+        console.log('No file selected');
+        alert('{{ _("Please select a file first.") }}');
+        return;
+      }
+      console.log('File selected:', fileInput.files[0].name);
+
+      // Hide the import modal
+      const importModal = bootstrap.Modal.getInstance(document.getElementById('importEventZipModal'));
+      if (importModal) {
+        importModal.hide();
+        console.log('Import modal hidden');
+      } else {
+        console.log('Import modal instance not found, force hiding');
+        const modalEl = document.getElementById('importEventZipModal');
+        modalEl.classList.remove('show');
+        modalEl.style.display = 'none';
+        modalEl.setAttribute('aria-hidden', 'true');
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+        console.log('Import modal force hidden');
+      }
+
+      // Show loading modal
+      const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'), { backdrop: 'static', keyboard: false });
+      loadingModal.show();
+      console.log('Loading modal shown');
+
+      // Prepare form data
+      const formData = new FormData(form);
+      console.log('FormData prepared');
+
+      // Send AJAX request
+      console.log('Sending fetch to:', '{{ url_for("import_event_zip") }}');
+      fetch('{{ url_for("import_event_zip") }}', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => {
+        console.log('Response received:', response.status, response.statusText);
+        return response.text();
+      })
+      .then(html => {
+        console.log('Response text received, reloading page');
+        // Reload page to show flash messages
+        window.location.reload();
+      })
+      .catch(error => {
+        console.error('Import error:', error);
+        loadingModal.hide();
+        alert('{{ _("Import failed. Please try again.") }}');
+      });
+    });
+  } else {
+    console.log('Import button not found');
   }
-
-  // Hide the import modal
-  const importModal = bootstrap.Modal.getInstance(document.getElementById('importEventZipModal'));
-  importModal.hide();
-
-  // Show loading modal
-  const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'), { backdrop: 'static', keyboard: false });
-  loadingModal.show();
-
-  // Prepare form data
-  const formData = new FormData(form);
-
-  // Send AJAX request
-  fetch('{{ url_for("import_event_zip") }}', {
-    method: 'POST',
-    body: formData
-  })
-  .then(response => response.text())
-  .then(html => {
-    // Reload page to show flash messages
-    window.location.reload();
-  })
-  .catch(error => {
-    console.error('Import error:', error);
-    loadingModal.hide();
-    alert('{{ _("Import failed. Please try again.") }}');
-  });
 });
 </script>
 

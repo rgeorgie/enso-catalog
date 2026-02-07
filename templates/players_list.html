@@ -288,7 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% if session.get('is_admin') %}
 <!-- Players import modal -->
-<div class="modal fade" id="playersImportModal" tabindex="-1" aria-labelledby="playersImportModalLabel" aria-hidden="true">
+<div class="modal fade" id="playersImportModal" tabindex="-1" aria-labelledby="playersImportModalLabel" aria-hidden="true" data-bs-backdrop="false">
   <div class="modal-dialog">
     <div class="modal-content">
       <form id="importPlayersZipForm" enctype="multipart/form-data">
@@ -327,36 +327,63 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <script>
+function showLoadingModal(event) {
+  // This function is not used anymore, but kept for compatibility
+  return true;
+}
+
 // Handle import button with AJAX
 document.addEventListener('DOMContentLoaded', function() {
+  console.log('Script loaded for players_list');
   const importBtn = document.getElementById('importPlayersZipBtn');
   if (importBtn) {
     importBtn.addEventListener('click', function() {
+      console.log('Import button clicked (players_list)');
       const form = document.getElementById('importPlayersZipForm');
       const fileInput = form.querySelector('input[type="file"]');
       if (!fileInput || !fileInput.files[0]) {
+        console.log('No file selected');
         alert('{{ _("Please select a file first.") }}');
         return;
       }
+      console.log('File selected:', fileInput.files[0].name);
 
       // Hide the import modal
       const importModal = bootstrap.Modal.getInstance(document.getElementById('playersImportModal'));
-      importModal.hide();
+      if (importModal) {
+        importModal.hide();
+        console.log('Import modal hidden');
+      } else {
+        console.log('Import modal instance not found, force hiding');
+        const modalEl = document.getElementById('playersImportModal');
+        modalEl.classList.remove('show');
+        modalEl.style.display = 'none';
+        modalEl.setAttribute('aria-hidden', 'true');
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+        console.log('Import modal force hidden');
+      }
 
       // Show loading modal
       const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'), { backdrop: 'static', keyboard: false });
       loadingModal.show();
+      console.log('Loading modal shown');
 
       // Prepare form data
       const formData = new FormData(form);
+      console.log('FormData prepared');
 
       // Send AJAX request
+      console.log('Sending fetch to:', '{{ url_for("import_players_zip") }}');
       fetch('{{ url_for("import_players_zip") }}', {
         method: 'POST',
         body: formData
       })
-      .then(response => response.text())
+      .then(response => {
+        console.log('Response received:', response.status, response.statusText);
+        return response.text();
+      })
       .then(html => {
+        console.log('Response text received, reloading page');
         // Reload page to show flash messages
         window.location.reload();
       })
@@ -366,6 +393,8 @@ document.addEventListener('DOMContentLoaded', function() {
         alert('{{ _("Import failed. Please try again.") }}');
       });
     });
+  } else {
+    console.log('Import button not found (players_list)');
   }
 });
 </script>
