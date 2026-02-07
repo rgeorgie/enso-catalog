@@ -30,7 +30,7 @@ try:
     from evdev import ecodes
     import eventlet
     print("evdev imported successfully")
-    async_mode = 'eventlet'
+    async_mode = 'threading'  # Use threading instead of deprecated eventlet
 except Exception as e:
     print(f"Import failed: {e}")
     serial = None
