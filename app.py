@@ -47,6 +47,9 @@ socketio = SocketIO(app, async_mode=async_mode)
 CARD_READER_DEVICE = os.environ.get('CARD_READER_DEVICE', '/dev/input/event0')
 CARD_READER_BAUD = int(os.environ.get('CARD_READER_BAUD', '9600'))  # Not used for HID
 
+# Global variable for card polling
+last_card_id = None
+
 # -----------------------------
 # Config
 # -----------------------------
@@ -90,6 +93,8 @@ def start_card_reader():
                         current_time = time.time()
                         if key_event.keycode == 'KEY_ENTER':
                             if card_buffer.strip():
+                                global last_card_id
+                                last_card_id = card_buffer.strip()
                                 socketio.emit('card_scan', {'card_id': card_buffer.strip()})
                             card_buffer = ''
                             last_key = None
@@ -2432,6 +2437,13 @@ def kiosk():
         belt_colors[p.id] = BELT_PALETTE.get(p.belt_rank, "#f8f9fa")
 
     return render_template("kiosk.html", players=players, belt_colors=belt_colors, q=q, belt=belt, active=active)
+
+@app.route("/card_status")
+def card_status():
+    global last_card_id
+    card_id = last_card_id
+    last_card_id = None
+    return jsonify({'card_id': card_id})
 
 @app.route("/kiosk/record_session", methods=["POST"])
 def kiosk_record_session():

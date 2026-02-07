@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block head %}
   {{ super() }}
-  <script src="/static/js/socket.io.js"></script>
 {% endblock %}
 {% block content %}
 <div class="container-fluid">
@@ -181,8 +180,17 @@ document.addEventListener('DOMContentLoaded', function() {
   const customBackdrop = document.getElementById('customBackdrop');
   const cardStatus = document.getElementById('card_status');
 
-  // Card reader functionality via SocketIO
-  const socket = io();
+  // Card reader functionality via polling
+  const pollInterval = setInterval(function() {
+    fetch('/card_status')
+      .then(response => response.json())
+      .then(data => {
+        if (data.card_id) {
+          processCardScan(data.card_id);
+        }
+      })
+      .catch(error => console.error('Polling error:', error));
+  }, 500);  // Poll every 500ms
 
   function showCardStatus(message, type = 'info') {
     cardStatus.innerHTML = `<div class="alert alert-${type} py-2 mb-0">${message}</div>`;
@@ -220,10 +228,6 @@ document.addEventListener('DOMContentLoaded', function() {
       showCardStatus('{{ _("Error processing card scan. Please try again.") }}', 'danger');
     });
   }
-
-  socket.on('card_scan', function(data) {
-    processCardScan(data.card_id);
-  });
 
   // Focus card reader input on page load
   // cardReaderInput.focus();

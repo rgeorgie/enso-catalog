@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% block head %}
   {{ super() }}
-  <script>console.log('Before socket.io script');</script>
-  <script src="/static/js/socket.io.js?v=3"></script>
-  <script>console.log('After socket.io script, typeof io:', typeof io);</script>
 {% endblock %}
 {% block content %}
 <h1 class="mb-4">{{ _('Admin Login') }}</h1>
@@ -56,13 +53,18 @@
     const cardIdInput = document.getElementById('card_id_input');
     const cardLoginForm = document.getElementById('card_login_form');
     
-    // Card reader functionality via SocketIO
-    const socket = io();
-
-    socket.on('card_scan', function(data) {
-      cardIdInput.value = data.card_id;
-      cardLoginForm.submit();
-    });
+    // Card reader functionality via polling
+    const pollInterval = setInterval(function() {
+      fetch('/card_status')
+        .then(response => response.json())
+        .then(data => {
+          if (data.card_id) {
+            cardIdInput.value = data.card_id;
+            cardLoginForm.submit();
+          }
+        })
+        .catch(error => console.error('Polling error:', error));
+    }, 500);  // Poll every 500ms
   });
 </script>
 
