@@ -5780,6 +5780,24 @@ def receipts_print_batch():
         flash('No receipts found.', 'info')
         return redirect(request.referrer or url_for('list_players'))
     
+    # Load training sessions for training receipts
+    for rec in recs:
+        if rec.kind.startswith('training') and rec.kind != 'training_month':
+            # For per-session training receipts, load the associated training sessions
+            # We can find them by player and date range around the payment date
+            payment_date = rec.paid_at.date() if rec.paid_at else date.today()
+            # Look for sessions in the week around the payment date
+            start_date = payment_date - timedelta(days=7)
+            end_date = payment_date + timedelta(days=7)
+            rec.training_sessions = (TrainingSession.query
+                                   .filter_by(player_pn=rec.player_pn)
+                                   .filter(TrainingSession.date >= start_date)
+                                   .filter(TrainingSession.date <= end_date)
+                                   .order_by(TrainingSession.date)
+                                   .all())
+        else:
+            rec.training_sessions = []
+    
     # Calculate bulk_categories for each receipt
     for rec in recs:
         if rec.kind == 'bulk_payment' and rec.note:
@@ -6152,4 +6170,4 @@ if __name__ == "__main__":
     #     SESSION_COOKIE_SAMESITE="Lax",
     #     # SESSION_COOKIE_SECURE=True,  # enable if served over HTTPS
     # )
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)

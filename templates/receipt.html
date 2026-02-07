@@ -26,7 +26,7 @@
     <ul>
       {% set note_parts = rec.note.split('; ') %}
       {% for part in note_parts %}
-        {% if part.startswith('Session ID:') %}
+        {% if 'Session ID:' in part %}
           {% set session_id = part.split('Session ID: ')[1] %}
           {% set session_date = session_id.split('_')[1] %}
           {% set formatted_date = session_date[0:4] + '-' + session_date[4:6] + '-' + session_date[6:8] %}

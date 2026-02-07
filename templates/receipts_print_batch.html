@@ -29,8 +29,8 @@
           {% set note_parts = rec.note.split('; ') %}
           {% for part in note_parts %}
             {% if part.startswith('Session ID:') %}
-              {% set session_id = part.split('Session ID: ')[1] %}
-              {% set session_date = session_id.split('_')[1] %}
+              {% set session_id_part = part.split('Session ID:')[1].split()[0] %}
+              {% set session_date = session_id_part.split('_')[1] %}
               {% set formatted_date = session_date[0:4] + '-' + session_date[4:6] + '-' + session_date[6:8] %}
               <li>{{ _('Training session on') }} {{ formatted_date }}</li>
             {% elif part.startswith('Sessions:') %}
@@ -63,6 +63,14 @@
         {% else %}
           <p><strong>{{ _('Plan') }}:</strong> {{ _('Per session') }}</p>
           <p><strong>{{ _('Sessions') }}:</strong> {{ rec.sessions_taken }}/{{ rec.sessions_paid }} {{ _('taken') }}</p>
+          {% if rec.training_sessions %}
+            <p><strong>{{ _('Session dates') }}:</strong></p>
+            <ul class="mb-0 ps-3">
+              {% for session in rec.training_sessions %}
+                <li>{{ session.date.strftime('%Y-%m-%d') }} ({{ session.date.strftime('%A') }})</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
         {% endif %}
       {% else %}
         <p><strong>{{ _('Category') }}:</strong> {{ _('Event') }}</p>
