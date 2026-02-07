@@ -12,25 +12,6 @@
         <p class="text-muted">{{ _('Or simply scan your card to record a session automatically') }}</p>
       </div>
 
-      <!-- Search and Filter Controls -->
-      <div class="row mb-4">
-        <div class="col-md-8">
-          <form method="get" class="d-flex">
-            <input type="text" name="q" value="{{ q }}" class="form-control me-2" placeholder="{{ _('Search by name...') }}" style="font-size: 1.2rem; padding: 0.75rem;">
-            <select name="belt" class="form-select me-2" style="font-size: 1.2rem;">
-              <option value="">{{ _('All Belts') }}</option>
-              {% for belt_option in ['White', 'Yellow', 'Orange', 'Green', 'Blue', 'Brown', 'Black'] %}
-                <option value="{{ belt_option }}" {% if belt == belt_option %}selected{% endif %}>{{ belt_option }}</option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-primary btn-lg">{{ _('Search') }}</button>
-          </form>
-        </div>
-        <div class="col-md-4 text-end">
-          <a href="{{ url_for('list_players') }}" class="btn btn-outline-secondary btn-lg">{{ _('Admin View') }}</a>
-        </div>
-      </div>
-
       <!-- Card Reader Section -->
       <div class="row mb-4">
         <div class="col-12">
