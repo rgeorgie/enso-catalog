@@ -10,11 +10,11 @@
       <div class="col-12 col-md-6">
         <div class="card p-3">
           <h5>{{ _('Import Players (ZIP)') }}</h5>
-          <form method="post" action="{{ url_for('import_players_zip') }}" enctype="multipart/form-data">
+          <form id="importPlayersZipForm" enctype="multipart/form-data">
             <div class="mb-2">
               <input type="file" name="zipfile" accept=".zip" required class="form-control">
             </div>
-            <button class="btn btn-primary" type="submit">{{ _('Import Players (ZIP)') }}</button>
+            <button class="btn btn-primary" id="importPlayersZipBtn" type="button">{{ _('Import Players (ZIP)') }}</button>
           </form>
         </div>
       </div>
@@ -22,11 +22,11 @@
       <div class="col-12 col-md-6">
         <div class="card p-3">
           <h5>{{ _('Import Players (CSV)') }}</h5>
-          <form method="post" action="{{ url_for('admin_players_import_csv') }}" enctype="multipart/form-data">
+          <form id="importPlayersCsvForm" enctype="multipart/form-data">
             <div class="mb-2">
               <input type="file" name="csv_file" accept=".csv" required class="form-control">
             </div>
-            <button class="btn btn-primary" type="submit">{{ _('Import Players (CSV)') }}</button>
+            <button class="btn btn-primary" id="importPlayersCsvBtn" type="button">{{ _('Import Players (CSV)') }}</button>
           </form>
         </div>
       </div>
@@ -34,11 +34,11 @@
       <div class="col-12 col-md-6">
         <div class="card p-3">
           <h5>{{ _('Import Event (ZIP)') }}</h5>
-          <form method="post" action="{{ url_for('import_event_zip') }}" enctype="multipart/form-data">
+          <form id="importEventZipForm" enctype="multipart/form-data">
             <div class="mb-2">
               <input type="file" name="zipfile" accept=".zip" required class="form-control">
             </div>
-            <button class="btn btn-primary" type="submit">{{ _('Import Event (ZIP)') }}</button>
+            <button class="btn btn-primary" id="importEventZipBtn" type="button">{{ _('Import Event (ZIP)') }}</button>
           </form>
         </div>
       </div>
@@ -46,12 +46,12 @@
       <div class="col-12 col-md-6">
         <div class="card p-3">
           <h5>{{ _('Import Payments (CSV)') }}</h5>
-          <form method="post" action="{{ url_for('admin_payments_import_csv') }}" enctype="multipart/form-data">
+          <form id="importPaymentsCsvForm" enctype="multipart/form-data">
             <div class="mb-2">
               <input type="file" name="csv_file" accept=".csv" required class="form-control">
             </div>
             <div class="form-text small text-muted mb-2">{{ _('Expected headers: player_pn OR player_id, kind, year, month, amount, currency, paid, paid_at, receipt_no, payment_id, event_registration_id, sessions_paid, sessions_taken, note, method') }}</div>
-            <button class="btn btn-primary" type="submit">{{ _('Import Payments (CSV)') }}</button>
+            <button class="btn btn-primary" id="importPaymentsCsvBtn" type="button">{{ _('Import Payments (CSV)') }}</button>
           </form>
         </div>
       </div>
@@ -82,12 +82,51 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const forms = document.querySelectorAll('form');
-  forms.forEach(form => {
-    form.addEventListener('submit', function() {
-      const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
-      modal.show();
-    });
+  // Handle import buttons with AJAX
+  const buttons = [
+    { btn: 'importPlayersZipBtn', form: 'importPlayersZipForm', url: '{{ url_for("import_players_zip") }}' },
+    { btn: 'importPlayersCsvBtn', form: 'importPlayersCsvForm', url: '{{ url_for("admin_players_import_csv") }}' },
+    { btn: 'importEventZipBtn', form: 'importEventZipForm', url: '{{ url_for("import_event_zip") }}' },
+    { btn: 'importPaymentsCsvBtn', form: 'importPaymentsCsvForm', url: '{{ url_for("admin_payments_import_csv") }}' }
+  ];
+
+  buttons.forEach(({ btn, form, url }) => {
+    const button = document.getElementById(btn);
+    const formEl = document.getElementById(form);
+    if (button && formEl) {
+      button.addEventListener('click', function() {
+        const fileInput = formEl.querySelector('input[type="file"]');
+        if (!fileInput || !fileInput.files[0]) {
+          alert('{{ _("Please select a file first.") }}');
+          return;
+        }
+
+        // Show loading modal
+        const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        modal.show();
+
+        // Prepare form data
+        const formData = new FormData(formEl);
+
+        // Send AJAX request
+        fetch(url, {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.text())
+        .then(html => {
+          // Replace page content with response
+          document.open();
+          document.write(html);
+          document.close();
+        })
+        .catch(error => {
+          console.error('Import error:', error);
+          modal.hide();
+          alert('{{ _("Import failed. Please try again.") }}');
+        });
+      });
+    }
   });
 });
 </script>
