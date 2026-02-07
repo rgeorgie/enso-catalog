@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block head %}
   {{ super() }}
+  <!-- Debug version 3 -->
   <script>console.log('Before socket.io script');</script>
   <script src="/static/js/socket.io.js?v=3"></script>
   <script>console.log('After socket.io script, typeof io:', typeof io);</script>
