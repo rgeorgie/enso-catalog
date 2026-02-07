@@ -31,10 +31,21 @@ if [ ! -f "$SCRIPT_DIR/enso-kiosk.service" ]; then
     exit 1
 fi
 
+# Create a temporary version of the service files with the correct project path
+TEMP_CATALOG_SERVICE="/tmp/enso-catalog.service"
+TEMP_KIOSK_SERVICE="/tmp/enso-kiosk.service"
+
+# Replace the hardcoded path with the actual project directory
+sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g" "$SCRIPT_DIR/enso-catalog.service" > "$TEMP_CATALOG_SERVICE"
+sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g" "$SCRIPT_DIR/enso-kiosk.service" > "$TEMP_KIOSK_SERVICE"
+
 # Copy service files
 echo "Copying service files..."
-cp "$SCRIPT_DIR/enso-catalog.service" /etc/systemd/system/
-cp "$SCRIPT_DIR/enso-kiosk.service" /etc/systemd/system/
+cp "$TEMP_CATALOG_SERVICE" /etc/systemd/system/enso-catalog.service
+cp "$TEMP_KIOSK_SERVICE" /etc/systemd/system/enso-kiosk.service
+
+# Clean up temp files
+rm -f "$TEMP_CATALOG_SERVICE" "$TEMP_KIOSK_SERVICE"
 
 # Reload systemd
 echo "Reloading systemd daemon..."
@@ -48,6 +59,8 @@ systemctl enable enso-kiosk.service
 echo ""
 echo "Setup complete!"
 echo ""
+echo "Project location: $PROJECT_DIR"
+echo ""
 echo "To start the services manually:"
 echo "  sudo systemctl start enso-catalog"
 echo "  sudo systemctl start enso-kiosk"
@@ -57,6 +70,3 @@ echo "  sudo systemctl status enso-catalog"
 echo "  sudo systemctl status enso-kiosk"
 echo ""
 echo "The services will start automatically on boot."
-echo ""
-echo "Note: Make sure the project is located at /home/pi/enso-catalog"
-echo "      and that the virtual environment is set up correctly."

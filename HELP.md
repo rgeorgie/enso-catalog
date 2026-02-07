@@ -75,7 +75,12 @@ For production use with automatic startup and kiosk mode:
    sudo journalctl -u enso-catalog -f   # View logs
    ```
 
-The system will boot directly into kiosk mode with automatic card reader detection and inactivity timeout.
+The system will boot directly into kiosk mode with automatic card reader detection and inactivity timeout. The setup script automatically detects your project location and configures the services accordingly.
+
+To remove the services later:
+```bash
+sudo ./remove-systemd.sh
+```
 
 ### Language Support
 

@@ -90,16 +90,21 @@ sudo apt update
 sudo apt install chromium-browser
 ```
 
-2. Run the systemd setup script:
+2. Run the systemd setup script (from the project directory):
 ```bash
 sudo ./setup-systemd.sh
 ```
 
-This creates and enables two systemd services:
+This creates and enables two systemd services that automatically detect your project location:
 - `enso-catalog.service`: Runs the Flask application
 - `enso-kiosk.service`: Starts Chromium in kiosk mode pointing to the local app
 
 Services start automatically on boot. See `SYSTEMD-README.md` for details.
+
+To remove the services later:
+```bash
+sudo ./remove-systemd.sh
+```
 
 ### B) Windows (PowerShell)
 ```powershell

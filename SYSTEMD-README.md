@@ -7,14 +7,15 @@ This directory contains systemd service files and setup script to automatically 
 - `enso-catalog.service` - Systemd service for the Flask application
 - `enso-kiosk.service` - Systemd service for kiosk mode browser
 - `setup-systemd.sh` - Setup script to install and enable the services
+- `remove-systemd.sh` - Removal script to uninstall the services
 
 ## Prerequisites
 
 1. Raspberry Pi with Raspberry Pi OS (or similar Linux distribution)
-2. Project installed at `/home/pi/enso-catalog`
-3. Virtual environment set up at `/home/pi/enso-catalog/.venv`
+2. Project installed in any directory (the setup script will auto-detect the location)
+3. Virtual environment set up (typically `.venv` in the project directory)
 4. Chromium browser installed (`sudo apt install chromium-browser`)
-5. User `pi` exists and has appropriate permissions
+5. User `pi` exists and has appropriate permissions (or modify the service files for your user)
 
 ## Installation
 
@@ -75,12 +76,34 @@ sudo journalctl -u enso-kiosk -f
 
 ## Customization
 
-If your setup differs from the default:
+The setup script automatically detects your project location and configures the services accordingly. If you need to customize further:
 
-1. Edit the service files to match your paths
-2. Update user, working directory, and executable paths
-3. For kiosk service, ensure DISPLAY=:0 is correct for your setup
-4. Re-run the setup script after changes
+1. **Different User**: Edit the service files and change `User=pi` to your desired user
+2. **Different Virtual Environment**: The services expect `.venv` in the project directory. If yours is different, modify the `PATH` environment variable in the service files
+3. **Different Display**: For kiosk service, ensure `DISPLAY=:0` matches your X session
+4. **Manual Path Override**: If auto-detection doesn't work, you can manually edit the `ENSO_PROJECT_DIR` environment variable in the installed service files
+
+After making changes, reload systemd:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart enso-catalog enso-kiosk
+```
+
+## Removal/Uninstallation
+
+To completely remove the systemd services:
+
+```bash
+sudo ./remove-systemd.sh
+```
+
+This script will:
+- Stop both services if running
+- Disable the services
+- Remove the service files from `/etc/systemd/system/`
+- Reload the systemd daemon
+
+After removal, the services will no longer start on boot and can be reinstalled anytime with `sudo ./setup-systemd.sh`.
 
 ## Troubleshooting
 

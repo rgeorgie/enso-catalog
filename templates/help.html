@@ -51,7 +51,8 @@
                     </ul>
                   </li>
                 </ol>
-                <p>{{ _('The system will boot directly into kiosk mode with automatic card reader detection and inactivity timeout.') }}</p>
+                <p>{{ _('The system will boot directly into kiosk mode with automatic card reader detection and inactivity timeout. The setup script automatically detects your project location and configures the services accordingly.') }}</p>
+                <p>{{ _('To remove the services later, run:') }} <code>sudo ./remove-systemd.sh</code></p>
 
                 <h5>{{ _('Language Support') }}</h5>
                 <p>{{ _('The application supports Bulgarian (default) and English. Use the language switcher in the top navigation to change languages.') }}</p>
