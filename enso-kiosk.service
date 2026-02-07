@@ -6,9 +6,8 @@ Requires=enso-catalog.service
 [Service]
 Type=simple
 User=pi
-Environment=ENSO_PROJECT_DIR=/home/pi/enso-catalog
 Environment=DISPLAY=:0
-ExecStart=/usr/bin/chromium-browser --kiosk --disable-restore-session-state --disable-session-crashed-bubble --disable-infobars --disable-translate --no-first-run --disable-default-apps --disable-web-security --user-data-dir=${ENSO_PROJECT_DIR}/.config/chromium-kiosk --app=http://localhost:5000/kiosk
+ExecStart=/usr/bin/chromium-browser --kiosk --disable-restore-session-state --disable-session-crashed-bubble --disable-infobars --disable-translate --no-first-run --disable-default-apps --disable-web-security --user-data-dir=/home/pi/enso-catalog/.config/chromium-kiosk --app=http://localhost:5000/kiosk
 Restart=always
 RestartSec=5
 

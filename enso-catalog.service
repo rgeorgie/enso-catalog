@@ -5,10 +5,9 @@ After=network.target
 [Service]
 Type=simple
 User=pi
-Environment=ENSO_PROJECT_DIR=/home/pi/enso-catalog
-WorkingDirectory=${ENSO_PROJECT_DIR}
-Environment=PATH=${ENSO_PROJECT_DIR}/.venv/bin
-ExecStart=${ENSO_PROJECT_DIR}/.venv/bin/python ${ENSO_PROJECT_DIR}/app.py
+WorkingDirectory=/home/pi/enso-catalog
+Environment=PATH=/home/pi/enso-catalog/.venv/bin
+ExecStart=/home/pi/enso-catalog/.venv/bin/python /home/pi/enso-catalog/app.py
 Restart=always
 RestartSec=5
 
