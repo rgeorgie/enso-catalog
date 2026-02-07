@@ -74,15 +74,21 @@ def start_card_reader():
             device = evdev.InputDevice(CARD_READER_DEVICE)
             print(f"Card reader connected on {CARD_READER_DEVICE}: {device.name}")
             card_buffer = ''
+            last_key_time = time.time()
             for event in device.read_loop():
                 if event.type == ecodes.EV_KEY:
                     key_event = evdev.categorize(event)
                     if key_event.keystate == key_event.key_down:
+                        current_time = time.time()
                         if key_event.keycode == 'KEY_ENTER':
                             if card_buffer.strip():
                                 socketio.emit('card_scan', {'card_id': card_buffer.strip()})
                             card_buffer = ''
                         elif key_event.keycode.startswith('KEY_'):
+                            # Check if too much time passed, send previous buffer
+                            if current_time - last_key_time > 1.0 and card_buffer:
+                                socketio.emit('card_scan', {'card_id': card_buffer.strip()})
+                                card_buffer = ''
                             # Map keycode to character
                             key_map = {
                                 'KEY_0': '0', 'KEY_1': '1', 'KEY_2': '2', 'KEY_3': '3', 'KEY_4': '4',
@@ -97,6 +103,11 @@ def start_card_reader():
                             char = key_map.get(key_event.keycode, '')
                             if char:
                                 card_buffer += char
+                                last_key_time = current_time
+                        # If no key for 1 second, send buffer
+                        if current_time - last_key_time > 1.0 and card_buffer:
+                            socketio.emit('card_scan', {'card_id': card_buffer.strip()})
+                            card_buffer = ''
         except Exception as e:
             print(f"Card reader error: {e}")
     thread = threading.Thread(target=card_reader_loop, daemon=True)
