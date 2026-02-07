@@ -65,4 +65,31 @@
     </div>
   </div>
 </div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body text-center">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">{{ _('Loading...') }}</span>
+        </div>
+        <p class="mt-2">{{ _('Processing import... Please wait.') }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const forms = document.querySelectorAll('form');
+  forms.forEach(form => {
+    form.addEventListener('submit', function() {
+      const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
+      modal.show();
+    });
+  });
+});
+</script>
+
 {% endblock %}
