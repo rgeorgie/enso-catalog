@@ -6,12 +6,6 @@
 <div class="container-fluid">
   <div class="row">
     <div class="col-12">
-      <div class="text-center mb-4">
-        <h1 class="display-4">{{ _('Kiosk Mode') }}</h1>
-        <p class="lead">{{ _('Click on your name to record a training session') }}</p>
-        <p class="text-muted">{{ _('Or simply scan your card to record a session automatically') }}</p>
-      </div>
-
       <!-- Card Reader Section -->
       <div class="row mb-4">
         <div class="col-12">
@@ -23,7 +17,7 @@
       <div class="row g-3">
         {% for player in players %}
         <div class="col-lg-3 col-md-4 col-sm-6">
-          <div class="card h-100 shadow-sm player-card" data-bs-toggle="modal" data-bs-target="#sessionModal" data-player-id="{{ player.id }}" data-player-name="{{ player.first_name }} {{ player.last_name }}" style="cursor: pointer; transition: transform 0.2s;">
+          <div class="card h-100 shadow-sm player-card" data-bs-toggle="modal" data-bs-target="#sessionModal" data-player-id="{{ player.id }}" data-player-name="{{ player.first_name }} {{ player.last_name }}" style="cursor: pointer; transition: transform 0.2s; background-color: rgba(255, 255, 255, 0.5);">
             <div class="card-body text-center p-4">
               {% if player.photo_filename %}
                 <img src="{{ url_for('uploaded_file', filename=player.photo_filename) }}" class="rounded-circle mb-3" style="width: 80px; height: 80px; object-fit: cover;" alt="Photo">
@@ -243,6 +237,31 @@ document.addEventListener('DOMContentLoaded', function() {
   sessionModal.addEventListener('shown.bs.modal', function() {
     document.getElementById('player_id').focus();
   });
+
+  // Inactivity timer for kiosk mode - return to kiosk after 5 minutes of inactivity
+  let inactivityTimer;
+  const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+  function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(function() {
+      // Return to kiosk page
+      window.location.href = '/kiosk';
+    }, INACTIVITY_TIMEOUT);
+  }
+
+  function setupActivityListeners() {
+    // List of events to track for activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'touchmove', 'click'];
+    
+    events.forEach(function(event) {
+      document.addEventListener(event, resetInactivityTimer, true);
+    });
+  }
+
+  // Start the inactivity timer
+  setupActivityListeners();
+  resetInactivityTimer();
 });
 </script>
 
