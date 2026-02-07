@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 
 from flask import (
     Flask, render_template, request, redirect, url_for, flash, abort,
-    send_from_directory, session, Response, stream_with_context
+    send_from_directory, session, Response, stream_with_context, jsonify
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
