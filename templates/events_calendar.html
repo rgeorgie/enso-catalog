@@ -20,7 +20,7 @@
 <div class="modal fade" id="importEventZipModal" tabindex="-1" aria-labelledby="importEventZipLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form id="importEventZipForm" method="post" action="{{ url_for('import_event_zip') }}" enctype="multipart/form-data">
+      <form id="importEventZipForm" enctype="multipart/form-data">
       <div class="modal-header">
         <h5 class="modal-title" id="importEventZipLabel">{{ _('Import Event (ZIP)') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -34,7 +34,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
-        <button type="submit" class="btn btn-primary">{{ _('Import') }}</button>
+        <button type="button" id="importEventZipBtn" class="btn btn-primary">{{ _('Import') }}</button>
       </div>
       </form>
     </div>
@@ -161,5 +161,59 @@ document.addEventListener('DOMContentLoaded', function() {
 
   renderCalendar(displayDate);
 });
+
+// Handle import button with AJAX
+document.getElementById('importEventZipBtn').addEventListener('click', function() {
+  const form = document.getElementById('importEventZipForm');
+  const fileInput = form.querySelector('input[type="file"]');
+  if (!fileInput || !fileInput.files[0]) {
+    alert('{{ _("Please select a file first.") }}');
+    return;
+  }
+
+  // Hide the import modal
+  const importModal = bootstrap.Modal.getInstance(document.getElementById('importEventZipModal'));
+  importModal.hide();
+
+  // Show loading modal
+  const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'), { backdrop: 'static', keyboard: false });
+  loadingModal.show();
+
+  // Prepare form data
+  const formData = new FormData(form);
+
+  // Send AJAX request
+  fetch('{{ url_for("import_event_zip") }}', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => response.text())
+  .then(html => {
+    // Replace page content with response
+    document.open();
+    document.write(html);
+    document.close();
+  })
+  .catch(error => {
+    console.error('Import error:', error);
+    loadingModal.hide();
+    alert('{{ _("Import failed. Please try again.") }}');
+  });
+});
 </script>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body text-center">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">{{ _('Loading...') }}</span>
+        </div>
+        <p class="mt-2">{{ _('Processing import... Please wait.') }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
