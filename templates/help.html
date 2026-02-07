@@ -31,6 +31,29 @@
                   <li>{{ _('Access: Open http://127.0.0.1:5000 in your browser') }}</li>
                 </ol>
 
+                <h5>{{ _('Production Deployment (Systemd)') }}</h5>
+                <p>{{ _('For production use with automatic startup and kiosk mode:') }}</p>
+                <ol>
+                  <li>{{ _('Install Chromium Browser') }}: <code>sudo apt update && sudo apt install chromium-browser</code></li>
+                  <li>{{ _('Run Systemd Setup') }}: <code>sudo ./setup-systemd.sh</code></li>
+                  <li>{{ _('Services Created') }}:
+                    <ul>
+                      <li><code>enso-catalog.service</code>: {{ _('Runs the Flask application') }}</li>
+                      <li><code>enso-kiosk.service</code>: {{ _('Starts browser in full-screen kiosk mode') }}</li>
+                    </ul>
+                  </li>
+                  <li>{{ _('Service Management') }}:
+                    <ul>
+                      <li><code>sudo systemctl start enso-catalog</code> - {{ _('Start Flask app') }}</li>
+                      <li><code>sudo systemctl start enso-kiosk</code> - {{ _('Start kiosk browser') }}</li>
+                      <li><code>sudo systemctl status enso-catalog</code> - {{ _('Check status') }}</li>
+                      <li><code>sudo journalctl -u enso-catalog -f</code> - {{ _('View logs') }}</li>
+                    </ul>
+                  </li>
+                </ol>
+                <p>{{ _('The system will boot directly into kiosk mode with automatic card reader detection and inactivity timeout. The setup script automatically detects your project location and user and configures the services accordingly.') }}</p>
+                <p>{{ _('To remove the services later, run:') }} <code>sudo ./remove-systemd.sh</code></p>
+
                 <h5>{{ _('Language Support') }}</h5>
                 <p>{{ _('The application supports Bulgarian (default) and English. Use the language switcher in the top navigation to change languages.') }}</p>
 
@@ -326,6 +349,14 @@
                   <li><strong>{{ _('Multi-language Support') }}</strong>: {{ _('Localized date formats') }}</li>
                 </ul>
 
+                <h5>{{ _('Card Reader Integration') }}</h5>
+                <ul>
+                  <li><strong>{{ _('Automatic Detection') }}</strong>: {{ _('System automatically finds and connects to USB card readers on startup') }}</li>
+                  <li><strong>{{ _('HID Support') }}</strong>: {{ _('Works with card readers that emulate keyboard input') }}</li>
+                  <li><strong>{{ _('Kiosk Integration') }}</strong>: {{ _('Card scans automatically trigger session recording in kiosk mode') }}</li>
+                  <li><strong>{{ _('Manual Configuration') }}</strong>: {{ _('Set CARD_READER_DEVICE environment variable for custom device paths') }}</li>
+                </ul>
+
                 <h5>{{ _('Data Validation') }}</h5>
                 <ul>
                   <li><strong>{{ _('PN Validation') }}</strong>: {{ _('10-digit Bulgarian ID format checking') }}</li>
@@ -438,7 +469,7 @@
       <p>{{ _('The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club\'s operations. It handles player registration, training session tracking, payment management, event organization, reporting, and customizable admin settings for branding and security.') }}</p>
 
       <h6>{{ _('Kiosk Mode') }}</h6>
-      <p>{{ _('For quick session recording without admin login, use Kiosk Mode: athletes click their name and enter their player number to record training sessions.') }}</p>
+      <p>{{ _('For quick session recording without admin login, use Kiosk Mode: displays active players as large, clickable cards with semi-transparent backgrounds. Athletes click their name and enter their player number to record training sessions. Features automatic card reader detection, 5-minute inactivity timeout, and streamlined touch-friendly interface.') }}</p>
 
       <h5>{{ _('Quick Start Guide') }}</h5>
       <div class="row">

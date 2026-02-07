@@ -10,7 +10,7 @@
       <div class="col-12 col-md-6">
         <div class="card p-3">
           <h5>{{ _('Import Players (ZIP)') }}</h5>
-          <form method="post" action="{{ url_for('import_players_zip') }}" enctype="multipart/form-data">
+          <form method="post" action="{{ url_for('import_players_zip') }}" enctype="multipart/form-data" onsubmit="showLoadingModal(event)">
             <div class="mb-2">
               <input type="file" name="zipfile" accept=".zip" required class="form-control">
             </div>
@@ -22,7 +22,7 @@
       <div class="col-12 col-md-6">
         <div class="card p-3">
           <h5>{{ _('Import Players (CSV)') }}</h5>
-          <form method="post" action="{{ url_for('admin_players_import_csv') }}" enctype="multipart/form-data">
+          <form method="post" action="{{ url_for('admin_players_import_csv') }}" enctype="multipart/form-data" onsubmit="showLoadingModal(event)">
             <div class="mb-2">
               <input type="file" name="csv_file" accept=".csv" required class="form-control">
             </div>
@@ -34,7 +34,7 @@
       <div class="col-12 col-md-6">
         <div class="card p-3">
           <h5>{{ _('Import Event (ZIP)') }}</h5>
-          <form method="post" action="{{ url_for('import_event_zip') }}" enctype="multipart/form-data">
+          <form method="post" action="{{ url_for('import_event_zip') }}" enctype="multipart/form-data" onsubmit="showLoadingModal(event)">
             <div class="mb-2">
               <input type="file" name="zipfile" accept=".zip" required class="form-control">
             </div>
@@ -46,7 +46,7 @@
       <div class="col-12 col-md-6">
         <div class="card p-3">
           <h5>{{ _('Import Payments (CSV)') }}</h5>
-          <form method="post" action="{{ url_for('admin_payments_import_csv') }}" enctype="multipart/form-data">
+          <form method="post" action="{{ url_for('admin_payments_import_csv') }}" enctype="multipart/form-data" onsubmit="showLoadingModal(event)">
             <div class="mb-2">
               <input type="file" name="csv_file" accept=".csv" required class="form-control">
             </div>
@@ -65,4 +65,38 @@
     </div>
   </div>
 </div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body text-center">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">{{ _('Loading...') }}</span>
+        </div>
+        <p class="mt-2">{{ _('Processing import... Please wait.') }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showLoadingModal(event) {
+  console.log('showLoadingModal called');
+  const form = event.target;
+  const fileInput = form.querySelector('input[type="file"]');
+  if (!fileInput || !fileInput.files[0]) {
+    console.log('No file selected in direct form');
+    alert('{{ _("Please select a file first.") }}');
+    return false; // Prevent form submission
+  }
+  console.log('File selected:', fileInput.files[0].name);
+  // Show loading modal
+  const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'), { backdrop: 'static', keyboard: false });
+  loadingModal.show();
+  console.log('Loading modal shown for direct form');
+  return true; // Allow form submission
+}
+</script>
+
 {% endblock %}

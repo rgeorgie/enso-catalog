@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block head %}
   {{ super() }}
-  <script src="/static/js/socket.io.js"></script>
 {% endblock %}
 {% block content %}
 <div class="container mt-4">
@@ -70,14 +69,21 @@
     const cardIdInput = document.getElementById('admin_card_id_input');
 
     if (readCardBtn && cardIdInput) {
-      // Card reader functionality via SocketIO
-      const socket = io();
-
-      socket.on('card_scan', function(data) {
-        cardIdInput.value = data.card_id;
-        readCardBtn.textContent = '{{ _("Read Card") }}';
-        readCardBtn.disabled = false;
-      });
+      // Card reader functionality via polling
+      console.log('Starting card polling...');
+      const pollInterval = setInterval(function() {
+        fetch('/card_status')
+          .then(response => response.json())
+          .then(data => {
+            if (data.card_id) {
+              console.log('Received card_id:', data.card_id);
+              cardIdInput.value = data.card_id;
+              readCardBtn.textContent = '{{ _("Read Card") }}';
+              readCardBtn.disabled = false;
+            }
+          })
+          .catch(error => console.error('Polling error:', error));
+      }, 500);  // Poll every 500ms
 
       readCardBtn.addEventListener('click', function() {
         cardIdInput.focus();

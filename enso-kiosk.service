@@ -1,0 +1,15 @@
+[Unit]
+Description=Enso Karate Catalog Kiosk Mode
+After=network.target enso-catalog.service
+Requires=enso-catalog.service
+
+[Service]
+Type=simple
+User=pi
+Environment=DISPLAY=:0
+ExecStart=/usr/bin/chromium --no-sandbox --kiosk --disable-restore-session-state --disable-session-crashed-bubble --disable-infobars --disable-translate --no-first-run --disable-default-apps --disable-web-security --user-data-dir=/home/pi/enso-catalog/.config/chromium-kiosk http://localhost:5000/kiosk
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target

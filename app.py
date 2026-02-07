@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 
 from flask import (
     Flask, render_template, request, redirect, url_for, flash, abort,
-    send_from_directory, session, Response, stream_with_context
+    send_from_directory, session, Response, stream_with_context, jsonify
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
@@ -30,7 +30,7 @@ try:
     from evdev import ecodes
     import eventlet
     print("evdev imported successfully")
-    async_mode = 'eventlet'
+    async_mode = 'threading'  # Use threading instead of deprecated eventlet
 except Exception as e:
     print(f"Import failed: {e}")
     serial = None
@@ -41,11 +41,24 @@ except Exception as e:
 
 app = Flask(__name__)
 
+# Suppress logging for card_status polling requests
+import logging
+class CardStatusFilter(logging.Filter):
+    def filter(self, record):
+        return '/card_status' not in record.getMessage()
+
+# Apply filter to Werkzeug logger
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.addFilter(CardStatusFilter())
+
 socketio = SocketIO(app, async_mode=async_mode)
 
 # Card reader settings
 CARD_READER_DEVICE = os.environ.get('CARD_READER_DEVICE', '/dev/input/event0')
 CARD_READER_BAUD = int(os.environ.get('CARD_READER_BAUD', '9600'))  # Not used for HID
+
+# Global variable for card polling
+last_card_id = None
 
 # -----------------------------
 # Config
@@ -76,9 +89,33 @@ def start_card_reader():
         if not evdev:
             print("evdev not available, card reader disabled")
             return
+        # List available devices
         try:
-            device = evdev.InputDevice(CARD_READER_DEVICE)
-            print(f"Card reader connected on {CARD_READER_DEVICE}: {device.name}")
+            devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+            print("Available input devices:")
+            for dev in devices:
+                print(f"  {dev.path}: {dev.name}")
+        except Exception as e:
+            print(f"Error listing devices: {e}")
+        # Try to find card reader device
+        card_reader_device = None
+        try:
+            devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+            for dev in devices:
+                if 'reader' in dev.name.lower() or 'ic' in dev.name.lower():
+                    card_reader_device = dev.path
+                    print(f"Found potential card reader: {dev.path}: {dev.name}")
+                    break
+            if not card_reader_device:
+                # Fallback to configured device
+                card_reader_device = CARD_READER_DEVICE
+        except Exception as e:
+            print(f"Error finding card reader: {e}")
+            card_reader_device = CARD_READER_DEVICE
+        
+        try:
+            device = evdev.InputDevice(card_reader_device)
+            print(f"Card reader connected on {card_reader_device}: {device.name}")
             card_buffer = ''
             last_key_time = time.time()
             last_key = None
@@ -90,6 +127,8 @@ def start_card_reader():
                         current_time = time.time()
                         if key_event.keycode == 'KEY_ENTER':
                             if card_buffer.strip():
+                                global last_card_id
+                                last_card_id = card_buffer.strip()
                                 socketio.emit('card_scan', {'card_id': card_buffer.strip()})
                             card_buffer = ''
                             last_key = None
@@ -2432,6 +2471,13 @@ def kiosk():
         belt_colors[p.id] = BELT_PALETTE.get(p.belt_rank, "#f8f9fa")
 
     return render_template("kiosk.html", players=players, belt_colors=belt_colors, q=q, belt=belt, active=active)
+
+@app.route("/card_status")
+def card_status():
+    global last_card_id
+    card_id = last_card_id
+    last_card_id = None
+    return jsonify({'card_id': card_id})
 
 @app.route("/kiosk/record_session", methods=["POST"])
 def kiosk_record_session():
@@ -6189,4 +6235,4 @@ if __name__ == "__main__":
     #     SESSION_COOKIE_SAMESITE="Lax",
     #     # SESSION_COOKIE_SECURE=True,  # enable if served over HTTPS
     # )
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True)
