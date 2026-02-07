@@ -71,6 +71,14 @@
       {{ form.phone(class="form-control") }}
     </div>
 
+    <div class="col-md-6">
+      <label class="form-label">{{ _('Card ID') }}</label>
+      <div class="input-group">
+        {{ form.card_id(class="form-control", id="card_id_input") }}
+        <button class="btn btn-outline-secondary" type="button" id="read_card_btn">{{ _('Read Card') }}</button>
+      </div>
+    </div>
+
     <!-- Parents -->
     <div class="col-12 mt-3"><h5>{{ _('Mother Name') }} / {{ _('Father Name') }}</h5></div>
     <div class="col-md-6">
@@ -309,4 +317,42 @@
     });
   }
 </script>
+
+<script>
+  // Card reader functionality
+  document.addEventListener('DOMContentLoaded', function() {
+    const readCardBtn = document.getElementById('read_card_btn');
+    const cardIdInput = document.getElementById('card_id_input');
+
+    if (readCardBtn && cardIdInput) {
+      readCardBtn.addEventListener('click', function() {
+        cardIdInput.focus();
+        cardIdInput.value = '';
+        readCardBtn.textContent = '{{ _("Reading...") }}';
+        readCardBtn.disabled = true;
+
+        // Listen for card input (card readers typically send data followed by Enter)
+        function handleCardInput(event) {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            cardIdInput.blur();
+            document.removeEventListener('keydown', handleCardInput);
+            readCardBtn.textContent = '{{ _("Read Card") }}';
+            readCardBtn.disabled = false;
+          }
+        }
+
+        document.addEventListener('keydown', handleCardInput);
+
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          document.removeEventListener('keydown', handleCardInput);
+          readCardBtn.textContent = '{{ _("Read Card") }}';
+          readCardBtn.disabled = false;
+        }, 10000);
+      });
+    }
+  });
+</script>
+
 {% endblock %}

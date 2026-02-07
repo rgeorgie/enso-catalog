@@ -17,7 +17,7 @@ from wtforms import (
     StringField, SelectField, DateField, IntegerField,
     TextAreaField, SubmitField, BooleanField, SelectMultipleField, FileField, PasswordField
 )
-from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL, Regexp
+from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL, Regexp, ValidationError
 from sqlalchemy import or_, and_, text
 from sqlalchemy.orm import foreign, joinedload
 from werkzeug.routing import BuildError
@@ -256,6 +256,11 @@ translations = {
         "Admin Password": "Admin Password",
         "Leave blank to keep current password": "Leave blank to keep current password",
         "Save Settings": "Save Settings",
+        "Admin Card ID": "Admin Card ID",
+        "Read Card": "Read Card",
+        "Reading...": "Reading...",
+        "Current registered card:": "Current registered card:",
+        "No admin card registered yet": "No admin card registered yet",
         "Current Logo": "Current Logo",
         "Current Background": "Current Background",
         "Admin exports": "Admin exports",
@@ -313,6 +318,9 @@ translations = {
         "Mother Phone": "Mother Phone",
         "Father Name": "Father Name",
         "Father Phone": "Father Phone",
+        "Card ID": "Card ID",
+        "Read Card": "Read Card",
+        "Reading...": "Reading...",
         "Profile": "Profile",
         "Contacts": "Contacts",
         "Fee": "Fee",
@@ -536,6 +544,15 @@ translations = {
         "Password": "Password",
         "Admin login required.": "Admin login required.",
         "Logged in as admin.": "Logged in as admin.",
+        "Logged in as admin via card.": "Logged in as admin via card.",
+        "Invalid admin card.": "Invalid admin card.",
+        "Card Login": "Card Login",
+        "Scan your admin card to login": "Scan your admin card to login automatically",
+        "Scan admin card...": "Scan admin card...",
+        "Login with Card": "Login with Card",
+        "Card Reader Active": "Card Reader Active",
+        "Please scan your admin card": "Please scan your admin card",
+        "Password Login": "Password Login",
         "Invalid credentials.": "Invalid credentials.",
         "Logged out.": "Logged out.",
         "Player created.": "Player created.",
@@ -748,6 +765,11 @@ translations = {
         "Record Session": "Record Session",
         "Cancel": "Cancel",
         "Click on your name to record a training session": "Click on your name to record a training session",
+        "Or simply scan your card to record a session automatically": "Or simply scan your card to record a session automatically",
+        "Card Reader": "Card Reader",
+        "Scan your card here to record a training session automatically": "Scan your card here to record a training session automatically",
+        "Scan card...": "Scan card...",
+        "Error processing card scan. Please try again.": "Error processing card scan. Please try again.",
         "Kiosk Mode": "Kiosk Mode",
         "Search by name...": "Search by name...",
         "All Belts": "All Belts",
@@ -799,6 +821,11 @@ translations = {
         "Admin Password": "Админ парола",
         "Leave blank to keep current password": "Оставете празно, за да запазите текущата парола",
         "Save Settings": "Запази настройки",
+        "Admin Card ID": "ID на админ карта",
+        "Read Card": "Прочети карта",
+        "Reading...": "Четене...",
+        "Current registered card:": "Текуща регистрирана карта:",
+        "No admin card registered yet": "Все още няма регистрирана админ карта",
         "Current Logo": "Текущо лого",
         "Current Background": "Текущ фон",
         "Admin exports": "Админ експорти",
@@ -856,6 +883,9 @@ translations = {
         "Mother Phone": "Телефон на майката",
         "Father Name": "Име на бащата",
         "Father Phone": "Телефон на бащата",
+        "Card ID": "ID на карта",
+        "Read Card": "Прочети карта",
+        "Reading...": "Четене...",
         "Actions": "Действия",
         "Profile": "Профил",
         "Contacts": "Контакти",
@@ -1079,6 +1109,15 @@ translations = {
         "Password": "Парола",
         "Admin login required.": "Необходим е администраторски вход.",
         "Logged in as admin.": "Влязохте като администратор.",
+        "Logged in as admin via card.": "Влязохте като администратор с карта.",
+        "Invalid admin card.": "Невалидна админ карта.",
+        "Card Login": "Вход с карта",
+        "Scan your admin card to login": "Сканирайте админ картата си за автоматичен вход",
+        "Scan admin card...": "Сканиране на админ карта...",
+        "Login with Card": "Вход с карта",
+        "Card Reader Active": "Четецът на карти е активен",
+        "Please scan your admin card": "Моля, сканирайте админ картата си",
+        "Password Login": "Вход с парола",
         "Invalid credentials.": "Невалидни данни за вход.",
         "Logged out.": "Излязохте.",
         "Player created.": "Спортистът е създаден.",
@@ -1379,6 +1418,11 @@ translations = {
         "Record Session": "Запиши тренировка",
         "Cancel": "Отказ",
         "Click on your name to record a training session": "Кликнете върху името си, за да запишете тренировъчна сесия",
+        "Or simply scan your card to record a session automatically": "Или просто сканирайте картата си, за да запишете сесия автоматично",
+        "Card Reader": "Четец на карти",
+        "Scan your card here to record a training session automatically": "Сканирайте картата си тук, за да запишете тренировъчна сесия автоматично",
+        "Scan card...": "Сканиране на карта...",
+        "Error processing card scan. Please try again.": "Грешка при обработка на сканирането на картата. Моля, опитайте отново.",
         "Kiosk Mode": "Режим Kiosk",
         "Search by name...": "Търсене по име...",
         "All Belts": "Всички колани",
@@ -1745,6 +1789,9 @@ class Player(db.Model):
     father_name = db.Column(db.String(120), nullable=True)
     father_phone = db.Column(db.String(40), nullable=True)
 
+    # Card ID for RFID/card reader
+    card_id = db.Column(db.String(50), nullable=True, unique=True)
+
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
 
@@ -1888,6 +1935,12 @@ class Setting(db.Model):
 # -----------------------------
 # Forms
 # -----------------------------
+def validate_card_id_uniqueness(form, field):
+    if field.data:
+        existing = Player.query.filter_by(card_id=field.data).first()
+        if existing and (not hasattr(form, 'player') or existing.id != form.player.id):
+            raise ValidationError("Card ID already in use by another player.")
+
 class PlayerForm(FlaskForm):
     first_name = StringField("First Name", validators=[DataRequired(), Length(max=80)])
     last_name = StringField("Last Name", validators=[DataRequired(), Length(max=80)])
@@ -1918,6 +1971,8 @@ class PlayerForm(FlaskForm):
     mother_phone = StringField("Mother Phone", validators=[VOptional(), Length(max=40)])
     father_name = StringField("Father Name", validators=[VOptional(), Length(max=120)])
     father_phone = StringField("Father Phone", validators=[VOptional(), Length(max=40)])
+
+    card_id = StringField("Card ID", validators=[VOptional(), Length(max=50), validate_card_id_uniqueness])
 
     notes = TextAreaField("Notes", validators=[VOptional(), Length(max=5000)])
 
@@ -1951,6 +2006,7 @@ class EventRegistrationForm(FlaskForm):
 class SettingsForm(FlaskForm):
     logo = FileField("Logo", validators=[VOptional()])
     admin_password = PasswordField("Admin Password", validators=[VOptional(), Length(min=6)])
+    admin_card_id = StringField("Admin Card ID", validators=[VOptional(), Length(max=50)])
     background = FileField("Background Image", validators=[VOptional()])
     submit = SubmitField("Save Settings")
 
@@ -2290,6 +2346,21 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
+        card_id = request.form.get("card_id", "")
+        
+        # Check for admin card login
+        if card_id:
+            admin_card_setting = Setting.query.filter_by(key='admin_card_id').first()
+            if admin_card_setting and card_id == admin_card_setting.value:
+                session["is_admin"] = True
+                flash(_("Logged in as admin via card."), "success")
+                if next_url.endswith("/login") or next_url.startswith("/login?"):
+                    next_url = url_for("list_players")
+                return redirect(next_url)
+            else:
+                flash(_("Invalid admin card."), "danger")
+                return render_template("login.html", next_url=next_url)
+        
         # Check settings first
         setting = Setting.query.filter_by(key='admin_password_hash').first()
         if setting:
@@ -2401,6 +2472,48 @@ def kiosk_record_session():
         flash(_("Session recording failed. Please try again."), "danger")
     
     return redirect(url_for("kiosk"))
+
+@app.route("/kiosk/record_session_card", methods=["POST"])
+def kiosk_record_session_card():
+    """Kiosk mode: Record session by card ID."""
+    card_id = request.form.get("card_id", "").strip()
+    
+    if not card_id:
+        return {"success": False, "message": "No card ID provided"}, 400
+    
+    # Find player by card_id
+    player = Player.query.filter_by(card_id=card_id).first()
+    if not player:
+        return {"success": False, "message": "Card not recognized. Please register your card first."}, 404
+    
+    if not player.active_member:
+        return {"success": False, "message": "Player account is not active."}, 403
+    
+    # Check if session already recorded today
+    today = date.today()
+    existing = TrainingSession.query.filter_by(player_pn=player.pn, date=today).first()
+    if existing:
+        return {"success": False, "message": f"Session for today already recorded for {player.first_name} {player.last_name}."}, 409
+    
+    # For monthly payers, mark as paid since they pay monthly
+    is_paid = player.monthly_fee_is_monthly
+    
+    session_id = f"{player.id}_{today.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S%f')}"
+    ts = TrainingSession(player_id=player.id, player_pn=player.pn, date=today, session_id=session_id, paid=is_paid, created_at=datetime.now())
+    db.session.add(ts)
+    
+    try:
+        db.session.commit()
+        return {
+            "success": True, 
+            "message": f"Welcome {player.first_name}! Your training session has been recorded successfully. Keep up the great work!",
+            "player_name": f"{player.first_name} {player.last_name}",
+            "belt_rank": player.belt_rank or "No Belt"
+        }, 200
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Failed to record TrainingSession from card scan')
+        return {"success": False, "message": "Session recording failed. Please try again."}, 500
 
 # -------- CRUD Players ----------
 @app.route("/admin/players/import_csv", methods=["POST"], endpoint='admin_players_import_csv')
@@ -2575,6 +2688,8 @@ def create_player():
             father_name=form.father_name.data or None,
             father_phone=form.father_phone.data or None,
 
+            card_id=form.card_id.data or None,
+
             sportdata_wkf_url=form.sportdata_wkf_url.data or None,
             sportdata_bnfk_url=form.sportdata_bnfk_url.data or None,
             sportdata_enso_url=form.sportdata_enso_url.data or None,
@@ -2613,6 +2728,7 @@ def create_player():
 def edit_player(player_id: int):
     player = Player.query.get_or_404(player_id)
     form = PlayerForm(obj=player)
+    form.player = player  # Pass player to form for validation
     set_localized_choices(form)
     if form.validate_on_submit():
         form.populate_obj(player)
@@ -4962,6 +5078,7 @@ def migrate():
             if "mother_phone" not in existing: to_add.append(("mother_phone", "VARCHAR(40)"))
             if "father_name" not in existing: to_add.append(("father_name", "VARCHAR(120)"))
             if "father_phone" not in existing: to_add.append(("father_phone", "VARCHAR(40)"))
+            if "card_id" not in existing: to_add.append(("card_id", "VARCHAR(50)"))
             if "pn" not in existing:
                 conn.execute(text("ALTER TABLE player ADD COLUMN pn VARCHAR(20)"))
             for name, coltype in to_add:
@@ -5030,6 +5147,7 @@ def auto_migrate_on_startup():
             ("mother_phone", "VARCHAR(40)"),
             ("father_name", "VARCHAR(120)"),
             ("father_phone", "VARCHAR(40)"),
+            ("card_id", "VARCHAR(50)"),
         ]:
             if col not in existing:
                 to_add.append((col, t))
@@ -5117,6 +5235,14 @@ def admin_settings():
             setting.value = hashed
             db.session.add(setting)
 
+        # Admin card ID
+        if form.admin_card_id.data:
+            setting = Setting.query.filter_by(key='admin_card_id').first()
+            if not setting:
+                setting = Setting(key='admin_card_id')
+            setting.value = form.admin_card_id.data
+            db.session.add(setting)
+
         db.session.commit()
         flash("Settings saved successfully.", "success")
         return redirect(url_for('admin_settings'))
@@ -5124,12 +5250,14 @@ def admin_settings():
     # Load current values
     logo_setting = Setting.query.filter_by(key='logo_path').first()
     background_setting = Setting.query.filter_by(key='background_image').first()
+    admin_card_setting = Setting.query.filter_by(key='admin_card_id').first()
 
     return render_template(
         "admin_settings.html",
         form=form,
         current_logo=logo_setting.value if logo_setting else '/static/img/enso-logo.webp',
         current_background=background_setting.value if background_setting else None,
+        current_admin_card=admin_card_setting.value if admin_card_setting else None,
         _=_,
         current_lang=get_lang(),
     )
@@ -5241,6 +5369,17 @@ def payment_new():
                 reg_row.paid_on = date.today()
                 db.session.add(reg_row)
 
+        if record.kind == "training_session" and record.sessions_paid and record.sessions_paid > 0:
+            # Mark the most recent unpaid sessions as paid
+            unpaid_sessions = (TrainingSession.query
+                             .filter_by(player_pn=record.player_pn, paid=False)
+                             .order_by(TrainingSession.date.desc())
+                             .limit(record.sessions_paid)
+                             .all())
+            for session in unpaid_sessions:
+                session.paid = True
+                db.session.add(session)
+
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -5271,16 +5410,13 @@ def payment_edit(payment_id: int):
 def payment_delete(payment_id: int):
     record = PaymentRecord.query.get_or_404(payment_id)
     
-    # If it has a payment_id, we might need to update the Payment row
+    # If it has a payment_id, mark the Payment as unpaid (due again)
     if record.payment_id:
         pay = Payment.query.get(record.payment_id)
-        if pay and pay.paid:
-            # Check if this is the only record for this payment
-            other_records = PaymentRecord.query.filter_by(payment_id=pay.id).filter(PaymentRecord.id != record.id).count()
-            if other_records == 0:
-                pay.paid = False
-                pay.paid_on = None
-                db.session.add(pay)
+        if pay:
+            pay.paid = False
+            pay.paid_on = None
+            db.session.add(pay)
     
     # If it has event_registration_id, update the registration
     if record.event_registration_id:
@@ -5292,6 +5428,18 @@ def payment_delete(payment_id: int):
                 reg.paid = False
                 reg.paid_on = None
                 db.session.add(reg)
+    
+    # If it's a training_session payment, mark sessions as unpaid
+    if record.kind == "training_session" and record.sessions_paid and record.sessions_paid > 0:
+        # Find the most recent paid sessions for this player and mark them as unpaid
+        paid_sessions = (TrainingSession.query
+                        .filter_by(player_pn=record.player_pn, paid=True)
+                        .order_by(TrainingSession.date.desc())
+                        .limit(record.sessions_paid)
+                        .all())
+        for session in paid_sessions:
+            session.paid = False
+            db.session.add(session)
     
     db.session.delete(record)
     db.session.commit()

@@ -34,6 +34,19 @@
               <div class="form-text">{{ _('Leave blank to keep current password') }}</div>
             </div>
 
+            <div class="mb-3">
+              <label class="form-label">{{ _('Admin Card ID') }}</label>
+              <div class="input-group">
+                {{ form.admin_card_id(class="form-control", id="admin_card_id_input") }}
+                <button class="btn btn-outline-secondary" type="button" id="read_admin_card_btn">{{ _('Read Card') }}</button>
+              </div>
+              {% if current_admin_card %}
+                <div class="form-text">{{ _('Current registered card:') }} <code>{{ current_admin_card }}</code></div>
+              {% else %}
+                <div class="form-text">{{ _('No admin card registered yet') }}</div>
+              {% endif %}
+            </div>
+
             <button type="submit" class="btn btn-primary">{{ _('Save Settings') }}</button>
           </form>
         </div>
@@ -45,4 +58,42 @@
     <a class="btn btn-outline-secondary" href="{{ request.referrer or url_for('list_players') }}">{{ _('Back') }}</a>
   </div>
 </div>
+
+<script>
+  // Admin card reader functionality
+  document.addEventListener('DOMContentLoaded', function() {
+    const readCardBtn = document.getElementById('read_admin_card_btn');
+    const cardIdInput = document.getElementById('admin_card_id_input');
+
+    if (readCardBtn && cardIdInput) {
+      readCardBtn.addEventListener('click', function() {
+        cardIdInput.focus();
+        cardIdInput.value = '';
+        readCardBtn.textContent = '{{ _("Reading...") }}';
+        readCardBtn.disabled = true;
+
+        // Listen for card input (card readers typically send data followed by Enter)
+        function handleCardInput(event) {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            cardIdInput.blur();
+            document.removeEventListener('keydown', handleCardInput);
+            readCardBtn.textContent = '{{ _("Read Card") }}';
+            readCardBtn.disabled = false;
+          }
+        }
+
+        document.addEventListener('keydown', handleCardInput);
+
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          document.removeEventListener('keydown', handleCardInput);
+          readCardBtn.textContent = '{{ _("Read Card") }}';
+          readCardBtn.disabled = false;
+        }, 10000);
+      });
+    }
+  });
+</script>
+
 {% endblock %}

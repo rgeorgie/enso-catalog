@@ -6,6 +6,7 @@
       <div class="text-center mb-4">
         <h1 class="display-4">{{ _('Kiosk Mode') }}</h1>
         <p class="lead">{{ _('Click on your name to record a training session') }}</p>
+        <p class="text-muted">{{ _('Or simply scan your card to record a session automatically') }}</p>
       </div>
 
       <!-- Search and Filter Controls -->
@@ -24,6 +25,13 @@
         </div>
         <div class="col-md-4 text-end">
           <a href="{{ url_for('list_players') }}" class="btn btn-outline-secondary btn-lg">{{ _('Admin View') }}</a>
+        </div>
+      </div>
+
+      <!-- Card Reader Section -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div id="card_status" class="mt-2" style="min-height: 2rem;"></div>
         </div>
       </div>
 
@@ -167,6 +175,96 @@ document.addEventListener('DOMContentLoaded', function() {
   const selectedPlayerName = document.getElementById('selectedPlayerName');
   const expectedPlayerId = document.getElementById('expected_player_id');
   const customBackdrop = document.getElementById('customBackdrop');
+  const cardStatus = document.getElementById('card_status');
+
+  // Card reader functionality
+  let cardBuffer = '';
+  let cardTimeout;
+
+  function clearCardBuffer() {
+    cardBuffer = '';
+    if (cardTimeout) {
+      clearTimeout(cardTimeout);
+    }
+  }
+
+  function showCardStatus(message, type = 'info') {
+    cardStatus.innerHTML = `<div class="alert alert-${type} py-2 mb-0">${message}</div>`;
+    setTimeout(() => {
+      cardStatus.innerHTML = '';
+    }, 5000);
+  }
+
+  function processCardScan(cardId) {
+    // Send AJAX request to record session
+    fetch('{{ url_for("kiosk_record_session_card") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        'card_id': cardId
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showCardStatus(`<strong>${data.player_name}</strong> (${data.belt_rank})<br>${data.message}`, 'success');
+        // Play success sound if available
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(`Welcome ${data.player_name.split(' ')[0]}! Session recorded.`);
+          speechSynthesis.speak(utterance);
+        }
+      } else {
+        showCardStatus(data.message, 'danger');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showCardStatus('{{ _("Error processing card scan. Please try again.") }}', 'danger');
+    })
+    .finally(() => {
+      clearCardBuffer();
+    });
+  }
+
+  // Listen for card reader input
+  document.addEventListener('keydown', function(event) {
+    // Only process if not in a form input
+    const activeElement = document.activeElement;
+    if (activeElement.tagName === 'INPUT' && activeElement.type === 'text') {
+      return;
+    }
+
+    // Clear any existing timeout
+    if (cardTimeout) {
+      clearTimeout(cardTimeout);
+    }
+
+    // Add character to buffer
+    if (event.key.length === 1) {
+      cardBuffer += event.key;
+    }
+
+    // If Enter is pressed, process the card
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (cardBuffer.trim()) {
+        processCardScan(cardBuffer.trim());
+      } else {
+        clearCardBuffer();
+      }
+      return;
+    }
+
+    // Set timeout to clear buffer if no Enter within 100ms
+    cardTimeout = setTimeout(() => {
+      clearCardBuffer();
+    }, 100);
+  });
+
+  // Focus card reader input on page load
+  // cardReaderInput.focus();
 
   playerCards.forEach(card => {
     card.addEventListener('click', function() {
