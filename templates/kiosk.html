@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% block head %}
+  {{ super() }}
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+{% endblock %}
 {% block content %}
 <div class="container-fluid">
   <div class="row">
@@ -177,16 +181,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const customBackdrop = document.getElementById('customBackdrop');
   const cardStatus = document.getElementById('card_status');
 
-  // Card reader functionality
-  let cardBuffer = '';
-  let cardTimeout;
-
-  function clearCardBuffer() {
-    cardBuffer = '';
-    if (cardTimeout) {
-      clearTimeout(cardTimeout);
-    }
-  }
+  // Card reader functionality via SocketIO
+  const socket = io();
 
   function showCardStatus(message, type = 'info') {
     cardStatus.innerHTML = `<div class="alert alert-${type} py-2 mb-0">${message}</div>`;
@@ -222,45 +218,11 @@ document.addEventListener('DOMContentLoaded', function() {
     .catch(error => {
       console.error('Error:', error);
       showCardStatus('{{ _("Error processing card scan. Please try again.") }}', 'danger');
-    })
-    .finally(() => {
-      clearCardBuffer();
     });
   }
 
-  // Listen for card reader input
-  document.addEventListener('keydown', function(event) {
-    // Only process if not in a form input
-    const activeElement = document.activeElement;
-    if (activeElement.tagName === 'INPUT' && activeElement.type === 'text') {
-      return;
-    }
-
-    // Clear any existing timeout
-    if (cardTimeout) {
-      clearTimeout(cardTimeout);
-    }
-
-    // Add character to buffer
-    if (event.key.length === 1) {
-      cardBuffer += event.key;
-    }
-
-    // If Enter is pressed, process the card
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      if (cardBuffer.trim()) {
-        processCardScan(cardBuffer.trim());
-      } else {
-        clearCardBuffer();
-      }
-      return;
-    }
-
-    // Set timeout to clear buffer if no Enter within 100ms
-    cardTimeout = setTimeout(() => {
-      clearCardBuffer();
-    }, 100);
+  socket.on('card_scan', function(data) {
+    processCardScan(data.card_id);
   });
 
   // Focus card reader input on page load

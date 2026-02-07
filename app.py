@@ -2,6 +2,8 @@ import os
 import re
 import json
 import calendar
+import threading
+import time
 from datetime import date, datetime, timedelta
 from functools import wraps
 from typing import Optional, Tuple
@@ -12,6 +14,7 @@ from flask import (
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
+from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 from wtforms import (
     StringField, SelectField, DateField, IntegerField,
@@ -21,68 +24,15 @@ from wtforms.validators import DataRequired, Email, Optional as VOptional, Lengt
 from sqlalchemy import or_, and_, text
 from sqlalchemy.orm import foreign, joinedload
 from werkzeug.routing import BuildError
+import serial
 
 app = Flask(__name__)
 
-# Place public player detail route after app is defined
-@app.route("/players/public/<int:player_id>")
-def player_detail_public(player_id: int):
-    player = Player.query.get_or_404(player_id)
-    regs = (EventRegistration.query
-            .filter_by(player_pn=player.pn)
-            .join(Event)
-            .order_by(Event.start_date.desc())
-            .all())
+socketio = SocketIO(app, async_mode='threading')
 
-    # Use TrainingSession for session logic (unified with admin view)
-    all_sessions = TrainingSession.query.filter_by(player_pn=player.pn).all()
-    paid_sessions = [s for s in all_sessions if s.paid]
-    unpaid_sessions = [s for s in all_sessions if not s.paid]
-    total_sessions_taken = len(all_sessions)
-    total_sessions_paid = len(paid_sessions)
-    total_sessions_unpaid = len(unpaid_sessions)
-    per_session_price = float(player.monthly_fee_amount) if player.monthly_fee_amount and not player.monthly_fee_is_monthly else None
-    owed_amount = int(round(total_sessions_unpaid * per_session_price)) if per_session_price else 0
-    # Only show session receipts for sessions counted as paid
-    all_receipts = PaymentRecord.query.filter_by(player_pn=player.pn, kind='training_session').order_by(PaymentRecord.paid_at.desc()).all()
-    sess_records = all_receipts[:total_sessions_paid]
-
-    return render_template(
-        "player_detail_public.html",
-        player=player,
-        regs=regs,
-        total_sessions_paid=total_sessions_paid,
-        total_sessions_taken=total_sessions_taken,
-        total_sessions_unpaid=total_sessions_unpaid,
-        per_session_amount=per_session_price,
-        owed_amount=owed_amount,
-        sess_records=sess_records,
-    )
-
-# Place this route after app and admin_required are defined
-# (Move to after admin_required function definition)
-# app.py
-import os
-import json
-import calendar
-from datetime import date, datetime
-from functools import wraps
-from typing import Optional, Tuple
-
-from flask import (
-    Flask, render_template, request, redirect, url_for, flash, abort,
-    send_from_directory, session, Response
-)
-from flask_sqlalchemy import SQLAlchemy
-from flask_wtf import FlaskForm
-from werkzeug.utils import secure_filename
-from wtforms import (
-    StringField, SelectField, DateField, IntegerField,
-    TextAreaField, SubmitField, BooleanField, SelectMultipleField
-)
-from wtforms.validators import DataRequired, Email, Optional as VOptional, Length, NumberRange, URL
-from sqlalchemy import or_, and_, text
-from werkzeug.routing import BuildError
+# Card reader settings
+CARD_READER_PORT = os.environ.get('CARD_READER_PORT', '/dev/ttyACM0')
+CARD_READER_BAUD = int(os.environ.get('CARD_READER_BAUD', '9600'))
 
 # -----------------------------
 # Config
@@ -95,8 +45,6 @@ os.makedirs(STATIC_IMG, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
-
-app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-change-me")
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(BASE_DIR, "karate_club.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -108,6 +56,22 @@ ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", "admin123")
 
 db = SQLAlchemy(app)
+
+# Card reader thread
+def start_card_reader():
+    def card_reader_loop():
+        try:
+            ser = serial.Serial(CARD_READER_PORT, CARD_READER_BAUD, timeout=1)
+            print(f"Card reader connected on {CARD_READER_PORT}")
+            while True:
+                line = ser.readline().decode('utf-8').strip()
+                if line:
+                    socketio.emit('card_scan', {'card_id': line})
+                time.sleep(0.1)
+        except Exception as e:
+            print(f"Card reader error: {e}")
+    thread = threading.Thread(target=card_reader_loop, daemon=True)
+    thread.start()
 
 # -----------------------------
 # TrainingSession model (per-session attendance)
@@ -5193,6 +5157,9 @@ with app.app_context():
     except Exception as e:
         app.logger.exception("Auto-migrate failed: %s", e)
 
+# Start card reader thread
+start_card_reader()
+
 # -----------------------------
 # Admin Settings
 # -----------------------------
@@ -6170,4 +6137,4 @@ if __name__ == "__main__":
     #     SESSION_COOKIE_SAMESITE="Lax",
     #     # SESSION_COOKIE_SECURE=True,  # enable if served over HTTPS
     # )
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
