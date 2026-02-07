@@ -1,0 +1,15 @@
+[Unit]
+Description=Enso Karate Catalog Flask Application
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/enso-catalog
+Environment=PATH=/home/pi/enso-catalog/.venv/bin
+ExecStart=/home/pi/enso-catalog/.venv/bin/python /home/pi/enso-catalog/app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

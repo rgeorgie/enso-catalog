@@ -41,6 +41,16 @@ except Exception as e:
 
 app = Flask(__name__)
 
+# Suppress logging for card_status polling requests
+import logging
+class CardStatusFilter(logging.Filter):
+    def filter(self, record):
+        return '/card_status' not in record.getMessage()
+
+# Apply filter to Werkzeug logger
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.addFilter(CardStatusFilter())
+
 socketio = SocketIO(app, async_mode=async_mode)
 
 # Card reader settings
@@ -6225,4 +6235,4 @@ if __name__ == "__main__":
     #     SESSION_COOKIE_SAMESITE="Lax",
     #     # SESSION_COOKIE_SECURE=True,  # enable if served over HTTPS
     # )
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False)

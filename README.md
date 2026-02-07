@@ -81,6 +81,26 @@ Notes:
 - The app auto-creates the DB and runs safe, idempotent ad-hoc migrations on startup (non-destructive column additions).
 ```
 
+### C) Systemd Services (Raspberry Pi/Auto-start)
+For production deployment with automatic startup and kiosk mode:
+
+1. Install dependencies:
+```bash
+sudo apt update
+sudo apt install chromium-browser
+```
+
+2. Run the systemd setup script:
+```bash
+sudo ./setup-systemd.sh
+```
+
+This creates and enables two systemd services:
+- `enso-catalog.service`: Runs the Flask application
+- `enso-kiosk.service`: Starts Chromium in kiosk mode pointing to the local app
+
+Services start automatically on boot. See `SYSTEMD-README.md` for details.
+
 ### B) Windows (PowerShell)
 ```powershell
 python -m venv .venv

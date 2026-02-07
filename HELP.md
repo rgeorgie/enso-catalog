@@ -7,11 +7,20 @@ The Karate Club Management System is a comprehensive web application designed to
 ## Kiosk Mode
 
 For quick session recording without admin login, use the **Kiosk Mode** (`/kiosk`):
-- Displays active players as large, clickable cards
+- Displays active players as large, clickable cards with semi-transparent backgrounds
 - Athletes click their name to open a session recording modal
 - Enter Player Number to confirm and record the training session
 - Automatic payment status based on player type (monthly vs per-session)
 - Prevents duplicate sessions for the same day
+- **Card Reader Support**: Automatically detects and connects to USB card readers
+- **Inactivity Timer**: Returns to main kiosk view after 5 minutes of inactivity
+- **Streamlined Interface**: Clean, touch-friendly design without search filters
+
+### Card Reader Setup
+The system automatically detects card readers on startup. For manual configuration:
+- Set `CARD_READER_DEVICE` environment variable to the correct device path
+- Supported readers appear as HID keyboard devices
+- Cards are read as keyboard input and processed automatically
 
 ## Getting Started
 
@@ -39,6 +48,34 @@ For quick session recording without admin login, use the **Kiosk Mode** (`/kiosk
    python app.py
    ```
 7. **Access**: Open http://127.0.0.1:5000 in your browser
+
+### Production Deployment (Systemd)
+
+For production use with automatic startup and kiosk mode:
+
+1. **Install Chromium Browser** (for kiosk mode):
+   ```bash
+   sudo apt update && sudo apt install chromium-browser
+   ```
+
+2. **Run Systemd Setup**:
+   ```bash
+   sudo ./setup-systemd.sh
+   ```
+
+3. **Services Created**:
+   - `enso-catalog.service`: Runs the Flask application
+   - `enso-kiosk.service`: Starts browser in full-screen kiosk mode
+
+4. **Service Management**:
+   ```bash
+   sudo systemctl start enso-catalog    # Start Flask app
+   sudo systemctl start enso-kiosk      # Start kiosk browser
+   sudo systemctl status enso-catalog   # Check status
+   sudo journalctl -u enso-catalog -f   # View logs
+   ```
+
+The system will boot directly into kiosk mode with automatic card reader detection and inactivity timeout.
 
 ### Language Support
 
@@ -208,6 +245,12 @@ The application supports Bulgarian (default) and English. Use the language switc
 - **Event Registration Indicators**: Events with registered players show club logo and participant count
 - **BNFK Events**: External Bulgarian National Karate Federation events (informational only, cached daily)
 - **Multi-language Support**: Localized date formats
+
+### Card Reader Integration
+- **Automatic Detection**: System automatically finds and connects to USB card readers on startup
+- **HID Support**: Works with card readers that emulate keyboard input
+- **Kiosk Integration**: Card scans automatically trigger session recording in kiosk mode
+- **Manual Configuration**: Set CARD_READER_DEVICE environment variable for custom device paths
 
 ### Data Validation
 - **PN Validation**: 10-digit Bulgarian ID format checking
