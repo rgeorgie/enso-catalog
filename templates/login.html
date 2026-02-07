@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block head %}
   {{ super() }}
-  <script src="/static/js/socket.io.js"></script>
+  <script>console.log('Before socket.io script');</script>
+  <script src="/static/js/socket.io.js?v=1"></script>
+  <script>console.log('After socket.io script, typeof io:', typeof io);</script>
 {% endblock %}
 {% block content %}
 <h1 class="mb-4">{{ _('Admin Login') }}</h1>
