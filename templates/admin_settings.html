@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% block head %}
+  {{ super() }}
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+{% endblock %}
 {% block content %}
 <div class="container mt-4">
   <h1 class="mb-4">{{ _('Admin Settings') }}</h1>
@@ -66,28 +70,23 @@
     const cardIdInput = document.getElementById('admin_card_id_input');
 
     if (readCardBtn && cardIdInput) {
+      // Card reader functionality via SocketIO
+      const socket = io();
+
+      socket.on('card_scan', function(data) {
+        cardIdInput.value = data.card_id;
+        readCardBtn.textContent = '{{ _("Read Card") }}';
+        readCardBtn.disabled = false;
+      });
+
       readCardBtn.addEventListener('click', function() {
         cardIdInput.focus();
         cardIdInput.value = '';
         readCardBtn.textContent = '{{ _("Reading...") }}';
         readCardBtn.disabled = true;
 
-        // Listen for card input (card readers typically send data followed by Enter)
-        function handleCardInput(event) {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            cardIdInput.blur();
-            document.removeEventListener('keydown', handleCardInput);
-            readCardBtn.textContent = '{{ _("Read Card") }}';
-            readCardBtn.disabled = false;
-          }
-        }
-
-        document.addEventListener('keydown', handleCardInput);
-
         // Timeout after 10 seconds
         setTimeout(() => {
-          document.removeEventListener('keydown', handleCardInput);
           readCardBtn.textContent = '{{ _("Read Card") }}';
           readCardBtn.disabled = false;
         }, 10000);

@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% block head %}
+  {{ super() }}
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+{% endblock %}
 {% block content %}
 <h1 class="mb-4">{{ _('Admin Login') }}</h1>
 
@@ -50,56 +54,12 @@
     const cardIdInput = document.getElementById('card_id_input');
     const cardLoginForm = document.getElementById('card_login_form');
     
-    let cardBuffer = '';
-    let cardTimeout;
+    // Card reader functionality via SocketIO
+    const socket = io();
 
-    function clearCardBuffer() {
-      cardBuffer = '';
-      cardIdInput.value = '';
-      if (cardTimeout) {
-        clearTimeout(cardTimeout);
-      }
-    }
-
-    // Listen for card reader input
-    document.addEventListener('keydown', function(event) {
-      // Only process if not in password/username fields
-      const activeElement = document.activeElement;
-      if (activeElement && (activeElement.name === 'username' || activeElement.name === 'password')) {
-        return;
-      }
-
-      // Clear any existing timeout
-      if (cardTimeout) {
-        clearTimeout(cardTimeout);
-      }
-
-      // Add character to buffer
-      if (event.key.length === 1) {
-        cardBuffer += event.key;
-        cardIdInput.value = cardBuffer;
-      }
-
-      // If Enter is pressed, submit the form automatically
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        if (cardBuffer.trim()) {
-          cardLoginForm.submit();
-        } else {
-          clearCardBuffer();
-        }
-        return;
-      }
-
-      // Set timeout to clear buffer if no Enter within 100ms
-      cardTimeout = setTimeout(() => {
-        clearCardBuffer();
-      }, 100);
-    });
-
-    // Clear buffer when clicking on password fields
-    document.querySelectorAll('input[name="username"], input[name="password"]').forEach(input => {
-      input.addEventListener('focus', clearCardBuffer);
+    socket.on('card_scan', function(data) {
+      cardIdInput.value = data.card_id;
+      cardLoginForm.submit();
     });
   });
 </script>
