@@ -79,9 +79,33 @@ def start_card_reader():
         if not evdev:
             print("evdev not available, card reader disabled")
             return
+        # List available devices
         try:
-            device = evdev.InputDevice(CARD_READER_DEVICE)
-            print(f"Card reader connected on {CARD_READER_DEVICE}: {device.name}")
+            devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+            print("Available input devices:")
+            for dev in devices:
+                print(f"  {dev.path}: {dev.name}")
+        except Exception as e:
+            print(f"Error listing devices: {e}")
+        # Try to find card reader device
+        card_reader_device = None
+        try:
+            devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+            for dev in devices:
+                if 'reader' in dev.name.lower() or 'ic' in dev.name.lower():
+                    card_reader_device = dev.path
+                    print(f"Found potential card reader: {dev.path}: {dev.name}")
+                    break
+            if not card_reader_device:
+                # Fallback to configured device
+                card_reader_device = CARD_READER_DEVICE
+        except Exception as e:
+            print(f"Error finding card reader: {e}")
+            card_reader_device = CARD_READER_DEVICE
+        
+        try:
+            device = evdev.InputDevice(card_reader_device)
+            print(f"Card reader connected on {card_reader_device}: {device.name}")
             card_buffer = ''
             last_key_time = time.time()
             last_key = None
