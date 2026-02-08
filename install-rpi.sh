@@ -18,7 +18,13 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$SCRIPT_DIR"
 
+# Get the user who owns the project directory
+KIOSK_USER="$(stat -c '%U' "$PROJECT_DIR")"
+KIOSK_HOME="/home/$KIOSK_USER"
+
 echo "Installing for project directory: $PROJECT_DIR"
+echo "Kiosk user: $KIOSK_USER"
+echo "Kiosk home: $KIOSK_HOME"
 
 # Update system
 echo "Updating system packages..."
@@ -62,27 +68,27 @@ echo "Installing Python dependencies..."
 chmod +x "$PROJECT_DIR/kiosk-launcher.sh"
 chmod +x "$PROJECT_DIR/setup-systemd.sh"
 
-# Set up autologin for pi user
-echo "Setting up autologin for pi user..."
+# Set up autologin for kiosk user
+echo "Setting up autologin for $KIOSK_USER..."
 mkdir -p /etc/lightdm/lightdm.conf.d
 cat > /etc/lightdm/lightdm.conf.d/60-autologin.conf << EOF
 [Seat:*]
-autologin-user=pi
+autologin-user=$KIOSK_USER
 autologin-user-timeout=0
 EOF
 
 # Setup kiosk based on OS version
 if grep -q "bookworm" /etc/os-release; then
     # Bookworm - Wayland with Sway
-    mkdir -p /home/pi/.config/sway
-    cat > /home/pi/.config/sway/config << EOF
+    mkdir -p $KIOSK_HOME/.config/sway
+    cat > $KIOSK_HOME/.config/sway/config << EOF
 exec unclutter -idle 0.1
 exec cog --platform=fdo --enable-web-security=false --enable-write-console-messages-to-stdout http://localhost:5000/kiosk
 bindsym Mod4+shift+e exec swaymsg exit
 bindsym Mod4+shift+r reload
 output * bg /dev/null solid_color 0x000000
 EOF
-    chown -R pi:pi /home/pi/.config
+    chown -R $KIOSK_USER:$KIOSK_USER $KIOSK_HOME/.config
     # Set sway as session
     cat > /usr/share/xsessions/sway.desktop << EOF
 [Desktop Entry]
@@ -94,13 +100,13 @@ EOF
     sed -i 's/autologin-session=.*/autologin-session=sway/' /etc/lightdm/lightdm.conf.d/60-autologin.conf
 else
     # Bullseye or older - X11
-    cat > /home/pi/.xsession << EOF
+    cat > $KIOSK_HOME/.xsession << EOF
 #!/bin/bash
 unclutter -idle 0.1 &
 exec cog --platform=x11 --enable-web-security=false --enable-write-console-messages-to-stdout http://localhost:5000/kiosk
 EOF
-    chmod +x /home/pi/.xsession
-    chown pi:pi /home/pi/.xsession
+    chmod +x $KIOSK_HOME/.xsession
+    chown $KIOSK_USER:$KIOSK_USER $KIOSK_HOME/.xsession
 fi
 
 # Run systemd setup
