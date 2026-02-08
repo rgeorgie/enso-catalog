@@ -51,7 +51,7 @@
                     </ul>
                   </li>
                 </ol>
-                <p>{{ _('The system will boot directly into kiosk mode with automatic card reader detection and inactivity timeout. The setup script automatically detects your project location and user and configures the services accordingly.') }}</p>
+                <p>{{ _('The system will boot directly into kiosk mode with automatic card reader detection and inactivity timeout. Public pages automatically return to kiosk after 2 minutes of inactivity. The setup script automatically detects your project location and user and configures the services accordingly.') }}</p>
                 <p>{{ _('To remove the services later, run:') }} <code>sudo ./remove-systemd.sh</code></p>
 
                 <h5>{{ _('Language Support') }}</h5>
@@ -469,7 +469,7 @@
       <p>{{ _('The Karate Club Management System is a comprehensive web application designed to manage all aspects of a karate club\'s operations. It handles player registration, training session tracking, payment management, event organization, reporting, and customizable admin settings for branding and security.') }}</p>
 
       <h6>{{ _('Kiosk Mode') }}</h6>
-      <p>{{ _('For quick session recording without admin login, use Kiosk Mode: displays active players as large, clickable cards with semi-transparent backgrounds. Athletes click their name and enter their player number to record training sessions. Features automatic card reader detection, 5-minute inactivity timeout, and streamlined touch-friendly interface.') }}</p>
+      <p>{{ _('For quick session recording without admin login, use Kiosk Mode: displays active players as large, clickable cards with semi-transparent backgrounds. Athletes click their name and enter their player number to record training sessions. Features automatic card reader detection, 10-minute inactivity timeout to screensaver, and streamlined touch-friendly interface.') }}</p>
 
       <h5>{{ _('Quick Start Guide') }}</h5>
       <div class="row">

@@ -2463,7 +2463,9 @@ def kiosk():
     if belt:
         query = query.filter_by(belt_rank=belt)
 
-    players = query.order_by(Player.last_name.asc(), Player.first_name.asc()).all()
+    players = query.all()
+    # Sort by full name alphabetically (first name + last name)
+    players.sort(key=lambda p: (p.first_name + ' ' + p.last_name).lower())
 
     # Get belt colors for display
     belt_colors = {}
@@ -2471,6 +2473,11 @@ def kiosk():
         belt_colors[p.id] = BELT_PALETTE.get(p.belt_rank, "#f8f9fa")
 
     return render_template("kiosk.html", players=players, belt_colors=belt_colors, q=q, belt=belt, active=active)
+
+@app.route("/screensaver")
+def screensaver():
+    """Screensaver mode: Blank screen for kiosk inactivity."""
+    return render_template("screensaver.html")
 
 @app.route("/card_status")
 def card_status():
@@ -2794,6 +2801,9 @@ def edit_player(player_id: int):
     set_localized_choices(form)
     if form.validate_on_submit():
         form.populate_obj(player)
+        # Handle empty card_id
+        if form.card_id.data == '':
+            player.card_id = None
         if player.grade_level and player.grade_level in GRADING_SCHEME["grade_to_color"]:
             player.belt_rank = GRADING_SCHEME["grade_to_color"][player.grade_level]
 
