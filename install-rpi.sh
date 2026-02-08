@@ -30,7 +30,16 @@ apt install -y python3 python3-pip python3-venv python3-dev build-essential
 
 # Install Cog and kiosk dependencies
 echo "Installing Cog and kiosk dependencies..."
-apt install -y cog unclutter xserver-xorg lightdm
+apt install -y cog unclutter
+
+# Check if Bookworm (Raspberry Pi OS 12) and setup display accordingly
+if grep -q "bookworm" /etc/os-release; then
+    echo "Detected Bookworm - setting up Wayland kiosk..."
+    apt install -y sway wayland-utils
+else
+    echo "Detected Bullseye or older - setting up X11 kiosk..."
+    apt install -y xserver-xorg lightdm
+fi
 
 # Install additional dependencies for the app
 echo "Installing additional dependencies..."
@@ -62,15 +71,37 @@ autologin-user=pi
 autologin-user-timeout=0
 EOF
 
-# Create .xsession for pi user to run kiosk
-echo "Creating .xsession for kiosk mode..."
-cat > /home/pi/.xsession << EOF
+# Setup kiosk based on OS version
+if grep -q "bookworm" /etc/os-release; then
+    # Bookworm - Wayland with Sway
+    mkdir -p /home/pi/.config/sway
+    cat > /home/pi/.config/sway/config << EOF
+exec unclutter -idle 0.1
+exec cog --platform=fdo --enable-web-security=false --enable-write-console-messages-to-stdout http://localhost:5000/kiosk
+bindsym Mod4+shift+e exec swaymsg exit
+bindsym Mod4+shift+r reload
+output * bg /dev/null solid_color 0x000000
+EOF
+    chown -R pi:pi /home/pi/.config
+    # Set sway as session
+    cat > /usr/share/xsessions/sway.desktop << EOF
+[Desktop Entry]
+Name=Sway
+Comment=An i3-compatible Wayland compositor
+Exec=sway
+Type=Application
+EOF
+    sed -i 's/autologin-session=.*/autologin-session=sway/' /etc/lightdm/lightdm.conf.d/60-autologin.conf
+else
+    # Bullseye or older - X11
+    cat > /home/pi/.xsession << EOF
 #!/bin/bash
 unclutter -idle 0.1 &
 exec cog --platform=x11 --enable-web-security=false --enable-write-console-messages-to-stdout http://localhost:5000/kiosk
 EOF
-chmod +x /home/pi/.xsession
-chown pi:pi /home/pi/.xsession
+    chmod +x /home/pi/.xsession
+    chown pi:pi /home/pi/.xsession
+fi
 
 # Run systemd setup
 echo "Setting up systemd services..."
@@ -95,7 +126,11 @@ echo "Project location: $PROJECT_DIR"
 echo ""
 echo "To start manually:"
 echo "  sudo systemctl start enso-catalog"
-echo "  sudo systemctl start lightdm"
+if grep -q "bookworm" /etc/os-release; then
+    echo "  sudo systemctl start lightdm  # (Wayland/Sway session)"
+else
+    echo "  sudo systemctl start lightdm  # (X11 session)"
+fi
 echo ""
 echo "The system will boot into kiosk mode automatically."
 echo "Reboot to test: sudo reboot"
