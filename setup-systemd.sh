@@ -35,6 +35,14 @@ if [ ! -f "$SCRIPT_DIR/kiosk.desktop" ]; then
     exit 1
 fi
 
+if [ ! -f "$SCRIPT_DIR/kiosk-launcher.sh" ]; then
+    echo "Error: kiosk-launcher.sh not found in $SCRIPT_DIR"
+    exit 1
+fi
+
+# Make sure kiosk-launcher.sh is executable
+chmod +x "$SCRIPT_DIR/kiosk-launcher.sh"
+
 # Create a temporary version of the service file and desktop file with the correct project path
 TEMP_CATALOG_SERVICE="/tmp/enso-catalog.service"
 TEMP_KIOSK_DESKTOP="/tmp/kiosk.desktop"

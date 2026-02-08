@@ -1,5 +1,5 @@
 [Desktop Entry]
 Type=Application
 Name=Enso Karate Catalog Kiosk
-Exec=xdg-open http://localhost:5000/kiosk
+Exec=/Users/rgeorgiev/Desktop/GiT/enso-catalog/kiosk-launcher.sh
 NoDisplay=true

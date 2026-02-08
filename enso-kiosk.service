@@ -7,7 +7,7 @@ Requires=enso-catalog.service
 Type=simple
 User=pi
 Environment=DISPLAY=:0
-ExecStart=xdg-open http://localhost:5000/kiosk
+ExecStart=/home/pi/enso-catalog/kiosk-launcher.sh
 Restart=always
 RestartSec=5
 
