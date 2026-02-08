@@ -13,7 +13,7 @@ For quick session recording without admin login, use the **Kiosk Mode** (`/kiosk
 - Automatic payment status based on player type (monthly vs per-session)
 - Prevents duplicate sessions for the same day
 - **Card Reader Support**: Automatically detects and connects to USB card readers
-- **Inactivity Timer**: Returns to main kiosk view after 5 minutes of inactivity
+- **Inactivity Timer**: On kiosk page, goes to screensaver after 10 minutes; on other public pages, returns to kiosk after 2 minutes
 - **Streamlined Interface**: Clean, touch-friendly design without search filters
 
 ### Card Reader Setup
@@ -75,7 +75,7 @@ For production use with automatic startup and kiosk mode:
    sudo journalctl -u enso-catalog -f   # View logs
    ```
 
-The system will boot directly into kiosk mode with automatic card reader detection and inactivity timeout. The setup script automatically detects your project location and user and configures the services accordingly.
+The system will boot directly into kiosk mode with automatic card reader detection and inactivity timeout. Public pages automatically return to kiosk after 2 minutes of inactivity. The setup script automatically detects your project location and user and configures the services accordingly.
 
 To remove the services later:
 ```bash

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block head %}
+  {{ super() }}
+  <style>
+    body {
+      background-color: black;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    .screensaver-content {
+      text-align: center;
+      position: relative;
+    }
+    .logo {
+      width: 200px;
+      height: auto;
+      animation: float 6s ease-in-out infinite;
+      filter: brightness(0) invert(1); /* Make logo white on black background */
+    }
+    .message {
+      font-size: 1.5rem;
+      opacity: 0.7;
+      margin-top: 2rem;
+      animation: fade 4s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-20px); }
+    }
+    @keyframes fade {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+  </style>
+{% endblock %}
+{% block content %}
+<div class="screensaver-content">
+  <img src="{{ app_logo }}" alt="Enso Karate Logo" class="logo">
+  <div class="message">{{ _('Touch screen to continue') }}</div>
+</div>
+
+<script>
+// Redirect to kiosk on any activity
+document.addEventListener('click', function() {
+  window.location.href = '/kiosk';
+});
+document.addEventListener('touchstart', function() {
+  window.location.href = '/kiosk';
+});
+document.addEventListener('keydown', function() {
+  window.location.href = '/kiosk';
+});
+</script>
+{% endblock %}
