@@ -1,0 +1,101 @@
+#!/bin/bash
+
+# Enso Karate Catalog - Raspberry Pi Zero Install Script
+# Optimized for Raspberry Pi OS Lite (32-bit) Bullseye with WPE WebKit (Cog) Kiosk
+
+set -e
+
+echo "Enso Karate Catalog - RPi Zero Install"
+echo "======================================"
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run this script as root (sudo)"
+    exit 1
+fi
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
+
+echo "Installing for project directory: $PROJECT_DIR"
+
+# Update system
+echo "Updating system packages..."
+apt update && apt upgrade -y
+
+# Install Python and development tools
+echo "Installing Python and development tools..."
+apt install -y python3 python3-pip python3-venv python3-dev build-essential
+
+# Install Cog and kiosk dependencies
+echo "Installing Cog and kiosk dependencies..."
+apt install -y cog unclutter xserver-xorg lightdm
+
+# Install additional dependencies for the app
+echo "Installing additional dependencies..."
+apt install -y sqlite3 libsqlite3-dev
+
+# Install gunicorn for production server
+echo "Installing gunicorn..."
+"$PROJECT_DIR/.venv/bin/pip" install gunicorn
+
+# Create virtual environment
+echo "Creating Python virtual environment..."
+python3 -m venv "$PROJECT_DIR/.venv"
+
+# Activate virtual environment and install requirements
+echo "Installing Python dependencies..."
+"$PROJECT_DIR/.venv/bin/pip" install --upgrade pip
+"$PROJECT_DIR/.venv/bin/pip" install -r "$PROJECT_DIR/requirements.txt"
+
+# Make scripts executable
+chmod +x "$PROJECT_DIR/kiosk-launcher.sh"
+chmod +x "$PROJECT_DIR/setup-systemd.sh"
+
+# Set up autologin for pi user
+echo "Setting up autologin for pi user..."
+mkdir -p /etc/lightdm/lightdm.conf.d
+cat > /etc/lightdm/lightdm.conf.d/60-autologin.conf << EOF
+[Seat:*]
+autologin-user=pi
+autologin-user-timeout=0
+EOF
+
+# Create .xsession for pi user to run kiosk
+echo "Creating .xsession for kiosk mode..."
+cat > /home/pi/.xsession << EOF
+#!/bin/bash
+unclutter -idle 0.1 &
+exec cog --platform=x11 --enable-web-security=false --enable-write-console-messages-to-stdout http://localhost:5000/kiosk
+EOF
+chmod +x /home/pi/.xsession
+chown pi:pi /home/pi/.xsession
+
+# Run systemd setup
+echo "Setting up systemd services..."
+"$PROJECT_DIR/setup-systemd.sh"
+
+# Disable kiosk service since lightdm handles kiosk via .xsession
+echo "Disabling kiosk service (handled by lightdm)..."
+systemctl disable enso-kiosk.service
+
+# Optimize for RPi Zero (low memory)
+echo "Optimizing for RPi Zero..."
+# Reduce swappiness
+echo "vm.swappiness=10" >> /etc/sysctl.conf
+# Disable unnecessary services
+systemctl disable bluetooth.service
+systemctl disable hciuart.service
+
+echo ""
+echo "Installation complete!"
+echo ""
+echo "Project location: $PROJECT_DIR"
+echo ""
+echo "To start manually:"
+echo "  sudo systemctl start enso-catalog"
+echo "  sudo systemctl start lightdm"
+echo ""
+echo "The system will boot into kiosk mode automatically."
+echo "Reboot to test: sudo reboot"

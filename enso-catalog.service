@@ -7,7 +7,7 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/enso-catalog
 Environment=PATH=/home/pi/enso-catalog/.venv/bin
-ExecStart=/home/pi/enso-catalog/.venv/bin/python /home/pi/enso-catalog/app.py
+ExecStart=/home/pi/enso-catalog/.venv/bin/gunicorn --bind 0.0.0.0:5000 --workers 1 app:app
 Restart=always
 RestartSec=5
 
