@@ -49,7 +49,20 @@ case $BROWSER_NAME in
             xdg-open "$URL"
         fi
         ;;
-    *)
+    falkon)
+        if command -v falkon >/dev/null 2>&1; then
+            falkon -K "$URL"
+        else
+            xdg-open "$URL"
+        fi
+        ;;
+    org.kde.falkon)
+        if command -v falkon >/dev/null 2>&1; then
+            falkon -K "$URL"
+        else
+            xdg-open "$URL"
+        fi
+        ;;
         # Default to xdg-open for unknown browsers
         xdg-open "$URL"
         ;;

@@ -1,49 +1,49 @@
-{% extends "base.html" %}
-{% block head %}
-  {{ super() }}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Screensaver</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body {
-      background-color: black;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    html, body {
+      background: black;
       height: 100vh;
       margin: 0;
+      padding: 0;
       font-family: Arial, sans-serif;
+      color: white;
       overflow: hidden;
-    }
-    .screensaver-content {
-      text-align: center;
       position: relative;
     }
     .logo {
+      position: absolute;
       width: 200px;
       height: auto;
-      animation: float 6s ease-in-out infinite;
-      filter: brightness(0) invert(1); /* Make logo white on black background */
+      animation: float 12s ease-in-out infinite;
+      filter: brightness(0) invert(1);
     }
     @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-20px); }
+      0% { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+      25% { left: 20%; top: 20%; transform: translate(-50%, -50%); }
+      50% { left: 80%; top: 20%; transform: translate(-50%, -50%); }
+      75% { left: 80%; top: 80%; transform: translate(-50%, -50%); }
+      100% { left: 50%; top: 50%; transform: translate(-50%, -50%); }
     }
   </style>
-{% endblock %}
-{% block content %}
-<div class="screensaver-content">
+</head>
+<body>
   <img src="{{ app_logo }}" alt="Enso Karate Logo" class="logo">
-</div>
-
-<script>
-// Redirect to kiosk on any activity
-document.addEventListener('click', function() {
-  window.location.href = '/kiosk';
-});
-document.addEventListener('touchstart', function() {
-  window.location.href = '/kiosk';
-});
-document.addEventListener('keydown', function() {
-  window.location.href = '/kiosk';
-});
-</script>
-{% endblock %}
+  <script>
+    // Redirect to kiosk on any activity
+    document.addEventListener('click', function() {
+      window.location.href = '/kiosk';
+    });
+    document.addEventListener('touchstart', function() {
+      window.location.href = '/kiosk';
+    });
+    document.addEventListener('keydown', function() {
+      window.location.href = '/kiosk';
+    });
+  </script>
+</body>
+</html>
