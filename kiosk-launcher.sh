@@ -63,6 +63,14 @@ case $BROWSER_NAME in
             xdg-open "$URL"
         fi
         ;;
+    midori)
+        if command -v midori >/dev/null 2>&1; then
+            midori --app="$URL"
+        else
+            xdg-open "$URL"
+        fi
+        ;;
+    *)
         # Default to xdg-open for unknown browsers
         xdg-open "$URL"
         ;;
