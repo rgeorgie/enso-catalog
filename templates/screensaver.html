@@ -44,6 +44,19 @@
     document.addEventListener('keydown', function() {
       window.location.href = '/kiosk';
     });
+
+    // Poll for card scans to exit screensaver
+    const pollInterval = setInterval(function() {
+      fetch('/card_status')
+        .then(response => response.json())
+        .then(data => {
+          if (data.card_id) {
+            clearInterval(pollInterval);
+            window.location.href = '/kiosk';
+          }
+        })
+        .catch(error => console.error('Polling error:', error));
+    }, 500);  // Poll every 500ms
   </script>
 </body>
 </html>
