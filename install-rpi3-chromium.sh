@@ -9,13 +9,13 @@ echo "Enso Karate Catalog - RPi 3 Install"
 echo "==================================="
 
 # Check if running as root
-if [ "$EUID" -ne 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
     echo "Please run this script as root (sudo)"
     exit 1
 fi
 
 # Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$SCRIPT_DIR"
 
 # Get the user who owns the project directory
