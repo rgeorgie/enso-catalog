@@ -51,13 +51,13 @@ fi
 echo "Installing additional dependencies..."
 apt install -y sqlite3 libsqlite3-dev
 
-# Install gunicorn for production server
-echo "Installing gunicorn..."
-"$PROJECT_DIR/.venv/bin/pip" install gunicorn
-
 # Create virtual environment
 echo "Creating Python virtual environment..."
 python3 -m venv "$PROJECT_DIR/.venv"
+
+# Install gunicorn for production server
+echo "Installing gunicorn..."
+"$PROJECT_DIR/.venv/bin/pip" install gunicorn
 
 # Activate virtual environment and install requirements
 echo "Installing Python dependencies..."
@@ -83,7 +83,7 @@ if grep -q "bookworm" /etc/os-release; then
     mkdir -p $KIOSK_HOME/.config/sway
     cat > $KIOSK_HOME/.config/sway/config << EOF
 exec unclutter -idle 0.1
-exec cog --platform=fdo --enable-web-security=false --enable-write-console-messages-to-stdout http://localhost:5000/kiosk
+exec "sleep 5 && cog --platform=fdo --enable-web-security=false --enable-write-console-messages-to-stdout http://localhost:5000/kiosk"
 bindsym Mod4+shift+e exec swaymsg exit
 bindsym Mod4+shift+r reload
 output * bg /dev/null solid_color 0x000000
@@ -103,6 +103,7 @@ else
     cat > $KIOSK_HOME/.xsession << EOF
 #!/bin/bash
 unclutter -idle 0.1 &
+sleep 5
 exec cog --platform=x11 --enable-web-security=false --enable-write-console-messages-to-stdout http://localhost:5000/kiosk
 EOF
     chmod +x $KIOSK_HOME/.xsession
@@ -113,9 +114,8 @@ fi
 echo "Setting up systemd services..."
 "$PROJECT_DIR/setup-systemd.sh"
 
-# Disable kiosk service since lightdm handles kiosk via .xsession
-echo "Disabling kiosk service (handled by lightdm)..."
-systemctl disable enso-kiosk.service
+# For RPi kiosk, keep kiosk service enabled as fallback
+# systemctl disable enso-kiosk.service
 
 # Optimize for RPi Zero (low memory)
 echo "Optimizing for RPi Zero..."
