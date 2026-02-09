@@ -41,7 +41,7 @@ apt install -y cog unclutter
 # Check if Bookworm (Raspberry Pi OS 12) and setup display accordingly
 if grep -q "bookworm" /etc/os-release; then
     echo "Detected Bookworm - setting up Wayland kiosk..."
-    apt install -y sway wayland-utils
+    apt install -y sway wayland-utils lightdm
 else
     echo "Detected Bullseye or older - setting up X11 kiosk..."
     apt install -y xserver-xorg lightdm
