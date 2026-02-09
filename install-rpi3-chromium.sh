@@ -36,7 +36,7 @@ apt install -y python3 python3-pip python3-venv python3-dev build-essential
 
 # Install Chromium and kiosk dependencies
 echo "Installing Chromium and kiosk dependencies..."
-apt install -y chromium-browser unclutter xserver-xorg lightdm
+apt install -y chromium unclutter xserver-xorg lightdm
 
 # Install additional dependencies for the app
 echo "Installing additional dependencies..."
@@ -73,7 +73,7 @@ cat > $KIOSK_HOME/.xsession << EOF
 #!/bin/bash
 unclutter -idle 0.1 &
 sleep 5
-exec chromium-browser --kiosk --start-fullscreen --disable-web-security --user-data-dir=/tmp/chromium --no-first-run http://localhost:5000/kiosk
+exec chromium --kiosk --start-fullscreen --disable-web-security --disable-translate --user-data-dir=/tmp/chromium --no-first-run http://localhost:5000/kiosk
 EOF
 chmod +x $KIOSK_HOME/.xsession
 chown $KIOSK_USER:$KIOSK_USER $KIOSK_HOME/.xsession
