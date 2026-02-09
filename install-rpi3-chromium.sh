@@ -36,16 +36,7 @@ apt install -y python3 python3-pip python3-venv python3-dev build-essential
 
 # Install Chromium and kiosk dependencies
 echo "Installing Chromium and kiosk dependencies..."
-apt install -y chromium-browser unclutter
-
-# Check if Bookworm (Raspberry Pi OS 12) and setup display accordingly
-if grep -q "bookworm" /etc/os-release; then
-    echo "Detected Bookworm - setting up Wayland kiosk..."
-    apt install -y sway wayland-utils lightdm
-else
-    echo "Detected Bullseye or older - setting up X11 kiosk..."
-    apt install -y xserver-xorg lightdm
-fi
+apt install -y chromium-browser unclutter xserver-xorg lightdm
 
 # Install additional dependencies for the app
 echo "Installing additional dependencies..."
@@ -77,39 +68,15 @@ autologin-user=$KIOSK_USER
 autologin-user-timeout=0
 EOF
 
-# Setup kiosk based on OS version
-if grep -q "bookworm" /etc/os-release; then
-    # Bookworm - Wayland with Sway
-    mkdir -p $KIOSK_HOME/.config/sway
-    cat > $KIOSK_HOME/.config/sway/config << EOF
-exec unclutter -idle 0.1
-exec "sleep 5 && chromium-browser --kiosk --disable-web-security --user-data-dir=/tmp/chromium --no-first-run --disable-features=VizDisplayCompositor http://localhost:5000/kiosk"
-bindsym Mod4+shift+e exec swaymsg exit
-bindsym Mod4+shift+r reload
-output * bg /dev/null solid_color 0x000000
-EOF
-    chown -R $KIOSK_USER:$KIOSK_USER $KIOSK_HOME/.config
-    # Set sway as session
-    mkdir -p /usr/share/xsessions
-    cat > /usr/share/xsessions/sway.desktop << EOF
-[Desktop Entry]
-Name=Sway
-Comment=An i3-compatible Wayland compositor
-Exec=sway
-Type=Application
-EOF
-    sed -i 's/autologin-session=.*/autologin-session=sway/' /etc/lightdm/lightdm.conf.d/60-autologin.conf
-else
-    # Bullseye or older - X11
-    cat > $KIOSK_HOME/.xsession << EOF
+# Setup kiosk with X11
+cat > $KIOSK_HOME/.xsession << EOF
 #!/bin/bash
 unclutter -idle 0.1 &
 sleep 5
-exec chromium-browser --kiosk --disable-web-security --user-data-dir=/tmp/chromium --no-first-run http://localhost:5000/kiosk
+exec chromium-browser --kiosk --start-fullscreen --disable-web-security --user-data-dir=/tmp/chromium --no-first-run http://localhost:5000/kiosk
 EOF
-    chmod +x $KIOSK_HOME/.xsession
-    chown $KIOSK_USER:$KIOSK_USER $KIOSK_HOME/.xsession
-fi
+chmod +x $KIOSK_HOME/.xsession
+chown $KIOSK_USER:$KIOSK_USER $KIOSK_HOME/.xsession
 
 # Run systemd setup
 echo "Setting up systemd services..."
@@ -133,11 +100,7 @@ echo "Project location: $PROJECT_DIR"
 echo ""
 echo "To start manually:"
 echo "  sudo systemctl start enso-catalog"
-if grep -q "bookworm" /etc/os-release; then
-    echo "  sudo systemctl start lightdm  # (Wayland/Sway session)"
-else
-    echo "  sudo systemctl start lightdm  # (X11 session)"
-fi
+echo "  sudo systemctl start lightdm  # (X11 session)"
 echo ""
 echo "The system will boot into kiosk mode automatically."
 echo "Reboot to test: sudo reboot"
