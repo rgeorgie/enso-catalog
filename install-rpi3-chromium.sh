@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Enso Karate Catalog - Raspberry Pi Zero Install Script
-# Optimized for Raspberry Pi OS Lite (32-bit) Bullseye with WPE WebKit (Cog) Kiosk
+# Enso Karate Catalog - Raspberry Pi 3 Install Script
+# Optimized for Raspberry Pi OS (32-bit or 64-bit) with Chromium Kiosk
 
 set -e
 
-echo "Enso Karate Catalog - RPi Zero Install"
-echo "======================================"
+echo "Enso Karate Catalog - RPi 3 Install"
+echo "==================================="
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
@@ -34,9 +34,9 @@ apt update && apt upgrade -y
 echo "Installing Python and development tools..."
 apt install -y python3 python3-pip python3-venv python3-dev build-essential
 
-# Install Cog and kiosk dependencies
-echo "Installing Cog and kiosk dependencies..."
-apt install -y cog unclutter
+# Install Chromium and kiosk dependencies
+echo "Installing Chromium and kiosk dependencies..."
+apt install -y chromium-browser unclutter
 
 # Check if Bookworm (Raspberry Pi OS 12) and setup display accordingly
 if grep -q "bookworm" /etc/os-release; then
@@ -83,7 +83,7 @@ if grep -q "bookworm" /etc/os-release; then
     mkdir -p $KIOSK_HOME/.config/sway
     cat > $KIOSK_HOME/.config/sway/config << EOF
 exec unclutter -idle 0.1
-exec "sleep 5 && cog --platform=fdo --enable-web-security=false --enable-write-console-messages-to-stdout http://localhost:5000/kiosk"
+exec "sleep 5 && chromium-browser --kiosk --disable-web-security --user-data-dir=/tmp/chromium --no-first-run --disable-features=VizDisplayCompositor http://localhost:5000/kiosk"
 bindsym Mod4+shift+e exec swaymsg exit
 bindsym Mod4+shift+r reload
 output * bg /dev/null solid_color 0x000000
@@ -105,7 +105,7 @@ else
 #!/bin/bash
 unclutter -idle 0.1 &
 sleep 5
-exec cog --platform=x11 --enable-web-security=false --enable-write-console-messages-to-stdout http://localhost:5000/kiosk
+exec chromium-browser --kiosk --disable-web-security --user-data-dir=/tmp/chromium --no-first-run http://localhost:5000/kiosk
 EOF
     chmod +x $KIOSK_HOME/.xsession
     chown $KIOSK_USER:$KIOSK_USER $KIOSK_HOME/.xsession
@@ -118,8 +118,8 @@ echo "Setting up systemd services..."
 # For RPi kiosk, keep kiosk service enabled as fallback
 # systemctl disable enso-kiosk.service
 
-# Optimize for RPi Zero (low memory)
-echo "Optimizing for RPi Zero..."
+# Optimize for RPi 3 (moderate memory)
+echo "Optimizing for RPi 3..."
 # Reduce swappiness
 echo "vm.swappiness=10" >> /etc/sysctl.conf
 # Disable unnecessary services
