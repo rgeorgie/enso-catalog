@@ -3027,7 +3027,7 @@ def player_pay_due_receipt(player_id: int):
             return ("debt", d)
         return (None, None)
 
-    print('DEBUG: due_ids received:', due_ids)
+    print('due_ids received:', due_ids)
     for due_id in due_ids:
         # Handle owed session payments (object with type and session_ids)
         if isinstance(due_id, dict) and due_id.get('type') == 'owed_sessions' and due_id.get('session_ids'):
@@ -3105,7 +3105,7 @@ def player_pay_due_receipt(player_id: int):
             pass
         created.append(rec)
 
-    print('DEBUG: created PaymentRecords:', [r.id for r in created])
+    print('created PaymentRecords:', [r.id for r in created])
     if created:
         ids = ",".join(str(r.id) for r in created)
         return _json.dumps({"redirect": url_for('receipts_print_batch') + f"?ids={ids}"})
@@ -3166,7 +3166,7 @@ def player_dues_json(player_id: int):
         })
     # Debts (AUTO_DEBT)
     # Session debt is intentionally excluded from the dues modal
-    print(f"DEBUG /dues_json for player {player_id}: {json.dumps(dues, indent=2)}")
+    print(f"/dues_json for player {player_id}: {json.dumps(dues, indent=2)}")
     return {"dues": dues}
 # Admin utility: Backfill missing TrainingSession records for all players
 
@@ -6245,4 +6245,4 @@ if __name__ == "__main__":
     #     SESSION_COOKIE_SAMESITE="Lax",
     #     # SESSION_COOKIE_SECURE=True,  # enable if served over HTTPS
     # )
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True)
