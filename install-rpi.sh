@@ -90,6 +90,7 @@ output * bg /dev/null solid_color 0x000000
 EOF
     chown -R $KIOSK_USER:$KIOSK_USER $KIOSK_HOME/.config
     # Set sway as session
+    mkdir -p /usr/share/xsessions
     cat > /usr/share/xsessions/sway.desktop << EOF
 [Desktop Entry]
 Name=Sway
