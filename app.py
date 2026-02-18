@@ -5720,9 +5720,9 @@ def fees_period_report():
         }
 
         # Monthly fees - get all payments in date range
-        monthly_payments = PaymentRecord.query.filter_by(
-            player_pn=player.pn, kind='training_month'
-        ).filter(
+        monthly_payments = PaymentRecord.query.filter(
+            ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
+            PaymentRecord.kind == 'training_month',
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
         ).all()
@@ -5743,9 +5743,9 @@ def fees_period_report():
         report_data['monthly_fees']['total_due'] += monthly_due
 
         # Session fees - per session payments
-        session_payments = PaymentRecord.query.filter_by(
-            player_pn=player.pn, kind='training_session'
-        ).filter(
+        session_payments = PaymentRecord.query.filter(
+            ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
+            PaymentRecord.kind == 'training_session',
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
         ).all()
@@ -5768,9 +5768,9 @@ def fees_period_report():
             report_data['session_fees']['total_due'] += session_due
 
         # Event fees - event payments
-        event_payments = PaymentRecord.query.filter_by(
-            player_pn=player.pn, kind='event'
-        ).filter(
+        event_payments = PaymentRecord.query.filter(
+            ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
+            PaymentRecord.kind == 'event',
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
         ).all()
