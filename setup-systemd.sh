@@ -35,11 +35,6 @@ if [ ! -f "$SCRIPT_DIR/enso-kiosk.service" ]; then
     exit 1
 fi
 
-if [ ! -f "$SCRIPT_DIR/kiosk.desktop" ]; then
-    echo "Error: kiosk.desktop not found in $SCRIPT_DIR"
-    exit 1
-fi
-
 if [ ! -f "$SCRIPT_DIR/kiosk-launcher.sh" ]; then
     echo "Error: kiosk-launcher.sh not found in $SCRIPT_DIR"
     exit 1
@@ -51,23 +46,19 @@ chmod +x "$SCRIPT_DIR/kiosk-launcher.sh"
 # Create a temporary version of the service files and desktop file with the correct project path
 TEMP_CATALOG_SERVICE="/tmp/enso-catalog.service"
 TEMP_KIOSK_SERVICE="/tmp/enso-kiosk.service"
-TEMP_KIOSK_DESKTOP="/tmp/kiosk.desktop"
 
 # Replace the hardcoded path and user (or placeholders) with the actual project directory and user
 sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g; s|@INSTALL_DIR@|$PROJECT_DIR|g; s|User=pi|User=$PROJECT_USER|g; s|@INSTALL_USER@|$PROJECT_USER|g" "$SCRIPT_DIR/enso-catalog.service" > "$TEMP_CATALOG_SERVICE"
 sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g; s|@INSTALL_DIR@|$PROJECT_DIR|g; s|User=pi|User=$PROJECT_USER|g; s|@INSTALL_USER@|$PROJECT_USER|g" "$SCRIPT_DIR/enso-kiosk.service" > "$TEMP_KIOSK_SERVICE"
-sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g; s|@INSTALL_DIR@|$PROJECT_DIR|g" "$SCRIPT_DIR/kiosk.desktop" > "$TEMP_KIOSK_DESKTOP"
 
 # Copy service files and desktop file
 echo "Copying catalog service file..."
 cp "$TEMP_CATALOG_SERVICE" /etc/systemd/system/enso-catalog.service
 echo "Copying kiosk service file..."
-cp "$TEMP_KIOSK_SERVICE" /etc/systemd/system/enso-kiosk.service
-echo "Copying kiosk desktop file..."
-cp "$TEMP_KIOSK_DESKTOP" /etc/xdg/autostart/kiosk.desktop
+cp "$TEMP_KIOSK_SERVICE" /etc/systemd/system/enso-kiosk.service"
 
 # Clean up temp files
-rm -f "$TEMP_CATALOG_SERVICE" "$TEMP_KIOSK_SERVICE" "$TEMP_KIOSK_DESKTOP"
+rm -f "$TEMP_CATALOG_SERVICE" "$TEMP_KIOSK_SERVICE"
 
 # Reload systemd
 echo "Reloading systemd daemon..."
@@ -76,8 +67,8 @@ systemctl daemon-reload
 # Enable services
 echo "Enabling catalog service..."
 systemctl enable enso-catalog.service
-echo "Enabling kiosk service..."
-systemctl enable enso-kiosk.service
+# Note: Kiosk service is disabled by default; enable manually if needed
+# systemctl enable enso-kiosk.service
 
 echo ""
 echo "Setup complete!"
@@ -87,10 +78,11 @@ echo "Running as user: $PROJECT_USER"
 echo ""
 echo "To start the services manually:"
 echo "  sudo systemctl start enso-catalog"
-echo "  sudo systemctl start enso-kiosk"
+echo "  sudo systemctl start enso-kiosk  # (if needed)"
 echo ""
 echo "To check status:"
 echo "  sudo systemctl status enso-catalog"
 echo "  sudo systemctl status enso-kiosk"
 echo ""
-echo "Both the Flask service and kiosk will start automatically on boot."
+echo "The Flask service will start automatically on boot."
+echo "Kiosk mode is handled by LightDM autologin."
