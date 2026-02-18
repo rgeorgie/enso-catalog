@@ -55,7 +55,7 @@ sed "s|/home/pi/enso-catalog|${PROJECT_DIR}|g; s|@INSTALL_DIR@|${PROJECT_DIR}|g;
 echo "Copying catalog service file..."
 cp "$TEMP_CATALOG_SERVICE" /etc/systemd/system/enso-catalog.service
 echo "Copying kiosk service file..."
-cp "$TEMP_KIOSK_SERVICE" /etc/systemd/system/enso-kiosk.service"
+cp "$TEMP_KIOSK_SERVICE" /etc/systemd/system/enso-kiosk.service
 
 # Clean up temp files
 rm -f "$TEMP_CATALOG_SERVICE" "$TEMP_KIOSK_SERVICE"
