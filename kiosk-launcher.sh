@@ -3,7 +3,7 @@
 URL="http://localhost:5000/kiosk"
 
 # Flags to reduce keyring/gnome prompts and disable auto-updates/extensions
-CHROME_FLAGS="--no-default-browser-check --no-first-run --password-store=basic --disable-features=CredentialManagement --disable-extensions --disable-component-update"
+CHROME_FLAGS="--no-default-browser-check --no-first-run --password-store=basic --disable-features=CredentialManagement --disable-extensions --disable-component-update --no-sandbox"
 
 # Get the default browser
 BROWSER=$(xdg-settings get default-web-browser 2>/dev/null)
