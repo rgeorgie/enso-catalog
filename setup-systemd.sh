@@ -51,11 +51,15 @@ TEMP_KIOSK_SERVICE="/tmp/enso-kiosk.service"
 sed "s|/home/pi/enso-catalog|${PROJECT_DIR}|g; s|@INSTALL_DIR@|${PROJECT_DIR}|g; s|User=pi|${PROJECT_USER}|g; s|@INSTALL_USER@|${PROJECT_USER}|g" "$SCRIPT_DIR/enso-catalog.service" > "$TEMP_CATALOG_SERVICE"
 sed "s|/home/pi/enso-catalog|${PROJECT_DIR}|g; s|@INSTALL_DIR@|${PROJECT_DIR}|g; s|User=pi|${PROJECT_USER}|g; s|@INSTALL_USER@|${PROJECT_USER}|g" "$SCRIPT_DIR/enso-kiosk.service" > "$TEMP_KIOSK_SERVICE"
 
-# Copy service files and desktop file
+# Create user systemd directory if needed
+mkdir -p /home/$PROJECT_USER/.config/systemd/user
+
+# Copy service files
 echo "Copying catalog service file..."
 cp "$TEMP_CATALOG_SERVICE" /etc/systemd/system/enso-catalog.service
 echo "Copying kiosk service file..."
-cp "$TEMP_KIOSK_SERVICE" /etc/systemd/system/enso-kiosk.service
+cp "$TEMP_KIOSK_SERVICE" /home/$PROJECT_USER/.config/systemd/user/enso-kiosk.service
+chown $PROJECT_USER:$PROJECT_USER /home/$PROJECT_USER/.config/systemd/user/enso-kiosk.service
 
 # Clean up temp files
 rm -f "$TEMP_CATALOG_SERVICE" "$TEMP_KIOSK_SERVICE"
@@ -68,7 +72,7 @@ systemctl daemon-reload
 echo "Enabling catalog service..."
 systemctl enable enso-catalog.service
 echo "Enabling kiosk service..."
-systemctl enable enso-kiosk.service
+su - $PROJECT_USER -c "systemctl --user enable enso-kiosk.service"
 
 echo ""
 echo "Setup complete!"
@@ -78,10 +82,11 @@ echo "Running as user: $PROJECT_USER"
 echo ""
 echo "To start the services manually:"
 echo "  sudo systemctl start enso-catalog"
-echo "  sudo systemctl start enso-kiosk"
+echo "  systemctl --user start enso-kiosk  # (as $PROJECT_USER)"
 echo ""
 echo "To check status:"
 echo "  sudo systemctl status enso-catalog"
-echo "  sudo systemctl status enso-kiosk"
+echo "  systemctl --user status enso-kiosk"
 echo ""
-echo "Both services will start automatically on boot."
+echo "The Flask service starts automatically on boot."
+echo "The kiosk service starts automatically on user login."
