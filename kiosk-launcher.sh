@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Check if Chromium kiosk is already running
+if pgrep -f "chromium.*kiosk" > /dev/null; then
+    echo "Chromium kiosk already running, exiting."
+    exit 0
+fi
+
 URL="http://localhost:5000/kiosk"
 
 # Flags to reduce keyring/gnome prompts and disable auto-updates/extensions
