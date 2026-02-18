@@ -5792,20 +5792,19 @@ def fees_period_report():
         report_data['event_fees']['total_due'] += event_due
 
         # Calculate player totals
-        player_data['total_income'] = player_data['monthly_income'] + player_data['session_income'] + player_data['event_income']
-        player_data['total_due'] = player_data['monthly_due'] + player_data['session_due'] + player_data['event_due']
+        # Training fees only (events are collected separately as pass-through)
+        player_data['total_income'] = player_data['monthly_income'] + player_data['session_income']
+        player_data['total_due'] = player_data['monthly_due'] + player_data['session_due']
         # Calculate net income: training fees only (excludes event fees which are pass-through)
-        player_data['net_income'] = (player_data['monthly_income'] + player_data['session_income']) - (player_data['monthly_due'] + player_data['session_due'])
+        player_data['net_income'] = player_data['total_income'] - player_data['total_due']
 
         total_income += player_data['total_income']
         total_due += player_data['total_due']
 
         report_data['players'].append(player_data)
 
-    # Calculate net income: training fees only (event fees are pass-through)
-    training_income = report_data['monthly_fees']['total_income'] + report_data['session_fees']['total_income']
-    training_due = report_data['monthly_fees']['total_due'] + report_data['session_fees']['total_due']
-    net_income = training_income - training_due
+    # Net income is already total_income (training only) - total_due (training only)
+    net_income = total_income - total_due
 
     # Check if this is a print request
     if request.args.get('print') == '1':
