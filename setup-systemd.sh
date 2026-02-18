@@ -59,8 +59,6 @@ TEMP_KIOSK_SERVICE="/tmp/enso-kiosk.service"
 sed "s|/home/pi/enso-catalog|${PROJECT_DIR}|g; s|@INSTALL_DIR@|${PROJECT_DIR}|g; s|User=pi|${PROJECT_USER}|g; s|@INSTALL_USER@|${PROJECT_USER}|g" "$SCRIPT_DIR/enso-catalog.service" > "$TEMP_CATALOG_SERVICE"
 sed "s|/home/pi/enso-catalog|${PROJECT_DIR}|g; s|@INSTALL_DIR@|${PROJECT_DIR}|g; s|User=pi|${PROJECT_USER}|g; s|@INSTALL_USER@|${PROJECT_USER}|g" "$SCRIPT_DIR/enso-kiosk.service" > "$TEMP_KIOSK_SERVICE"
 
-# Create user systemd directory if needed
-mkdir -p /home/$PROJECT_USER/.config/systemd/user
 
 # Copy service files
 echo "Copying catalog service file..."
@@ -81,6 +79,11 @@ systemctl enable enso-catalog.service
 echo "Enabling kiosk service..."
 systemctl enable enso-kiosk.service
 
+# Disable user kiosk service if it exists to prevent conflicts
+echo "Disabling any conflicting user kiosk service..."
+su - $PROJECT_USER -c "systemctl --user disable enso-kiosk.service 2>/dev/null || true"
+su - $PROJECT_USER -c "systemctl --user mask enso-kiosk.service 2>/dev/null || true"
+
 echo ""
 echo "Setup complete!"
 echo ""
@@ -89,11 +92,10 @@ echo "Running as user: $PROJECT_USER"
 echo ""
 echo "To start the services manually:"
 echo "  sudo systemctl start enso-catalog"
-echo "  systemctl --user start enso-kiosk  # (as $PROJECT_USER)"
+echo "  sudo systemctl start enso-kiosk"
 echo ""
 echo "To check status:"
 echo "  sudo systemctl status enso-catalog"
-echo "  systemctl --user status enso-kiosk"
+echo "  sudo systemctl status enso-kiosk"
 echo ""
-echo "The Flask service starts automatically on boot."
-echo "The kiosk service starts automatically on user login."
+echo "Both services start automatically on boot."

@@ -30,16 +30,17 @@
     .gallery img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
+      background: black;
     }
-    .calendar, .events {
+    .calendar {
       padding: 20px;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
     }
-    .calendar h2, .events h2 {
+    .calendar h2 {
       margin-bottom: 20px;
     }
     .event-item {
@@ -78,21 +79,8 @@
     </div>
   </div>
 
-  <!-- Events View (similar to calendar for now) -->
-  <div id="events" class="view">
-    <div class="events">
-      <h2>Event Highlights</h2>
-      {% for event in future_events %}
-        <div class="event-item">
-          <strong>{{ event.title }}</strong><br>
-          {{ event.start_date }} - {{ event.location or 'TBD' }}
-        </div>
-      {% endfor %}
-    </div>
-  </div>
-
   <script>
-    const views = ['gallery', 'calendar', 'events'];
+    const views = ['gallery', 'calendar'];
     let currentView = 0;
     const viewDuration = 10000; // 10 seconds per view
 

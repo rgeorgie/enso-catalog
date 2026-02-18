@@ -14,15 +14,34 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
+
+# Get the user who owns the project directory
+PROJECT_USER="$(stat -c '%U' "$PROJECT_DIR")"
+
+echo "Project directory: $PROJECT_DIR"
+echo "Project user: $PROJECT_USER"
+
 # Stop services if running
 echo "Stopping services..."
 systemctl stop enso-catalog.service 2>/dev/null || echo "enso-catalog.service not running"
 systemctl stop enso-kiosk.service 2>/dev/null || echo "enso-kiosk.service not running"
 
+# Stop user services if running
+echo "Stopping user services..."
+su - $PROJECT_USER -c "systemctl --user stop enso-kiosk.service 2>/dev/null || true"
+
 # Disable services
 echo "Disabling services..."
 systemctl disable enso-catalog.service 2>/dev/null || echo "enso-catalog.service not enabled"
 systemctl disable enso-kiosk.service 2>/dev/null || echo "enso-kiosk.service not enabled"
+
+# Disable user services
+echo "Disabling user services..."
+su - $PROJECT_USER -c "systemctl --user disable enso-kiosk.service 2>/dev/null || true"
+su - $PROJECT_USER -c "systemctl --user unmask enso-kiosk.service 2>/dev/null || true"
 
 # Remove service files and desktop file
 echo "Removing service files..."
@@ -37,9 +56,10 @@ systemctl daemon-reload
 echo ""
 echo "Removal complete!"
 echo ""
-echo "The following have been removed:"
-echo "  - enso-catalog.service"
-echo "  - enso-kiosk.service"
+echo "The following have been removed/stopped:"
+echo "  - enso-catalog.service (system)"
+echo "  - enso-kiosk.service (system)"
+echo "  - enso-kiosk.service (user, if existed)"
 echo "  - kiosk.desktop"
 echo ""
 echo "Services are no longer installed or running."
