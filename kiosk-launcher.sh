@@ -8,7 +8,7 @@ fi
 
 # Wait for the Flask app to be ready
 echo "Waiting for Flask app to be ready..."
-while ! curl -s http://localhost:5000/ > /dev/null; do
+while ! curl -s --head http://localhost:5000/kiosk > /dev/null; do
     sleep 1
 done
 echo "Flask app is ready."
