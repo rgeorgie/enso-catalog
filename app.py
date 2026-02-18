@@ -5719,13 +5719,13 @@ def fees_period_report():
             'total_due': 0
         }
 
-        # Monthly fees - training_month + bulk payments linked to monthly Payment
+        # Monthly fees - training_month + bulk payments containing 'Monthly fee' in notes
         monthly_payments = PaymentRecord.query.filter(
             ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
         ).all()
-        monthly_payments = [p for p in monthly_payments if p.kind == 'training_month' or (p.kind == 'bulk_payment' and p.payment_id is not None)]
+        monthly_payments = [p for p in monthly_payments if p.kind == 'training_month' or (p.kind == 'bulk_payment' and 'Monthly fee' in (p.notes or ''))]
 
         monthly_income = sum(p.amount or 0 for p in monthly_payments)
         player_data['monthly_income'] = monthly_income
@@ -5742,13 +5742,13 @@ def fees_period_report():
         player_data['monthly_due'] = monthly_due
         report_data['monthly_fees']['total_due'] += monthly_due
 
-        # Session fees - training_session + bulk payments with session info (no payment_id, no event_registration_id)
+        # Session fees - training_session + bulk payments not mentioning Monthly fee or Event
         session_payments = PaymentRecord.query.filter(
             ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
         ).all()
-        session_payments = [p for p in session_payments if p.kind == 'training_session' or (p.kind == 'bulk_payment' and p.payment_id is None and p.event_registration_id is None)]
+        session_payments = [p for p in session_payments if p.kind == 'training_session' or (p.kind == 'bulk_payment' and 'Monthly fee' not in (p.notes or '') and 'Event:' not in (p.notes or ''))]
 
         session_income = sum(p.amount or 0 for p in session_payments)
         player_data['session_income'] = session_income
@@ -5767,13 +5767,13 @@ def fees_period_report():
             player_data['session_due'] = session_due
             report_data['session_fees']['total_due'] += session_due
 
-        # Event fees - event + bulk payments linked to EventRegistration
+        # Event fees - event + bulk payments containing 'Event:' in notes
         event_payments = PaymentRecord.query.filter(
             ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
         ).all()
-        event_payments = [p for p in event_payments if p.kind == 'event' or (p.kind == 'bulk_payment' and p.event_registration_id is not None)]
+        event_payments = [p for p in event_payments if p.kind == 'event' or (p.kind == 'bulk_payment' and 'Event:' in (p.notes or ''))]
 
         event_income = sum(p.amount or 0 for p in event_payments)
         player_data['event_income'] = event_income
