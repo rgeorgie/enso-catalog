@@ -7,7 +7,6 @@ Requires=enso-catalog.service
 Type=simple
 User=pi
 Environment=DISPLAY=:0
-ExecStartPre=/home/pi/enso-catalog/map-touchscreen.sh
 ExecStart=/home/pi/enso-catalog/kiosk-launcher.sh
 Restart=always
 RestartSec=5
