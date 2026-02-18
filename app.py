@@ -5718,7 +5718,7 @@ def fees_period_report():
 
         # Monthly fees - get all payments in date range
         monthly_payments = PaymentRecord.query.filter_by(
-            player_id=player.id, kind='training_month'
+            player_pn=player.pn, kind='training_month'
         ).filter(
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
@@ -5741,7 +5741,7 @@ def fees_period_report():
 
         # Session fees - per session payments
         session_payments = PaymentRecord.query.filter_by(
-            player_id=player.id, kind='training_session'
+            player_pn=player.pn, kind='training_session'
         ).filter(
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
@@ -5766,7 +5766,7 @@ def fees_period_report():
 
         # Event fees - event payments
         event_payments = PaymentRecord.query.filter_by(
-            player_id=player.id, kind='event'
+            player_pn=player.pn, kind='event'
         ).filter(
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
