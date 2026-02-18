@@ -17,12 +17,12 @@ fi
 # Stop services if running
 echo "Stopping services..."
 systemctl stop enso-catalog.service 2>/dev/null || echo "enso-catalog.service not running"
-su - $KIOSK_USER -c "systemctl --user stop enso-kiosk.service" 2>/dev/null || echo "enso-kiosk.service not running"
+# User service stop: assuming not running or kill manually if needed
 
 # Disable services
 echo "Disabling services..."
 systemctl disable enso-catalog.service 2>/dev/null || echo "enso-catalog.service not enabled"
-su - $KIOSK_USER -c "systemctl --user disable enso-kiosk.service" 2>/dev/null || echo "enso-kiosk.service not enabled"
+rm -f /home/$KIOSK_USER/.config/systemd/user/default.target.wants/enso-kiosk.service
 
 # Remove service files and desktop file
 echo "Removing service files..."

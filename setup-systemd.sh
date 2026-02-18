@@ -72,7 +72,9 @@ systemctl daemon-reload
 echo "Enabling catalog service..."
 systemctl enable enso-catalog.service
 echo "Enabling kiosk service..."
-su - $PROJECT_USER -c "systemctl --user enable enso-kiosk.service"
+mkdir -p /home/$PROJECT_USER/.config/systemd/user/default.target.wants
+ln -sf ../enso-kiosk.service /home/$PROJECT_USER/.config/systemd/user/default.target.wants/
+chown -R $PROJECT_USER:$PROJECT_USER /home/$PROJECT_USER/.config/systemd/user/
 
 echo ""
 echo "Setup complete!"
