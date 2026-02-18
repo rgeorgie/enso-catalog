@@ -5743,7 +5743,7 @@ def fees_period_report():
         # Session fees - per session payments
         session_payments = PaymentRecord.query.filter(
             ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
-            PaymentRecord.kind == 'training_session'
+            PaymentRecord.kind.in_(['training_session', 'bulk'])
         ).all()
 
         session_income = sum(p.amount or 0 for p in session_payments)
@@ -5766,7 +5766,7 @@ def fees_period_report():
         # Event fees - event payments
         event_payments = PaymentRecord.query.filter(
             ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
-            PaymentRecord.kind == 'event'
+            PaymentRecord.kind.in_(['event', 'bulk'])
         ).all()
 
         event_income = sum(p.amount or 0 for p in event_payments)
