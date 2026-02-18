@@ -27,11 +27,18 @@
     .view.active {
       display: block;
     }
-    .gallery img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
+    .gallery {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
       background: black;
+    }
+    .gallery img {
+      max-width: 90vw;
+      max-height: 90vh;
+      object-fit: contain;
     }
     .calendar {
       padding: 20px;
