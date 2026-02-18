@@ -69,10 +69,6 @@ STATIC_IMG = os.path.join(BASE_DIR, "static", "img")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(STATIC_IMG, exist_ok=True)
 
-# Screensaver uploads (admin-managed images)
-SCREENSAVER_FOLDER = os.path.join(UPLOAD_FOLDER, "screensaver")
-os.makedirs(SCREENSAVER_FOLDER, exist_ok=True)
-
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-change-me")
@@ -2069,10 +2065,6 @@ class SettingsForm(FlaskForm):
     background = FileField("Background Image", validators=[VOptional()])
     submit = SubmitField("Save Settings")
 
-class ScreensaverForm(FlaskForm):
-    image = FileField("Upload screensaver image", validators=[VOptional()])
-    submit = SubmitField("Upload")
-
 def set_localized_choices(form: PlayerForm):
     form.grade_level.choices = [(g, g) for g in GRADING_SCHEME["grades"]]
     # Display localized label, store short key in DB
@@ -2086,23 +2078,10 @@ def inject_settings():
     return dict(
         app_logo=settings.get('logo_path', '/static/img/enso-logo.webp'),
         app_background=settings.get('background_image'),
-        screensaver_folder='/uploads/screensaver'
     )
 @app.context_processor
 def inject_i18n():
     return dict(_=_, current_lang=get_lang())
-
-
-@app.context_processor
-def inject_screensaver_images():
-    images = []
-    try:
-        for fn in sorted(os.listdir(SCREENSAVER_FOLDER)):
-            if allowed_file(fn):
-                images.append(url_for('uploaded_file', filename='screensaver/' + fn))
-    except Exception:
-        images = []
-    return dict(screensaver_images=images)
 
 @app.context_processor
 def utility_processor():
@@ -5357,62 +5336,6 @@ def admin_settings():
         _=_,
         current_lang=get_lang(),
     )
-
-
-@app.route('/admin/screensaver', methods=['GET', 'POST'])
-@admin_required
-def admin_screensaver():
-    form = ScreensaverForm()
-    # list existing images
-    images = []
-    try:
-        for fn in sorted(os.listdir(SCREENSAVER_FOLDER)):
-            if allowed_file(fn):
-                images.append(fn)
-    except Exception:
-        images = []
-
-    if form.validate_on_submit() and form.image.data:
-        file = form.image.data
-        filename = secure_filename(file.filename)
-        if not allowed_file(filename):
-            flash(_('Unsupported file type.'), 'danger')
-            return redirect(url_for('admin_screensaver'))
-        # ensure unique filename
-        base, ext = os.path.splitext(filename)
-        target = filename
-        i = 1
-        while os.path.exists(os.path.join(SCREENSAVER_FOLDER, target)):
-            target = f"{base}-{i}{ext}"
-            i += 1
-        file.save(os.path.join(SCREENSAVER_FOLDER, target))
-        flash(_('Image uploaded.'), 'success')
-        return redirect(url_for('admin_screensaver'))
-
-    return render_template('admin_screensaver.html', form=form, images=images)
-
-
-@app.route('/admin/screensaver/delete', methods=['POST'])
-@admin_required
-def admin_screensaver_delete():
-    filename = request.form.get('filename')
-    if not filename:
-        flash(_('No file specified.'), 'warning')
-        return redirect(url_for('admin_screensaver'))
-    # prevent directory traversal
-    if '..' in filename or filename.startswith('/') or '/' in filename:
-        flash(_('Invalid filename.'), 'danger')
-        return redirect(url_for('admin_screensaver'))
-    path = os.path.join(SCREENSAVER_FOLDER, filename)
-    if os.path.exists(path):
-        try:
-            os.remove(path)
-            flash(_('Image deleted.'), 'success')
-        except Exception:
-            flash(_('Failed to delete image.'), 'danger')
-    else:
-        flash(_('File not found.'), 'warning')
-    return redirect(url_for('admin_screensaver'))
 
 # -----------------------------
 # Payments & Receipts (admin-only)
