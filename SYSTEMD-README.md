@@ -34,14 +34,14 @@ The script will:
 ## Service Configuration
 
 ### Flask Application Service (`enso-catalog.service`)
-- Runs as user `pi`
-- Working directory: `/home/pi/enso-catalog`
+- Runs as the user that installed the application (the installer will set this)
+- Working directory: the install directory (e.g. `/home/<youruser>/enso-catalog`)
 - Uses virtual environment Python
 - Restarts automatically on failure
 - Starts after network is available
 
 ### Kiosk Service (`enso-kiosk.service`)
-- Runs as user `pi`
+- Runs as the user that installed the application (the installer will set this)
 - Requires the Flask service to be running
 - Starts Chromium in kiosk mode
 - Points to `http://localhost:5000/kiosk`
@@ -78,7 +78,7 @@ sudo journalctl -u enso-kiosk -f
 
 The setup script automatically detects your project location and configures the services accordingly. If you need to customize further:
 
-1. **Different User**: Edit the service files and change `User=pi` to your desired user
+1. **Different User**: Re-run `setup-systemd.sh` as the install user or edit the installed service files and change `User=` to the desired user (the setup script automatically sets this).
 2. **Different Virtual Environment**: The services expect `.venv` in the project directory. If yours is different, modify the `PATH` environment variable in the service files
 3. **Different Display**: For kiosk service, ensure `DISPLAY=:0` matches your X session
 4. **Manual Path Override**: If auto-detection doesn't work, you can manually edit the `ENSO_PROJECT_DIR` environment variable in the installed service files
@@ -114,6 +114,6 @@ After removal, the services will no longer start on boot and can be reinstalled 
 
 ## Security Notes
 
-- Services run as user `pi` (not root)
+- Services run as the install user (not root)
 - Consider additional security measures for production use
 - The kiosk browser runs with some security features disabled for local operation

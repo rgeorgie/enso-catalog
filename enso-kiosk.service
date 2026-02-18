@@ -7,7 +7,7 @@ Requires=enso-catalog.service
 Type=simple
 # Run as root and use wrapper to determine session user at runtime
 # (wrapper will sudo to the detected user)
-ExecStart=/home/pi/enso-catalog/kiosk-start.sh
+ExecStart=@INSTALL_DIR@/kiosk-start.sh
 Restart=always
 RestartSec=5
 

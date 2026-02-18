@@ -53,10 +53,10 @@ TEMP_CATALOG_SERVICE="/tmp/enso-catalog.service"
 TEMP_KIOSK_SERVICE="/tmp/enso-kiosk.service"
 TEMP_KIOSK_DESKTOP="/tmp/kiosk.desktop"
 
-# Replace the hardcoded path and user with the actual project directory and user
-sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g; s|User=pi|User=$PROJECT_USER|g" "$SCRIPT_DIR/enso-catalog.service" > "$TEMP_CATALOG_SERVICE"
-sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g; s|User=pi|User=$PROJECT_USER|g" "$SCRIPT_DIR/enso-kiosk.service" > "$TEMP_KIOSK_SERVICE"
-sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g" "$SCRIPT_DIR/kiosk.desktop" > "$TEMP_KIOSK_DESKTOP"
+# Replace the hardcoded path and user (or placeholders) with the actual project directory and user
+sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g; s|@INSTALL_DIR@|$PROJECT_DIR|g; s|User=pi|User=$PROJECT_USER|g; s|@INSTALL_USER@|$PROJECT_USER|g" "$SCRIPT_DIR/enso-catalog.service" > "$TEMP_CATALOG_SERVICE"
+sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g; s|@INSTALL_DIR@|$PROJECT_DIR|g; s|User=pi|User=$PROJECT_USER|g; s|@INSTALL_USER@|$PROJECT_USER|g" "$SCRIPT_DIR/enso-kiosk.service" > "$TEMP_KIOSK_SERVICE"
+sed "s|/home/pi/enso-catalog|$PROJECT_DIR|g; s|@INSTALL_DIR@|$PROJECT_DIR|g" "$SCRIPT_DIR/kiosk.desktop" > "$TEMP_KIOSK_DESKTOP"
 
 # Copy service files and desktop file
 echo "Copying catalog service file..."
