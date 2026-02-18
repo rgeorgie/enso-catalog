@@ -5725,7 +5725,7 @@ def fees_period_report():
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
         ).all()
-        monthly_payments = [p for p in monthly_payments if p.kind == 'training_month' or (p.kind == 'bulk_payment' and 'Monthly fee' in (p.notes or ''))]
+        monthly_payments = [p for p in monthly_payments if p.kind == 'training_month' or (p.kind == 'bulk_payment' and 'Monthly fee' in (p.note or ''))]
 
         monthly_income = sum(p.amount or 0 for p in monthly_payments)
         player_data['monthly_income'] = monthly_income
@@ -5748,7 +5748,7 @@ def fees_period_report():
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
         ).all()
-        session_payments = [p for p in session_payments if p.kind == 'training_session' or (p.kind == 'bulk_payment' and 'Monthly fee' not in (p.notes or '') and 'Event:' not in (p.notes or ''))]
+        session_payments = [p for p in session_payments if p.kind == 'training_session' or (p.kind == 'bulk_payment' and 'Monthly fee' not in (p.note or '') and 'Event:' not in (p.note or ''))]
 
         session_income = sum(p.amount or 0 for p in session_payments)
         player_data['session_income'] = session_income
@@ -5773,7 +5773,7 @@ def fees_period_report():
             PaymentRecord.paid_at >= start_date,
             PaymentRecord.paid_at <= end_date
         ).all()
-        event_payments = [p for p in event_payments if p.kind == 'event' or (p.kind == 'bulk_payment' and 'Event:' in (p.notes or ''))]
+        event_payments = [p for p in event_payments if p.kind == 'event' or (p.kind == 'bulk_payment' and 'Event:' in (p.note or ''))]
 
         event_income = sum(p.amount or 0 for p in event_payments)
         player_data['event_income'] = event_income
