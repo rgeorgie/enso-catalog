@@ -5278,6 +5278,8 @@ def auto_migrate_on_startup():
         existing2 = {row[1] for row in result2}
         if "related_receipt_id" not in existing2:
             conn.execute(text("ALTER TABLE payment_record ADD COLUMN related_receipt_id INTEGER"))
+        if "paid_at" not in existing2:
+            conn.execute(text("ALTER TABLE payment_record ADD COLUMN paid_at DATE DEFAULT CURRENT_DATE"))
 
         # Add player_pn columns to related tables to support PN-based relations
         for tbl in ("training_session", "payment", "event_registration", "payment_record"):
