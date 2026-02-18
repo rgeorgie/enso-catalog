@@ -5,12 +5,9 @@ Requires=enso-catalog.service
 
 [Service]
 Type=simple
-User=enso
-Environment=DISPLAY=:0
-Environment=XAUTHORITY=/home/enso/.Xauthority
-Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
-Environment=XDG_RUNTIME_DIR=/run/user/1000
-ExecStart=/home/enso/enso-catalog/kiosk-launcher.sh
+# Run as root and use wrapper to determine session user at runtime
+# (wrapper will sudo to the detected user)
+ExecStart=/home/pi/enso-catalog/kiosk-start.sh
 Restart=always
 RestartSec=5
 
