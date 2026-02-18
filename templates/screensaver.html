@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>Screensaver</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
   <style>
     html, body {
       background: black;
@@ -15,25 +16,111 @@
       overflow: hidden;
       position: relative;
     }
-    .logo {
+    .view {
+      display: none;
+      height: 100vh;
+      width: 100vw;
       position: absolute;
-      width: 200px;
-      height: auto;
-      animation: float 12s ease-in-out infinite;
-      filter: brightness(0) invert(1);
+      top: 0;
+      left: 0;
     }
-    @keyframes float {
-      0% { left: 50%; top: 50%; transform: translate(-50%, -50%); }
-      25% { left: 20%; top: 20%; transform: translate(-50%, -50%); }
-      50% { left: 80%; top: 20%; transform: translate(-50%, -50%); }
-      75% { left: 80%; top: 80%; transform: translate(-50%, -50%); }
-      100% { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+    .view.active {
+      display: block;
+    }
+    .gallery img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .calendar, .events {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .calendar h2, .events h2 {
+      margin-bottom: 20px;
+    }
+    .event-item {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      width: 80%;
+      max-width: 600px;
     }
   </style>
 </head>
 <body>
-  <img src="{{ app_logo }}" alt="Enso Karate Logo" class="logo">
+  <!-- Gallery View -->
+  <div id="gallery" class="view active">
+    <div id="gallery-slideshow"></div>
+  </div>
+
+  <!-- Calendar View -->
+  <div id="calendar" class="view">
+    <div class="calendar">
+      <h2>Upcoming Events</h2>
+      {% for event in future_events %}
+        <div class="event-item">
+          <strong>{{ event.title }}</strong><br>
+          {{ event.start_date }} - {{ event.location or 'TBD' }}
+        </div>
+      {% endfor %}
+      <h2>Recent Events</h2>
+      {% for event in past_events %}
+        <div class="event-item">
+          <strong>{{ event.title }}</strong><br>
+          {{ event.start_date }} - {{ event.location or 'TBD' }}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Events View (similar to calendar for now) -->
+  <div id="events" class="view">
+    <div class="events">
+      <h2>Event Highlights</h2>
+      {% for event in future_events %}
+        <div class="event-item">
+          <strong>{{ event.title }}</strong><br>
+          {{ event.start_date }} - {{ event.location or 'TBD' }}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
   <script>
+    const views = ['gallery', 'calendar', 'events'];
+    let currentView = 0;
+    const viewDuration = 10000; // 10 seconds per view
+
+    function switchView() {
+      document.getElementById(views[currentView]).classList.remove('active');
+      currentView = (currentView + 1) % views.length;
+      document.getElementById(views[currentView]).classList.add('active');
+    }
+
+    setInterval(switchView, viewDuration);
+
+    // Gallery slideshow
+    const imageUrls = {{ image_urls | tojson }};
+    let currentImage = 0;
+    const galleryDiv = document.getElementById('gallery-slideshow');
+
+    function showNextImage() {
+      if (imageUrls.length > 0) {
+        galleryDiv.innerHTML = `<img src="${imageUrls[currentImage]}" alt="Gallery Image">`;
+        currentImage = (currentImage + 1) % imageUrls.length;
+      }
+    }
+
+    if (imageUrls.length > 0) {
+      showNextImage();
+      setInterval(showNextImage, 5000); // Change image every 5 seconds
+    }
+
     // Redirect to kiosk on any activity
     document.addEventListener('click', function() {
       window.location.href = '/kiosk';

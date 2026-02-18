@@ -315,6 +315,16 @@ translations = {
         "Run DB migration": "Run DB migration",
         "Admin Login": "Admin Login",
         "Admin Settings": "Admin Settings",
+        "Gallery": "Gallery",
+        "Gallery Management": "Gallery Management",
+        "Upload Images": "Upload Images",
+        "Select multiple images for the screensaver gallery": "Select multiple images for the screensaver gallery",
+        "Upload": "Upload",
+        "Current Gallery Images": "Current Gallery Images",
+        "Delete": "Delete",
+        "Delete this image?": "Delete this image?",
+        "Images uploaded successfully.": "Images uploaded successfully.",
+        "Image deleted.": "Image deleted.",
         "Logo": "Logo",
         "Background Image": "Background Image",
         "Admin Password": "Admin Password",
@@ -880,6 +890,16 @@ translations = {
         "Run DB migration": "Стартирай миграция",
         "Admin Login": "Админ вход",
         "Admin Settings": "Админ настройки",
+        "Gallery": "Галерия",
+        "Gallery Management": "Управление на галерия",
+        "Upload Images": "Качи изображения",
+        "Select multiple images for the screensaver gallery": "Изберете няколко изображения за галерията на скрийнсейвъра",
+        "Upload": "Качи",
+        "Current Gallery Images": "Текущи изображения в галерията",
+        "Delete": "Изтрий",
+        "Delete this image?": "Изтрий това изображение?",
+        "Images uploaded successfully.": "Изображенията са качени успешно.",
+        "Image deleted.": "Изображението е изтрито.",
         "Logo": "Лого",
         "Background Image": "Фонова картинка",
         "Admin Password": "Админ парола",
@@ -1996,6 +2016,11 @@ class Setting(db.Model):
     key = db.Column(db.String(50), primary_key=True)
     value = db.Column(db.String(500), nullable=True)
 
+class Gallery(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False, unique=True)
+    uploaded_at = db.Column(db.DateTime, default=datetime.now)
+
 # -----------------------------
 # Forms
 # -----------------------------
@@ -2073,6 +2098,10 @@ class SettingsForm(FlaskForm):
     admin_card_id = StringField("Admin Card ID", validators=[VOptional(), Length(max=50)])
     background = FileField("Background Image", validators=[VOptional()])
     submit = SubmitField("Save Settings")
+
+class GalleryForm(FlaskForm):
+    images = FileField("Upload Images", validators=[VOptional()])
+    submit = SubmitField("Upload")
 
 def set_localized_choices(form: PlayerForm):
     form.grade_level.choices = [(g, g) for g in GRADING_SCHEME["grades"]]
@@ -2485,8 +2514,19 @@ def kiosk():
 
 @app.route("/screensaver")
 def screensaver():
-    """Screensaver mode: Blank screen for kiosk inactivity."""
-    return render_template("screensaver.html")
+    """Screensaver mode: Gallery slideshow, calendar, and events."""
+    # Get gallery images
+    images = Gallery.query.order_by(Gallery.uploaded_at.desc()).all()
+    image_urls = [url_for('uploaded_file', filename=img.filename) for img in images]
+
+    # Get upcoming events (next 30 days)
+    today = date.today()
+    future_events = Event.query.filter(Event.start_date >= today).order_by(Event.start_date).limit(10).all()
+
+    # Get recent events (last 30 days) for calendar
+    past_events = Event.query.filter(Event.start_date < today, Event.start_date >= today - timedelta(days=30)).order_by(Event.start_date.desc()).limit(10).all()
+
+    return render_template("screensaver.html", image_urls=image_urls, future_events=future_events, past_events=past_events)
 
 @app.route("/card_status")
 def card_status():
@@ -5345,6 +5385,47 @@ def admin_settings():
         _=_,
         current_lang=get_lang(),
     )
+
+# -----------------------------
+# Gallery Management
+# -----------------------------
+@app.route("/admin/gallery", methods=["GET", "POST"])
+@admin_required
+def admin_gallery():
+    form = GalleryForm()
+    if form.validate_on_submit():
+        if form.images.data:
+            for file in request.files.getlist('images'):
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    # Ensure unique filename
+                    base, ext = os.path.splitext(filename)
+                    counter = 1
+                    while os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], filename)):
+                        filename = f"{base}_{counter}{ext}"
+                        counter += 1
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(filepath)
+                    gallery_item = Gallery(filename=filename)
+                    db.session.add(gallery_item)
+            db.session.commit()
+            flash("Images uploaded successfully.", "success")
+            return redirect(url_for('admin_gallery'))
+
+    images = Gallery.query.order_by(Gallery.uploaded_at.desc()).all()
+    return render_template("admin_gallery.html", form=form, images=images, _=_, current_lang=get_lang())
+
+@app.route("/admin/gallery/delete/<int:image_id>", methods=["POST"])
+@admin_required
+def delete_gallery_image(image_id):
+    image = Gallery.query.get_or_404(image_id)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], image.filename)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+    db.session.delete(image)
+    db.session.commit()
+    flash("Image deleted.", "success")
+    return redirect(url_for('admin_gallery'))
 
 # -----------------------------
 # Payments & Receipts (admin-only)

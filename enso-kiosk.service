@@ -1,11 +1,14 @@
 [Unit]
 Description=Enso Karate Catalog Kiosk Mode
-After=network.target
+After=network.target enso-catalog.service
+Requires=enso-catalog.service
 
 [Service]
 Type=simple
-ExecStart=@INSTALL_DIR@/kiosk-launcher.sh
+# Run as root and use wrapper to determine session user at runtime
+# (wrapper will sudo to the detected user)
+ExecStart=@INSTALL_DIR@/kiosk-start.sh
 Restart=no
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical.target

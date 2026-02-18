@@ -74,6 +74,9 @@ RUNTIME_DIR="/run/user/$uid"
 
 echo "[kiosk-start] launching kiosk as user=$user uid=$uid (REPO_DIR=$REPO_DIR)"
 
+# Wait for session to be ready
+sleep 10
+
 exec sudo -u "$user" -H env \
   DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" \
   XDG_RUNTIME_DIR="$RUNTIME_DIR" \

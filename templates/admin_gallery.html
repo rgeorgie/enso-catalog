@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block head %}
+  {{ super() }}
+{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4">{{ _('Gallery Management') }}</h1>
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data">
+            {{ form.hidden_tag() }}
+
+            <div class="mb-3">
+              <label class="form-label">{{ _('Upload Images') }}</label>
+              {{ form.images(class="form-control", multiple="multiple") }}
+              <div class="form-text">{{ _('Select multiple images for the screensaver gallery') }}</div>
+            </div>
+
+            {{ form.submit(class="btn btn-primary") }}
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-12">
+      <h2>{{ _('Current Gallery Images') }}</h2>
+      <div class="row">
+        {% for image in images %}
+          <div class="col-md-3 mb-3">
+            <div class="card">
+              <img src="{{ url_for('uploaded_file', filename=image.filename) }}" class="card-img-top" alt="Gallery Image" style="height: 200px; object-fit: cover;">
+              <div class="card-body">
+                <p class="card-text small">{{ image.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                <form method="post" action="{{ url_for('delete_gallery_image', image_id=image.id) }}" style="display: inline;">
+                  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ _('Delete this image?') }}')">{{ _('Delete') }}</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

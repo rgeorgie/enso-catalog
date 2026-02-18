@@ -58,8 +58,7 @@ mkdir -p /home/$PROJECT_USER/.config/systemd/user
 echo "Copying catalog service file..."
 cp "$TEMP_CATALOG_SERVICE" /etc/systemd/system/enso-catalog.service
 echo "Copying kiosk service file..."
-cp "$TEMP_KIOSK_SERVICE" /home/$PROJECT_USER/.config/systemd/user/enso-kiosk.service
-chown $PROJECT_USER:$PROJECT_USER /home/$PROJECT_USER/.config/systemd/user/enso-kiosk.service
+cp "$TEMP_KIOSK_SERVICE" /etc/systemd/system/enso-kiosk.service
 
 # Clean up temp files
 rm -f "$TEMP_CATALOG_SERVICE" "$TEMP_KIOSK_SERVICE"
@@ -72,9 +71,7 @@ systemctl daemon-reload
 echo "Enabling catalog service..."
 systemctl enable enso-catalog.service
 echo "Enabling kiosk service..."
-mkdir -p /home/$PROJECT_USER/.config/systemd/user/default.target.wants
-ln -sf ../enso-kiosk.service /home/$PROJECT_USER/.config/systemd/user/default.target.wants/
-chown -R $PROJECT_USER:$PROJECT_USER /home/$PROJECT_USER/.config/systemd/user/
+systemctl enable enso-kiosk.service
 
 echo ""
 echo "Setup complete!"
