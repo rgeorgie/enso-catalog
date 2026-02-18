@@ -82,25 +82,8 @@
 
           <div class="mb-3">
             <label for="player_id" class="form-label">{{ _('Enter your Player Number') }}</label>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control form-control-lg" id="player_id" name="player_id" required placeholder="123" style="font-size: 1.2rem; text-align: center;">
+            <input type="text" class="form-control form-control-lg" id="player_id" name="player_id" required pattern="[0-9]+" placeholder="123" style="font-size: 1.2rem; text-align: center;">
             <div class="form-text">{{ _('Enter your player number to confirm and record the session.') }}</div>
-          </div>
-
-          <!-- On-screen numeric keypad for touchscreens -->
-          <div id="numpad" style="display:none; max-width:420px; margin:0 auto;">
-            <div class="d-grid gap-2" style="grid-template-columns: repeat(3,1fr); display:grid;">
-              <!-- digits 1-9 -->
-              {% for d in range(1,10) %}
-                <button type="button" class="btn btn-outline-secondary numpad-key" data-key="{{ d }}" style="font-size:1.4rem; padding:0.85rem;">{{ d }}</button>
-              {% endfor %}
-              <button type="button" class="btn btn-secondary numpad-key" data-key="back" style="font-size:1.2rem; padding:0.7rem;">⌫</button>
-              <button type="button" class="btn btn-outline-secondary numpad-key" data-key="0" style="font-size:1.4rem; padding:0.85rem;">0</button>
-              <button type="button" class="btn btn-secondary numpad-key" data-key="clear" style="font-size:1.2rem; padding:0.7rem;">C</button>
-            </div>
-            <div class="mt-2 d-flex justify-content-between">
-              <button type="button" id="numpad-close" class="btn btn-light">{{ _('Close') }}</button>
-              <button type="button" id="numpad-ok" class="btn btn-success">{{ _('OK') }}</button>
-            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -160,16 +143,6 @@
 .modal-dialog .modal-content {
   pointer-events: auto;
   position: relative !important;
-}
-
-/* Numpad styles */
-#numpad .numpad-key {
-  min-height: 56px;
-  border-radius: 8px;
-}
-#numpad .btn-secondary {
-  background-color: #f1f3f5;
-  border-color: #dee2e6;
 }
 </style>
 
@@ -263,18 +236,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Auto-focus on Player Number input when modal is shown
   sessionModal.addEventListener('shown.bs.modal', function() {
     document.getElementById('player_id').focus();
-    // Show on-screen numpad for touch devices
-    setTimeout(() => {
-      const numpad = document.getElementById('numpad');
-      if (!numpad) return;
-      // Heuristic: show if touch supported or small screen
-      const show = ('ontouchstart' in window) || window.innerWidth < 900;
-      if (show) {
-        numpad.style.display = 'block';
-      } else {
-        numpad.style.display = 'none';
-      }
-    }, 50);
   });
 
   // Inactivity timer for kiosk mode - return to kiosk after 5 minutes of inactivity
@@ -301,67 +262,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Start the inactivity timer
   setupActivityListeners();
   resetInactivityTimer();
-
-  // Numpad logic
-  (function() {
-    const numpad = document.getElementById('numpad');
-    const input = document.getElementById('player_id');
-    const okBtn = document.getElementById('numpad-ok');
-    const closeBtn = document.getElementById('numpad-close');
-    if (!numpad || !input) return;
-
-    function insertChar(ch) {
-      const start = input.selectionStart || input.value.length;
-      const end = input.selectionEnd || start;
-      input.value = input.value.slice(0, start) + ch + input.value.slice(end);
-      // move cursor after inserted char
-      const pos = start + ch.length;
-      input.setSelectionRange(pos, pos);
-      input.focus();
-    }
-
-    function backspace() {
-      const start = input.selectionStart || input.value.length;
-      const end = input.selectionEnd || start;
-      if (start === end && start > 0) {
-        input.value = input.value.slice(0, start-1) + input.value.slice(end);
-        const pos = start-1;
-        input.setSelectionRange(pos, pos);
-      } else if (start !== end) {
-        input.value = input.value.slice(0, start) + input.value.slice(end);
-        input.setSelectionRange(start, start);
-      }
-      input.focus();
-    }
-
-    function clearInput() {
-      input.value = '';
-      input.focus();
-    }
-
-    document.querySelectorAll('.numpad-key').forEach(btn => {
-      btn.addEventListener('click', function(e) {
-        const k = this.dataset.key;
-        if (!k) return;
-        if (k === 'back') backspace();
-        else if (k === 'clear') clearInput();
-        else insertChar(k);
-      });
-    });
-
-    if (okBtn) okBtn.addEventListener('click', function() {
-      // submit the modal form
-      const form = okBtn.closest('.modal-content').querySelector('form');
-      if (form) form.submit();
-    });
-
-    if (closeBtn) closeBtn.addEventListener('click', function() {
-      // hide numpad and close modal
-      numpad.style.display = 'none';
-      const modal = bootstrap.Modal.getInstance(document.getElementById('sessionModal'));
-      if (modal) modal.hide();
-    });
-  })();
 });
 </script>
 

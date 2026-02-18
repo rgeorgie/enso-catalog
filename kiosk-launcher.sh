@@ -2,6 +2,12 @@
 
 URL="http://localhost:5000/kiosk"
 
+# Attempt to map touchscreen to the active display if helper present
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -x "$SCRIPT_DIR/map-touchscreen.sh" ]; then
+    "$SCRIPT_DIR/map-touchscreen.sh" >/dev/null 2>&1 &
+fi
+
 # Get the default browser
 BROWSER=$(xdg-settings get default-web-browser 2>/dev/null)
 
