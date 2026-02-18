@@ -102,19 +102,29 @@
     // Gallery slideshow
     const imageUrls = {{ image_urls | tojson }};
     let currentImage = 0;
+    let imagesShown = 0;
     const galleryDiv = document.getElementById('gallery-slideshow');
 
     function showNextImage() {
       if (imageUrls.length > 0) {
         galleryDiv.innerHTML = `<img src="${imageUrls[currentImage]}" alt="Gallery Image" onerror="console.error('Failed to load image:', this.src)">`;
+        console.log('Showing image:', currentImage, 'of', imageUrls.length);
+        imagesShown++;
         currentImage = (currentImage + 1) % imageUrls.length;
-        console.log('Showing image:', currentImage - 1, 'of', imageUrls.length);
+        if (imagesShown >= imageUrls.length) {
+          // All images shown, switch to next view after 3s
+          setTimeout(() => {
+            switchView();
+            imagesShown = 0;
+          }, 3000);
+        } else {
+          setTimeout(showNextImage, 3000);
+        }
       }
     }
 
     if (imageUrls.length > 0) {
       showNextImage();
-      setInterval(showNextImage, 5000); // Change image every 5 seconds
     } else {
       console.log('No images available for slideshow');
     }
