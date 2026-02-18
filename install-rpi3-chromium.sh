@@ -91,7 +91,6 @@ echo "Optimizing for RPi 3..."
 echo "vm.swappiness=10" >> /etc/sysctl.conf
 # Disable unnecessary services
 systemctl disable bluetooth.service
-systemctl disable hciuart.service
 
 echo ""
 echo "Installation complete!"
