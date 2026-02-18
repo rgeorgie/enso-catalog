@@ -67,8 +67,8 @@ systemctl daemon-reload
 # Enable services
 echo "Enabling catalog service..."
 systemctl enable enso-catalog.service
-# Note: Kiosk service is disabled by default; enable manually if needed
-# systemctl enable enso-kiosk.service
+echo "Enabling kiosk service..."
+systemctl enable enso-kiosk.service
 
 echo ""
 echo "Setup complete!"
@@ -78,11 +78,10 @@ echo "Running as user: $PROJECT_USER"
 echo ""
 echo "To start the services manually:"
 echo "  sudo systemctl start enso-catalog"
-echo "  sudo systemctl start enso-kiosk  # (if needed)"
+echo "  sudo systemctl start enso-kiosk"
 echo ""
 echo "To check status:"
 echo "  sudo systemctl status enso-catalog"
 echo "  sudo systemctl status enso-kiosk"
 echo ""
-echo "The Flask service will start automatically on boot."
-echo "Kiosk mode is handled by LightDM autologin."
+echo "Both the Flask service and kiosk will start automatically on boot."
