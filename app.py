@@ -102,7 +102,16 @@ def start_card_reader():
         try:
             devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
             for dev in devices:
-                if 'reader' in dev.name.lower() or 'ic' in dev.name.lower():
+                name = dev.name.lower()
+                # Match likely card reader device names. Avoid matching short 'ic' inside words like 'silicon'.
+                if (
+                    'reader' in name
+                    or re.search(r"\bic\b", name)
+                    or 'rfid' in name
+                    or 'mifare' in name
+                    or 'magstripe' in name
+                    or 'contact' in name
+                ):
                     card_reader_device = dev.path
                     print(f"Found potential card reader: {dev.path}: {dev.name}")
                     break
