@@ -101,6 +101,7 @@
 
     // Gallery slideshow
     const imageUrls = {{ image_urls | tojson }};
+    console.log('imageUrls:', imageUrls);
     let currentImage = 0;
     let imagesShown = 0;
     const galleryDiv = document.getElementById('gallery-slideshow');

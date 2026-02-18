@@ -6,6 +6,13 @@ if pgrep -f "chromium.*kiosk" > /dev/null; then
     exit 0
 fi
 
+# Wait for the Flask app to be ready
+echo "Waiting for Flask app to be ready..."
+while ! curl -s http://localhost:5000/ > /dev/null; do
+    sleep 1
+done
+echo "Flask app is ready."
+
 URL="http://localhost:5000/kiosk"
 
 # Flags to reduce keyring/gnome prompts and disable auto-updates/extensions
