@@ -1,5 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Enso Karate Catalog Kiosk
-Exec=@INSTALL_DIR@/kiosk-launcher.sh
-NoDisplay=true
