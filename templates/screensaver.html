@@ -32,7 +32,15 @@
   </style>
 </head>
 <body>
-  <img src="{{ app_logo }}" alt="Enso Karate Logo" class="logo">
+  {% if screensaver_images and screensaver_images|length > 0 %}
+    <div id="ss-container" style="position:absolute;inset:0;overflow:hidden">
+      {% for img in screensaver_images %}
+        <img src="{{ img }}" class="ss-img" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1s"> 
+      {% endfor %}
+    </div>
+  {% else %}
+    <img src="{{ app_logo }}" alt="Enso Karate Logo" class="logo">
+  {% endif %}
   <script>
     // Redirect to kiosk on any activity
     document.addEventListener('click', function() {
@@ -57,6 +65,19 @@
         })
         .catch(error => console.error('Polling error:', error));
     }, 500);  // Poll every 500ms
+
+    // If screensaver images present, cycle through them
+    (function() {
+      const imgs = document.querySelectorAll('.ss-img');
+      if (!imgs || imgs.length === 0) return;
+      let idx = 0;
+      imgs[idx].style.opacity = 1;
+      setInterval(() => {
+        imgs[idx].style.opacity = 0;
+        idx = (idx + 1) % imgs.length;
+        imgs[idx].style.opacity = 1;
+      }, 5000);
+    })();
   </script>
 </body>
 </html>
