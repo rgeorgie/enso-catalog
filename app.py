@@ -5722,7 +5722,7 @@ def fees_period_report():
         # Monthly fees - get all payments in date range
         monthly_payments = PaymentRecord.query.filter(
             ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
-            PaymentRecord.kind == 'training_month'
+            PaymentRecord.kind.in_(['training_month', 'bulk'])
         ).all()
 
         monthly_income = sum(p.amount or 0 for p in monthly_payments)
