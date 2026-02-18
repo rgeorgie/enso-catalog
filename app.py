@@ -5280,7 +5280,7 @@ def auto_migrate_on_startup():
             conn.execute(text("ALTER TABLE payment_record ADD COLUMN related_receipt_id INTEGER"))
         if "paid_at" not in existing2:
             conn.execute(text("ALTER TABLE payment_record ADD COLUMN paid_at DATE DEFAULT CURRENT_DATE"))
-            conn.execute(text("UPDATE payment_record SET paid_at = CURRENT_DATE WHERE paid_at IS NULL"))
+        conn.execute(text("UPDATE payment_record SET paid_at = CURRENT_DATE WHERE paid_at IS NULL"))
 
         # Add player_pn columns to related tables to support PN-based relations
         for tbl in ("training_session", "payment", "event_registration", "payment_record"):
@@ -5722,9 +5722,7 @@ def fees_period_report():
         # Monthly fees - get all payments in date range
         monthly_payments = PaymentRecord.query.filter(
             ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
-            PaymentRecord.kind == 'training_month',
-            PaymentRecord.paid_at >= start_date,
-            PaymentRecord.paid_at <= end_date
+            PaymentRecord.kind == 'training_month'
         ).all()
 
         monthly_income = sum(p.amount or 0 for p in monthly_payments)
@@ -5745,9 +5743,7 @@ def fees_period_report():
         # Session fees - per session payments
         session_payments = PaymentRecord.query.filter(
             ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
-            PaymentRecord.kind == 'training_session',
-            PaymentRecord.paid_at >= start_date,
-            PaymentRecord.paid_at <= end_date
+            PaymentRecord.kind == 'training_session'
         ).all()
 
         session_income = sum(p.amount or 0 for p in session_payments)
@@ -5770,9 +5766,7 @@ def fees_period_report():
         # Event fees - event payments
         event_payments = PaymentRecord.query.filter(
             ((PaymentRecord.player_pn == player.pn) | ((PaymentRecord.player_pn == None) & (PaymentRecord.player_id == player.id))),
-            PaymentRecord.kind == 'event',
-            PaymentRecord.paid_at >= start_date,
-            PaymentRecord.paid_at <= end_date
+            PaymentRecord.kind == 'event'
         ).all()
 
         event_income = sum(p.amount or 0 for p in event_payments)
