@@ -148,7 +148,7 @@
                 <td>{{ player_data.player.first_name }} {{ player_data.player.last_name }}</td>
                 <td class="text-end">{{ "%.2f"|format(player_data.event_income) }}</td>
                 <td class="text-end">{{ "%.2f"|format(player_data.event_due) }}</td>
-                <td class="text-end">{{ "%.2f"|format(-(player_data.event_income + player_data.event_due)) }}</td>
+                <td class="text-end">{{ "%.2f"|format(player_data.event_income - player_data.event_due) }}</td>
               </tr>
               {% endif %}
             {% endfor %}
@@ -158,7 +158,7 @@
               <td>{{ _('Totals') }}</td>
               <td class="text-end">{{ "%.2f"|format(report_data.event_fees.total_income) }}</td>
               <td class="text-end">{{ "%.2f"|format(report_data.event_fees.total_due) }}</td>
-              <td class="text-end">{{ "%.2f"|format(-(report_data.event_fees.total_income + report_data.event_fees.total_due)) }}</td>
+              <td class="text-end">{{ "%.2f"|format(report_data.event_fees.total_income - report_data.event_fees.total_due) }}</td>
             </tr>
           </tfoot>
         </table>
