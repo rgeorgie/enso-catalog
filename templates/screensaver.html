@@ -5,17 +5,33 @@
   <title>Screensaver</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+
   <style>
     html, body {
-      background: black;
+      background: white;
       height: 100vh;
       margin: 0;
       padding: 0;
       font-family: Arial, sans-serif;
-      color: white;
+      color: #333;
       overflow: hidden;
       position: relative;
     }
+
+    /* Logo */
+    .logo-container {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      z-index: 10;
+    }
+
+    .logo-container img {
+      height: 80px;
+      width: auto;
+    }
+
+    /* Views */
     .view {
       display: none;
       height: 100vh;
@@ -27,43 +43,80 @@
     .view.active {
       display: block;
     }
+
+    /* Gallery */
     .gallery {
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
       width: 100vw;
-      background: black;
+      background: white;
+      hidden;
+      padding: 0;
+      margin: 0;
     }
+
+    #gallery-slideshow {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
     .gallery img {
-      max-width: 90vw;
-      max-height: 90vh;
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
       object-fit: contain;
+      border-radius: 4px;
     }
+
+    /* Calendar View */
     .calendar {
       padding: 20px;
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: flex-start;
       align-items: center;
+      height: 100vh;
+      width: 100vw;
+      background: white;
+      box-sizing: border-box;
+      overflow-y: auto;
     }
+
     .calendar h2 {
-      margin-bottom: 20px;
+      margin: 20px 0 10px;
+      color: #333;
     }
+
     .event-item {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 10px;
-      margin: 10px 0;
+      background: rgba(0, 0, 0, 0.05);
+      padding: 12px;
+      margin: 8px 0;
       border-radius: 5px;
       width: 80%;
       max-width: 600px;
+      color: #333;
     }
   </style>
 </head>
+
 <body>
+
+  <!-- Logo -->
+  <div class="logo-container">
+    <img src="{{ app_logo }}" alt="Logo">
+  </div>
+
   <!-- Gallery View -->
   <div id="gallery" class="view active">
-    <div id="gallery-slideshow"></div>
+    <div class="gallery">
+      <div id="gallery-slideshow"></div>
+    </div>
   </div>
 
   <!-- Calendar View -->
@@ -73,105 +126,109 @@
       {% for event in future_events %}
         <div class="event-item">
           <strong>{{ event.title }}</strong><br>
-          {{ event.start_date }} - {{ event.location or 'TBD' }}
+          {{ event.start_date }} – {{ event.location or 'TBD' }}
         </div>
       {% endfor %}
+
       <h2>Recent Events</h2>
       {% for event in past_events %}
         <div class="event-item">
           <strong>{{ event.title }}</strong><br>
-          {{ event.start_date }} - {{ event.location or 'TBD' }}
+          {{ event.start_date }} – {{ event.location or 'TBD' }}
         </div>
       {% endfor %}
     </div>
   </div>
 
-  <script>
-    const views = ['gallery', 'calendar'];
-    let currentView = 0;
-    const viewDuration = 10000; // 10 seconds per view
+<script>
+  const views = ['gallery', 'calendar'];
+  let currentView = 0;
+  const viewDuration = 10000; // 10s
 
-    function switchView() {
-      stopSlideshow();
-      document.getElementById(views[currentView]).classList.remove('active');
-      currentView = (currentView + 1) % views.length;
-      document.getElementById(views[currentView]).classList.add('active');
-      if (views[currentView] === 'gallery') {
-        startSlideshow();
-      } else {
-        // For calendar, set timeout to switch back
-        setTimeout(switchView, viewDuration);
-      }
-    }
+  function switchView() {
+    stopSlideshow();
+    document.getElementById(views[currentView]).classList.remove('active');
+    currentView = (currentView + 1) % views.length;
+    document.getElementById(views[currentView]).classList.add('active');
 
-    // Gallery slideshow
-    const imageUrls = {{ image_urls | tojson }};
-    console.log('imageUrls:', imageUrls);
-    let currentImage = 0;
-    let imagesShown = 0;
-    let slideshowTimeout = null;
-    const galleryDiv = document.getElementById('gallery-slideshow');
-
-    function showNextImage() {
-      if (imageUrls.length > 0) {
-        galleryDiv.innerHTML = `<img src="${imageUrls[currentImage]}" alt="Gallery Image" onerror="console.error('Failed to load image:', this.src)">`;
-        console.log('Showing image:', currentImage, 'of', imageUrls.length);
-        imagesShown++;
-        currentImage = (currentImage + 1) % imageUrls.length;
-        if (imagesShown >= imageUrls.length) {
-          // All images shown, switch to next view after 3s
-          slideshowTimeout = setTimeout(() => {
-            switchView();
-            imagesShown = 0;
-          }, 3000);
-        } else {
-          slideshowTimeout = setTimeout(showNextImage, 3000);
-        }
-      }
-    }
-
-    function startSlideshow() {
-      if (imageUrls.length > 0 && !slideshowTimeout) {
-        showNextImage();
-      }
-    }
-
-    function stopSlideshow() {
-      if (slideshowTimeout) {
-        clearTimeout(slideshowTimeout);
-        slideshowTimeout = null;
-      }
-    }
-
-    if (imageUrls.length > 0) {
+    if (views[currentView] === 'gallery') {
       startSlideshow();
     } else {
-      console.log('No images available for slideshow');
+      setTimeout(switchView, viewDuration);
     }
+  }
 
-    // Redirect to kiosk on any activity
-    document.addEventListener('click', function() {
-      window.location.href = '/kiosk';
-    });
-    document.addEventListener('touchstart', function() {
-      window.location.href = '/kiosk';
-    });
-    document.addEventListener('keydown', function() {
-      window.location.href = '/kiosk';
-    });
+  /* Slideshow Logic */
+  const imageUrls = {{ image_urls | tojson }};
+  let currentImage = 0;
+  let imagesShown = 0;
+  let slideshowTimeout = null;
+  const galleryDiv = document.getElementById('gallery-slideshow');
 
-    // Poll for card scans to exit screensaver
-    const pollInterval = setInterval(function() {
-      fetch('/card_status')
-        .then(response => response.json())
-        .then(data => {
-          if (data.card_id) {
-            clearInterval(pollInterval);
-            window.location.href = '/kiosk';
-          }
-        })
-        .catch(error => console.error('Polling error:', error));
-    }, 500);  // Poll every 500ms
-  </script>
+  function showNextImage() {
+    if (imageUrls.length > 0) {
+      galleryDiv.innerHTML =
+        `<img src="${imageUrls[currentImage]}" alt="Gallery Image"
+              onerror="console.error('Failed to load image:', this.src)">`;
+
+      imagesShown++;
+      currentImage = (currentImage + 1) % imageUrls.length;
+
+      if (imagesShown >= imageUrls.length) {
+        slideshowTimeout = setTimeout(() => {
+          imagesShown = 0;
+          switchView();
+        }, 3000);
+      } else {
+        slideshowTimeout = setTimeout(showNextImage, 3000);
+      }
+    } else {
+      slideshowTimeout = setTimeout(switchView, 1000);
+    }
+  }
+
+  function startSlideshow() {
+    if (!slideshowTimeout) {
+      imagesShown = 0;
+      currentImage = 0;
+      showNextImage();
+    }
+  }
+
+  function stopSlideshow() {
+    if (slideshowTimeout) {
+      clearTimeout(slideshowTimeout);
+      slideshowTimeout = null;
+    }
+  }
+
+  if (imageUrls.length > 0) {
+    startSlideshow();
+  } else {
+    document.getElementById('gallery').classList.remove('active');
+    document.getElementById('calendar').classList.add('active');
+    currentView = 1;
+    setTimeout(switchView, viewDuration);
+  }
+
+  /* Exit on Interaction */
+  document.addEventListener('click', () => window.location.href = '/kiosk');
+  document.addEventListener('touchstart', () => window.location.href = '/kiosk');
+  document.addEventListener('keydown', () => window.location.href = '/kiosk');
+
+  /* Poll Card Reader */
+  const pollInterval = setInterval(function() {
+    fetch('/card_status')
+      .then(r => r.json())
+      .then(data => {
+        if (data.card_id) {
+          clearInterval(pollInterval);
+          window.location.href = '/kiosk';
+        }
+      })
+      .catch(err => console.error('Polling error:', err));
+  }, 500);
+</script>
+
 </body>
 </html>

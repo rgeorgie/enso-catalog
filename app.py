@@ -2517,7 +2517,7 @@ def screensaver():
     """Screensaver mode: Gallery slideshow, calendar, and events."""
     # Get gallery images
     images = Gallery.query.order_by(Gallery.uploaded_at.desc()).all()
-    image_urls = [url_for('static', filename='img/enso-logo.webp')] + [url_for('uploaded_file', filename=img.filename) for img in images]
+    image_urls = [url_for('uploaded_file', filename=img.filename) for img in images]
 
     # Get upcoming events (next 30 days)
     today = date.today()
